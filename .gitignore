@@ -1,3 +1,6 @@
-_site/
-.sass-cache/
-.jekyll-metadata
+build/
+.dart_tool/
+.packages
+pubspec.lock
+flutter_*.png
+**/generated_plugin_registrant.dart
