@@ -119,6 +119,7 @@ Antes de compilar para Android ejecuta `scripts/patch_photo_manager_gradle.sh` p
 Antes de compilar para Android ejecuta `scripts/patch_qr_code_scanner_gradle.sh` para añadir el namespace faltante en `qr_code_scanner`.
 Antes de compilar para Android ejecuta `scripts/patch_whatsapp_share_gradle.sh` para añadir el namespace en `whatsapp_share`.
 Antes de compilar para Android ejecuta `scripts/patch_app_ndk.sh` para fijar la versión del NDK a `27.0.12077973`.
+Antes de compilar para Android ejecuta `scripts/patch_kotlin_jvm.sh` para unificar el `jvmTarget` en 17.
 ## Archivos binarios
 Algunos iconos PNG y animaciones Lottie no se incluyen en este repositorio por limitaciones de Codex. Debes copiarlos manualmente antes de compilar manteniendo la misma estructura de carpetas:
 
