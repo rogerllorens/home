@@ -117,6 +117,8 @@ para corregir un problema con el plugin `flutter_tesseract_ocr` que requiere un
 
 Antes de compilar para Android ejecuta `scripts/patch_photo_manager_gradle.sh` para solucionar un error de compatibilidad con `photo_manager`.
 Antes de compilar para Android ejecuta `scripts/patch_qr_code_scanner_gradle.sh` para añadir el namespace faltante en `qr_code_scanner`.
+Antes de compilar para Android ejecuta `scripts/patch_whatsapp_share_gradle.sh` para añadir el namespace en `whatsapp_share`.
+Antes de compilar para Android ejecuta `scripts/patch_app_ndk.sh` para fijar la versión del NDK a `27.0.12077973`.
 ## Archivos binarios
 Algunos iconos PNG y animaciones Lottie no se incluyen en este repositorio por limitaciones de Codex. Debes copiarlos manualmente antes de compilar manteniendo la misma estructura de carpetas:
 
