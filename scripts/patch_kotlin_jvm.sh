@@ -1,7 +1,11 @@
 #!/bin/bash
 set -e
 # Set Kotlin jvmTarget to 17 across gradle scripts
-find "$HOME/.pub-cache" -path '*/android/build.gradle' -o -path '*/android/build.gradle.kts' | while read -r file; do
+PUB_CACHE_DIR="${PUB_CACHE:-$HOME/.pub-cache}"
+if [ -d "$LOCALAPPDATA/Pub/Cache" ]; then
+  PUB_CACHE_DIR="$LOCALAPPDATA/Pub/Cache"
+fi
+find "$PUB_CACHE_DIR" -path '*/android/build.gradle' -o -path '*/android/build.gradle.kts' | while read -r file; do
   if [ -f "$file" ]; then
     if ! grep -q "jvmTarget" "$file"; then
       if grep -n "kotlinOptions" "$file" >/dev/null; then
