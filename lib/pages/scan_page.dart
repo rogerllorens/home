@@ -10,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:social_sharing_plus/social_sharing_plus.dart';
 import 'package:showcaseview/showcaseview.dart';
-import 'package:contacts_service/contacts_service.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
 import 'package:icalendar_parser/icalendar_parser.dart';
 import '../sb_cache.dart';
@@ -67,10 +67,15 @@ class _ScanPageState extends State<ScanPage>
     final nameMatch = RegExp(r'N:([^;]*);([^;]*)').firstMatch(vcard);
     final given = nameMatch?.group(2) ?? '';
     final family = nameMatch?.group(1) ?? '';
-    final telMatch = RegExp(r'TEL[^:]*:([^\n\r]+)').firstMatch(vcard);
+    final telMatch = RegExp(r"TEL[^:]*:([^\n\r]+)").firstMatch(vcard);
     final phone = telMatch?.group(1) ?? '';
-    final contact = Contact(givenName: given, familyName: family, phones: [Item(label: 'mobile', value: phone)]);
-    await ContactsService.addContact(contact);
+    if (await FlutterContacts.requestPermission()) {
+      final contact = Contact()
+        ..name.first = given
+        ..name.last = family
+        ..phones = [Phone(phone)];
+      await FlutterContacts.insertContact(contact);
+    }
   }
 
   Future<void> _saveEvent(String ics) async {
