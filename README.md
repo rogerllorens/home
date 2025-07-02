@@ -115,8 +115,10 @@ Antes de compilar para Android ejecuta `scripts/patch_flutter_tesseract_gradle.s
 para corregir un problema con el plugin `flutter_tesseract_ocr` que requiere un
 `namespace` en su `build.gradle`.
 
+Antes de compilar para Android ejecuta `scripts/patch_photo_manager_gradle.sh` para solucionar un error de compatibilidad con `photo_manager`.
 ## Archivos binarios
 Algunos iconos PNG y animaciones Lottie no se incluyen en este repositorio por limitaciones de Codex. Debes copiarlos manualmente antes de compilar manteniendo la misma estructura de carpetas:
+
 - assets/app_icon.png
 - assets/logo.png
 - assets/logo_dark.png
