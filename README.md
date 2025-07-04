@@ -121,6 +121,8 @@ Antes de compilar para Android ejecuta `scripts/patch_whatsapp_share_gradle.sh` 
 Antes de compilar para Android ejecuta `scripts/patch_app_ndk.sh` para fijar la versión del NDK a `27.0.12077973`. El script reemplaza cualquier valor previo en tu `build.gradle`.
 Antes de compilar para Android ejecuta `scripts/patch_kotlin_jvm.sh` para unificar el `jvmTarget` y las opciones de Java en 17 incluso si los plugins ya definen otro valor.
 En Windows define la variable de entorno `PUB_CACHE` apuntando a tu carpeta `Pub\\Cache` antes de ejecutar el script para que pueda localizar los plugins instalados.
+Todos estos scripts están escritos en **bash**, por lo que en Windows deben ejecutarse
+desde Git Bash o WSL usando `bash scripts/nombre_del_script.sh` en lugar de `sh`.
 ## Archivos binarios
 Algunos iconos PNG y animaciones Lottie no se incluyen en este repositorio por limitaciones de Codex. Debes copiarlos manualmente antes de compilar manteniendo la misma estructura de carpetas:
 
