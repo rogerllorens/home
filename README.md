@@ -111,6 +111,9 @@ sólo los idiomas más usados para reducir espacio y permite deshabilitar
 animaciones opcionales o lotties si se requiere añadiendo la flag correspondiente
 en `pubspec.yaml`.
 
+Si tu repositorio no incluye las carpetas de plataformas, ejecuta una vez
+`flutter create .` para generar `android/` e `ios/` antes de compilar.
+
 Antes de compilar para Android ejecuta `scripts/patch_flutter_tesseract_gradle.sh`
 para corregir un problema con el plugin `flutter_tesseract_ocr` que requiere un
 `namespace` en su `build.gradle`.
