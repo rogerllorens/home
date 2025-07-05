@@ -1,0 +1,20 @@
+android {
+    defaultConfig {
+        multiDexEnabled true
+    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    packagingOptions {
+        pickFirst '**/libhermes.so'
+    }
+}
+
+project.ext.react = [
+    enableHermes: true,
+]
+apply from: '../../node_modules/react-native/react.gradle'
