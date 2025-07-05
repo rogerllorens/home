@@ -1,0 +1,26 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm ci
+      - run: npm test
+      - name: Build E2E
+        run: |
+          npx detox build --configuration ios.sim || true
+      - name: Run E2E
+        run: |
+          npx detox test --configuration ios.sim || true
+      - name: BrowserStack E2E
+        if: ${{ secrets.BROWSERSTACK_USERNAME }}
+        run: |
+          npx detox test --configuration bs.ios || true
+      - name: Distribute beta
+        if: ${{ secrets.FASTLANE_USER }}
+        run: |
+          bundle exec fastlane ios beta

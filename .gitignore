@@ -1,3 +1,9 @@
-_site/
-.sass-cache/
-.jekyll-metadata
+# React Native
+node_modules/
+.expo/
+.DS_Store
+.env
+
+# Misc
+*.log
+

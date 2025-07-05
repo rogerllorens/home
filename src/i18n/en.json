@@ -1,0 +1,21 @@
+{
+  "onboarding_scan": "Scan codes with on-screen guide.",
+  "onboarding_generate": "Generate custom QRs and save history.",
+  "onboarding_voice": "Navigate with gestures and voice.",
+  "onboarding_done": "How was it? Rate your experience.",
+  "onboarding_tip_scan": "Swipe to change camera",
+  "onboarding_tip_generate": "Try logos and colors",
+  "onboarding_tip_voice": "Say 'Scan' to start",
+  "next": "Next",
+  "start": "Start",
+  "toggle_flash": "Toggle flash",
+  "switch_camera": "Switch camera",
+  "open_gallery": "Open gallery",
+  "toggle_batch": "Toggle batch mode",
+  "getting_location": "Getting location...",
+  "location_fail": "Location unavailable",
+  "retry": "Retry",
+  "enter_manually": "Enter manually"
+  ,"getting_camera": "Initializing camera..."
+  ,"camera_unavailable": "Camera unavailable, reload app"
+}

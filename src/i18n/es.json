@@ -1,0 +1,21 @@
+{
+  "onboarding_scan": "Escanea códigos con guía visual en pantalla.",
+  "onboarding_generate": "Genera QRs personalizados y guarda tu historial.",
+  "onboarding_voice": "Navega con gestos y voz para mayor velocidad.",
+  "onboarding_done": "¿Qué te pareció? Valora la experiencia.",
+  "onboarding_tip_scan": "Desliza para cambiar cámara",
+  "onboarding_tip_generate": "Prueba logos y colores",
+  "onboarding_tip_voice": "Di \"Escanear\" para empezar",
+  "next": "Siguiente",
+  "start": "Empezar",
+  "toggle_flash": "Activar flash",
+  "switch_camera": "Cambiar cámara",
+  "open_gallery": "Abrir galería",
+  "toggle_batch": "Modo batch",
+  "getting_location": "Obteniendo ubicación...",
+  "location_fail": "Ubicación no disponible",
+  "retry": "Reintentar",
+  "enter_manually": "Ingresar manualmente"
+  ,"getting_camera": "Iniciando cámara..."
+  ,"camera_unavailable": "Cámara no disponible, reinicia la app"
+}
