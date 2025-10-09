@@ -23,12 +23,29 @@ export type SignalMessage = {
 
 export type SignalListener = (message: SignalMessage) => void;
 
+interface SignalIdentity {
+  sessionId?: string;
+  userId?: string;
+  scope?: string;
+}
+
+interface SignalClientOptions {
+  token?: string;
+  identity?: SignalIdentity;
+}
+
 export class SignalClient {
   private socket: WebSocket | null = null;
   private listeners = new Set<SignalListener>();
   private heartbeatTimer?: ReturnType<typeof setInterval>;
 
-  constructor(private readonly url: string, private readonly token?: string) {}
+  private identity?: SignalIdentity;
+  private token?: string;
+
+  constructor(private readonly url: string, options: SignalClientOptions = {}) {
+    this.token = options.token;
+    this.identity = options.identity;
+  }
 
   connect() {
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
@@ -41,7 +58,7 @@ export class SignalClient {
 
     this.socket.onopen = () => {
       useSignalState.getState().setStatus('connected');
-      this.send({ type: 'HELLO', payload: { clientVersion: 'web-1.0.0', intents: ['MATCH', 'CHAT', 'GIFT'] } });
+      this.sendHello();
       this.startHeartbeat();
     };
 
@@ -80,6 +97,24 @@ export class SignalClient {
     this.socket.send(JSON.stringify(message));
   }
 
+  updateIdentity(identity: SignalIdentity) {
+    this.identity = identity;
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.sendHello();
+    }
+  }
+
+  private sendHello() {
+    const payload = {
+      clientVersion: 'web-1.0.0',
+      intents: ['MATCH', 'CHAT', 'GIFT'],
+      sessionId: this.identity?.sessionId,
+      userId: this.identity?.userId,
+      scope: this.identity?.scope
+    };
+    this.send({ type: 'HELLO', payload });
+  }
+
   addListener(listener: SignalListener) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -100,7 +135,7 @@ export class SignalClient {
   }
 }
 
-export function createSignalClient(token?: string) {
+export function createSignalClient(options: SignalClientOptions = {}) {
   const url = process.env.NEXT_PUBLIC_SIGNAL_URL ?? 'wss://signal.tuweb.com';
-  return new SignalClient(url, token);
+  return new SignalClient(url, options);
 }

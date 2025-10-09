@@ -36,6 +36,8 @@
     "searching": "Searching for a partner…",
     "connecting": "Connecting…",
     "error": "TURN/RTC error. Retry",
+    "waitingUser": "Waiting for a partner…",
+    "waiting": "Your match will appear here",
     "next": "Next",
     "gifts": "Gift",
     "chat": "Chat",

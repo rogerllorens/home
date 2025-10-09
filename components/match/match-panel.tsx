@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { MATCH_PREFERENCES, formatTokens, formatFiat, TOKEN_PACKS, CREDIT_RATE_NOTE } from '@/lib/utils';
 import { useSession } from '@/components/session-provider';
@@ -17,37 +17,62 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/lib/auth';
+import { createSignalClient, useSignalState, type SignalMessage } from '@/lib/ws';
+import { getMediaConstraints } from '@/lib/rtc';
 
-const mockUsers = [
-  {
-    id: 'luna',
-    username: 'Luna',
-    tags: ['soft', 'sfw'],
-    status: 'Listo para charlar'
-  },
-  {
-    id: 'zen',
-    username: 'Zenith',
-    tags: ['nsfw', 'roles'],
-    status: 'En sala privada'
-  },
-  {
-    id: 'nova',
-    username: 'Nova',
-    tags: ['juguetes', 'soft'],
-    status: 'Buscando...'
-  }
+export type MatchStatus = 'idle' | 'searching' | 'connecting' | 'connected' | 'error';
+
+interface RemotePeer {
+  sessionId: string;
+  username: string;
+}
+
+interface MatchFoundPayload {
+  roomId: string;
+  peer: { sessionId?: string; username?: string };
+  iceServers?: RTCIceServer[];
+}
+
+const FALLBACK_ICE: RTCIceServer[] = [
+  { urls: 'stun:stun.l.google.com:19302' }
 ];
 
-type MatchStatus = 'idle' | 'searching' | 'connecting' | 'connected' | 'error';
+function randomRoomId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `room-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+if (typeof process !== 'undefined') {
+  const turnUrl = process.env.NEXT_PUBLIC_TURN_URL;
+  if (turnUrl) {
+    FALLBACK_ICE.push({
+      urls: [turnUrl],
+      username: process.env.NEXT_PUBLIC_TURN_USER,
+      credential: process.env.NEXT_PUBLIC_TURN_PASS
+    });
+  }
+}
 
 export function MatchPanel() {
   const t = useTranslations('match');
   const session = useSession();
   const router = useRouter();
+  const signalStatus = useSignalState((state) => state.status);
+  const authIdentity = useAuthStore(
+    useCallback(
+      (state) => ({
+        sessionId: state.sessionId,
+        scope: state.scope,
+        username: state.username
+      }),
+      []
+    )
+  );
   const [selectedPrefs, setSelectedPrefs] = useState<string[]>(session.preferences);
   const [status, setStatus] = useState<MatchStatus>('idle');
-  const [remoteIndex, setRemoteIndex] = useState(0);
   const [showSearching, setShowSearching] = useState(false);
   const { toggleGiftDrawer, giftBurst, giftBurstTokens, giftBurstName, resetGiftBurst, registerGiftEvent } =
     useUiStore();
@@ -57,11 +82,18 @@ export function MatchPanel() {
   const [tipAmount, setTipAmount] = useState(100);
   const [tipLoading, setTipLoading] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
-  const [lastMatch, setLastMatch] = useState<(typeof mockUsers)[number] | null>(null);
+  const [lastMatch, setLastMatch] = useState<RemotePeer | null>(null);
   const [lastCallDuration, setLastCallDuration] = useState(0);
   const callStartRef = useRef<number | null>(null);
 
-  const remoteUser = useMemo(() => mockUsers[remoteIndex % mockUsers.length], [remoteIndex]);
+  const signalRef = useRef<ReturnType<typeof createSignalClient> | null>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [remotePeer, setRemotePeer] = useState<RemotePeer | null>(null);
+  const currentRoomRef = useRef<string | null>(null);
+
   const quickPacks = useMemo(() => TOKEN_PACKS.slice(0, 3), []);
   const euroBalance = formatFiat(session.tokenBalance, session.preferredCurrency);
   const tokensLeftToday = Math.max(session.spendingLimits.daily - session.spendingUsage.today, 0);
@@ -69,6 +101,10 @@ export function MatchPanel() {
   const euroTip = formatFiat(tipAmount, session.preferredCurrency);
   const isNextDisabled = cooldown > 0 || status === 'searching' || status === 'connecting';
   const nextTimer = status === 'searching' || status === 'connecting' ? Math.max(cooldown, 1) : cooldown;
+  const remoteUserDisplay = useMemo(
+    () => remotePeer?.username ?? t('waitingUser', { defaultValue: 'Buscando usuario…' }),
+    [remotePeer, t]
+  );
 
   useEffect(() => {
     session.setPreferences(selectedPrefs);
@@ -77,14 +113,6 @@ export function MatchPanel() {
   useEffect(() => {
     if (status === 'searching') {
       setShowSearching(true);
-      const timer = setTimeout(() => {
-        setStatus('connecting');
-        setTimeout(() => {
-          setStatus('connected');
-          setShowSearching(false);
-        }, 900);
-      }, 800);
-      return () => clearTimeout(timer);
     }
     if (status === 'idle') {
       setShowSearching(false);
@@ -94,9 +122,9 @@ export function MatchPanel() {
   useEffect(() => {
     if (status !== 'connected') return;
     setRemoteBlurred(true);
-    const timer = setTimeout(() => setRemoteBlurred(false), 2500);
-    return () => clearTimeout(timer);
-  }, [status, remoteIndex]);
+    const timer = window.setTimeout(() => setRemoteBlurred(false), 2500);
+    return () => window.clearTimeout(timer);
+  }, [status, remotePeer]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -111,17 +139,263 @@ export function MatchPanel() {
       callStartRef.current = Date.now();
       setCooldown(0);
       setShowUpsell(false);
-    }
-    if (status === 'idle') {
+    } else if (status === 'idle') {
       callStartRef.current = null;
     }
   }, [status]);
 
   useEffect(() => {
     if (giftBurst === 0) return;
-    const timer = setTimeout(() => resetGiftBurst(), 2500);
-    return () => clearTimeout(timer);
+    const timer = window.setTimeout(() => resetGiftBurst(), 2500);
+    return () => window.clearTimeout(timer);
   }, [giftBurst, resetGiftBurst]);
+
+  const determineInitiator = useCallback(
+    (peerSessionId?: string) => {
+      const myId = authIdentity.sessionId ?? session.alias;
+      if (!peerSessionId) return true;
+      if (!myId) return false;
+      return myId.localeCompare(peerSessionId) <= 0;
+    },
+    [authIdentity.sessionId, session.alias]
+  );
+
+  const resetPeerConnection = useCallback(() => {
+    const pc = peerConnectionRef.current;
+    if (pc) {
+      pc.onicecandidate = null;
+      pc.ontrack = null;
+      pc.onconnectionstatechange = null;
+      pc.close();
+      peerConnectionRef.current = null;
+    }
+    setRemoteStream(null);
+    currentRoomRef.current = null;
+  }, []);
+
+  const ensureLocalMedia = useCallback(async () => {
+    if (typeof window === 'undefined') return null;
+    if (localStreamRef.current) {
+      return localStreamRef.current;
+    }
+    try {
+      const constraints = getMediaConstraints(selectedPrefs);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: constraints.audio,
+        video: constraints.video
+      });
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+      return stream;
+    } catch (error) {
+      console.error('match: media error', error);
+      toast.error('No pudimos acceder a tu cámara o micrófono.');
+      setStatus('error');
+      return null;
+    }
+  }, [selectedPrefs]);
+
+  const startPeerConnection = useCallback(
+    async (payload: MatchFoundPayload) => {
+      if (typeof window === 'undefined') return;
+      const stream = await ensureLocalMedia();
+      if (!stream) {
+        return;
+      }
+      const peerSessionId = payload.peer.sessionId ?? '';
+      const iceServers = payload.iceServers && payload.iceServers.length > 0 ? payload.iceServers : FALLBACK_ICE;
+      const pc = new RTCPeerConnection({ iceServers });
+      peerConnectionRef.current = pc;
+      currentRoomRef.current = payload.roomId;
+
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      pc.ontrack = (event) => {
+        const [remote] = event.streams;
+        if (remote) {
+          setRemoteStream(remote);
+        }
+      };
+
+      pc.onicecandidate = (event) => {
+        if (!event.candidate) return;
+        const to = peerSessionId || remotePeer?.sessionId || '';
+        if (!to) return;
+        signalRef.current?.send({
+          type: 'RTC_SIGNAL',
+          payload: { to, data: { type: 'candidate', candidate: event.candidate } }
+        });
+      };
+
+      pc.onconnectionstatechange = () => {
+        const state = pc.connectionState;
+        if (state === 'connected') {
+          setStatus('connected');
+        } else if (state === 'failed') {
+          toast.error('La conexión se ha caído.');
+          resetPeerConnection();
+          setRemotePeer(null);
+          setStatus('idle');
+        } else if (state === 'disconnected' || state === 'closed') {
+          resetPeerConnection();
+          setRemotePeer(null);
+          setStatus('idle');
+        }
+      };
+
+      setStatus('connecting');
+
+      if (determineInitiator(peerSessionId || remotePeer?.sessionId)) {
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          const to = peerSessionId || remotePeer?.sessionId || '';
+          if (to) {
+            signalRef.current?.send({
+              type: 'RTC_SIGNAL',
+              payload: { to, data: { type: 'offer', sdp: offer.sdp } }
+            });
+          }
+        } catch (error) {
+          console.error('match: offer error', error);
+          toast.error('No se pudo iniciar la videollamada.');
+          setStatus('error');
+        }
+      }
+    },
+    [determineInitiator, ensureLocalMedia, remotePeer, resetPeerConnection]
+  );
+
+  const handleSignalMessage = useCallback(
+    async (message: SignalMessage) => {
+      switch (message.type) {
+        case 'WELCOME': {
+          if (status === 'searching') {
+            signalRef.current?.send({
+              type: 'TICKET_CREATE',
+              payload: { consents: selectedPrefs }
+            });
+          }
+          break;
+        }
+        case 'MATCH_FOUND': {
+          const payload = message.payload as MatchFoundPayload;
+          const username = payload.peer.username ?? 'Invitado';
+          const sessionId = payload.peer.sessionId ?? username;
+          setRemotePeer({ sessionId, username });
+          setShowSearching(false);
+          setCooldown(0);
+          await startPeerConnection(payload);
+          break;
+        }
+        case 'RTC_SIGNAL': {
+          const payload = message.payload as { from?: string; data?: any };
+          if (!payload?.data) return;
+          const pc = peerConnectionRef.current;
+          if (payload.data.type === 'offer') {
+            const stream = await ensureLocalMedia();
+            if (!stream) return;
+            if (!pc) {
+              if (remotePeer) {
+                await startPeerConnection({
+                  roomId: currentRoomRef.current ?? randomRoomId(),
+                  peer: { sessionId: remotePeer.sessionId, username: remotePeer.username },
+                  iceServers: FALLBACK_ICE
+                });
+              } else {
+                return;
+              }
+            }
+            const connection = peerConnectionRef.current;
+            if (!connection) return;
+            await connection.setRemoteDescription(
+              new RTCSessionDescription({ type: 'offer', sdp: payload.data.sdp })
+            );
+            const answer = await connection.createAnswer();
+            await connection.setLocalDescription(answer);
+            const to = payload.from ?? remotePeer?.sessionId ?? '';
+            if (to) {
+              signalRef.current?.send({
+                type: 'RTC_SIGNAL',
+                payload: { to, data: { type: 'answer', sdp: answer.sdp } }
+              });
+            }
+            break;
+          }
+          if (!pc) return;
+          if (payload.data.type === 'answer') {
+            await pc.setRemoteDescription(
+              new RTCSessionDescription({ type: 'answer', sdp: payload.data.sdp })
+            );
+          } else if (payload.data.type === 'candidate') {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(payload.data.candidate));
+            } catch (error) {
+              console.error('match: candidate error', error);
+            }
+          } else if (payload.data.type === 'bye') {
+            if (status === 'connected' && remotePeer) {
+              setLastMatch(remotePeer);
+            }
+            resetPeerConnection();
+            setRemotePeer(null);
+            setRemoteStream(null);
+            setStatus('idle');
+            setShowUpsell(false);
+          }
+          break;
+        }
+        case 'SLOWMODE_ACTIVE': {
+          toast.info('Cooldown activo, espera unos segundos.');
+          break;
+        }
+        default:
+          break;
+      }
+    },
+    [ensureLocalMedia, remotePeer, resetPeerConnection, selectedPrefs, startPeerConnection, status]
+  );
+
+  const ensureSignalClient = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const identity = {
+      sessionId: authIdentity.sessionId ?? session.alias,
+      userId: session.username ?? session.alias,
+      scope: authIdentity.scope
+    };
+    if (!signalRef.current) {
+      const client = createSignalClient({ identity });
+      signalRef.current = client;
+      client.connect();
+      client.addListener(handleSignalMessage);
+    } else {
+      signalRef.current.updateIdentity(identity);
+    }
+  }, [authIdentity.scope, authIdentity.sessionId, handleSignalMessage, session.alias, session.username]);
+
+  useEffect(() => {
+    ensureSignalClient();
+    return () => {
+      signalRef.current?.disconnect();
+      signalRef.current = null;
+      resetPeerConnection();
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    };
+  }, [ensureSignalClient, resetPeerConnection]);
+
+  const requestMatchTicket = useCallback(() => {
+    ensureSignalClient();
+    if (signalStatus !== 'connected') {
+      toast.info('Conectando con la señalización…');
+    }
+    signalRef.current?.send({
+      type: 'TICKET_CREATE',
+      payload: { consents: selectedPrefs }
+    });
+    setShowSearching(true);
+    setStatus('searching');
+  }, [ensureSignalClient, selectedPrefs, signalStatus]);
 
   const togglePref = (id: string) => {
     setSelectedPrefs((prev) =>
@@ -131,8 +405,8 @@ export function MatchPanel() {
 
   const handleNext = () => {
     if (isNextDisabled) return;
-    if (status === 'connected') {
-      setLastMatch(remoteUser);
+    if (status === 'connected' && remotePeer) {
+      setLastMatch(remotePeer);
       if (callStartRef.current) {
         const duration = Math.round((Date.now() - callStartRef.current) / 1000);
         setLastCallDuration(Math.max(duration, 0));
@@ -140,9 +414,17 @@ export function MatchPanel() {
       setShowUpsell(true);
       callStartRef.current = null;
     }
-    setStatus('searching');
+    if (remotePeer?.sessionId) {
+      signalRef.current?.send({
+        type: 'RTC_SIGNAL',
+        payload: { to: remotePeer.sessionId, data: { type: 'bye' } }
+      });
+    }
+    resetPeerConnection();
+    setRemotePeer(null);
+    setRemoteStream(null);
     setCooldown(3);
-    setRemoteIndex((prev) => prev + 1);
+    requestMatchTicket();
   };
 
   const handleReport = () => {
@@ -165,22 +447,26 @@ export function MatchPanel() {
   };
 
   const handleDirectTip = () => {
+    if (!remotePeer) {
+      toast.error('Necesitamos un match activo para enviar créditos.');
+      return;
+    }
     setShowTipDialog(true);
   };
 
   const handleConfirmTip = async () => {
-    if (tipAmount <= 0) {
+    if (tipAmount <= 0 || !remotePeer) {
       toast.error('Introduce un importe válido en créditos.');
       return;
     }
     setTipLoading(true);
     try {
       const success = await session.spend(tipAmount, 'Tip directo', {
-        metadata: { context: 'match-tip', targetUser: remoteUser.id },
+        metadata: { context: 'match-tip', targetUser: remotePeer.sessionId },
         execute: async () => new Promise((resolve) => setTimeout(resolve, 320))
       });
       if (success) {
-        toast.success(`Enviaste ${formatTokens(tipAmount)} a ${remoteUser.username}`);
+        toast.success(`Enviaste ${formatTokens(tipAmount)} a ${remotePeer.username}`);
         registerGiftEvent({ name: 'Tip directo', tokens: tipAmount });
         setShowTipDialog(false);
       }
@@ -191,14 +477,14 @@ export function MatchPanel() {
 
   const handleFollowLast = () => {
     if (!lastMatch) return;
-    session.toggleFollowUser(lastMatch.id);
-    toast.success(`Sigues a @${lastMatch.id}`);
+    session.toggleFollowUser(lastMatch.username);
+    toast.success(`Sigues a @${lastMatch.username}`);
     setShowUpsell(false);
   };
 
   const handleOpenProfile = () => {
     if (!lastMatch) return;
-    router.push(`/u/${lastMatch.id}`);
+    router.push(`/u/${lastMatch.username}`);
     setShowUpsell(false);
   };
 
@@ -278,8 +564,9 @@ export function MatchPanel() {
           ) : (
             <div className="grid gap-4 md:grid-cols-[2fr_1fr]">
               <VideoTile
-                label={remoteUser.username}
-                placeholder={<span className="token-pill">{remoteUser.status}</span>}
+                label={remoteUserDisplay}
+                stream={remoteStream ?? undefined}
+                placeholder={<span className="token-pill">{status === 'connected' ? 'Sin video remoto' : t('waiting')}</span>}
                 isBlurred={remoteBlurred}
               >
                 {giftBurst > 0 ? (
@@ -294,13 +581,14 @@ export function MatchPanel() {
               <div className="flex flex-col gap-3">
                 <VideoTile
                   label={session.alias}
+                  stream={localStream ?? undefined}
                   placeholder={<span className="text-xs text-text-muted">Tu cámara aparecerá aquí</span>}
                   isLocal
                 />
                 <div className="rounded-3xl border border-muted/60 bg-muted/30 p-4">
-                  <p className="text-sm font-semibold text-text">{remoteUser.username}</p>
+                  <p className="text-sm font-semibold text-text">{remoteUserDisplay}</p>
                   <p className="mt-1 text-xs text-text-muted">
-                    {remoteUser.tags.map((tag) => `#${tag}`).join(' · ')}
+                    {remotePeer ? 'Match activo' : 'Aún no hay datos del perfil remoto.'}
                   </p>
                   <p className="mt-2 text-[0.7rem] text-text-muted">
                     Envía créditos directos para propinas rápidas. El receptor verá siempre la conversión TKN ⇄ €.
@@ -325,19 +613,15 @@ export function MatchPanel() {
           )}
 
           {status === 'error' ? (
-            <div className="rounded-3xl border border-warn bg-warn/10 p-4 text-sm text-warn">
-              {t('error')}
-            </div>
+            <div className="rounded-3xl border border-warn bg-warn/10 p-4 text-sm text-warn">{t('error')}</div>
           ) : status === 'connecting' ? (
-            <div className="rounded-3xl border border-muted/60 bg-muted/30 p-4 text-sm text-text-muted">
-              {t('connecting')}
-            </div>
+            <div className="rounded-3xl border border-muted/60 bg-muted/30 p-4 text-sm text-text-muted">{t('connecting')}</div>
           ) : null}
 
           <MatchControls
             onNext={handleNext}
             onReport={handleReport}
-            remoteUsername={remoteUser.username}
+            remoteUsername={remoteUserDisplay}
             onDirectTip={handleDirectTip}
             onRecharge={handleRecharge}
             nextDisabled={isNextDisabled}
@@ -369,13 +653,7 @@ export function MatchPanel() {
             <p className="text-sm text-text-muted">
               Saldo actual: {formatTokens(session.tokenBalance)} · {euroBalance}
             </p>
-            <Input
-              type="number"
-              min={10}
-              step={10}
-              value={tipAmount}
-              onChange={(event) => handleTipChange(event.target.value)}
-            />
+            <Input type="number" min={10} step={10} value={tipAmount} onChange={(event) => handleTipChange(event.target.value)} />
             <p className="text-xs text-text-muted">
               Este envío equivale a {euroTip}. Te quedan {formatTokens(tokensLeftToday)} disponibles hoy antes de alcanzar tu
               límite personal.
@@ -399,33 +677,20 @@ export function MatchPanel() {
               La videollamada duró {lastCallDuration || 0} segundos. Elige cómo mantener la conexión.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-xs text-text-muted">
-              Sigue gratis, abre chat directo o apóyala con contenido premium. Los pases tienen -10% si renuevas antes de 48h.
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Button variant="secondary" onClick={handleFollowLast}>
-                Seguir a @{lastMatch?.id ?? 'match'}
-              </Button>
-              <Button variant="outline" onClick={handleOpenDm}>
-                Abrir chat privado
-              </Button>
-              <Button variant="outline" onClick={handleUnlockContent}>
-                Desbloquear PPV destacado
-              </Button>
-              <Button variant="outline" onClick={handleRenewPass}>
-                Comprar pase 30 días (-10%)
-              </Button>
-            </div>
-            <Button variant="secondary" onClick={handleOpenProfile}>
-              Ver perfil completo
+          <div className="space-y-4 text-sm text-text-muted">
+            <Button className="w-full justify-start" variant="secondary" onClick={handleFollowLast}>
+              Seguir perfil
+            </Button>
+            <Button className="w-full justify-start" variant="secondary" onClick={handleOpenDm}>
+              Abrir chat privado
+            </Button>
+            <Button className="w-full justify-start" variant="secondary" onClick={handleOpenProfile}>
+              Desbloquear contenido PPV
+            </Button>
+            <Button className="w-full justify-start" variant="secondary" onClick={handleRenewPass}>
+              Pase 30 días (-10 % si renuevas ahora)
             </Button>
           </div>
-          <DialogFooter className="flex justify-end">
-            <Button variant="outline" onClick={() => setShowUpsell(false)}>
-              Cerrar
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
