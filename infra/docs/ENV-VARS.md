@@ -105,6 +105,7 @@ SIGNAL_HOST=signal.tuweb.com
 NEXT_PUBLIC_API_URL=https://api.tuweb.com
 NEXT_PUBLIC_SIGNAL_URL=wss://signal.tuweb.com
 NEXT_PUBLIC_FEATURE_GROUP=true
+NEXT_PUBLIC_ENABLE_MOCKS=false
 NEXT_PUBLIC_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
 NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
 NEXT_PUBLIC_RUNTIME_ENV=production

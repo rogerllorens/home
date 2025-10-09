@@ -42,7 +42,8 @@ files, and operational review SLAs for compliance staff.
 
 ## 3. Private Media Delivery
 
-**Status:** Front-end still serves mock URLs.
+**Status:** Front-end now calls `/media/presign` and `/media/:id/secure-url`
+endpoints directly (mocks only load if `NEXT_PUBLIC_ENABLE_MOCKS=true`).
 
 **Outstanding work:**
 
@@ -57,7 +58,8 @@ signature checks and monitor bucket usage to manage costs.
 
 ## 4. Real-Time Stack (Signal, TURN, SFU)
 
-**Status:** The UI talks to local mocks; no deployed signalling stack.
+**Status:** The UI expects a live Signal/SFU stack; mock data is used only
+when `NEXT_PUBLIC_ENABLE_MOCKS=true` in development.
 
 **Outstanding work:**
 
@@ -119,8 +121,9 @@ queue delays, and TURN reachability failures.
 
 ## 8. Massive Rooms Rollout
 
-**Status:** Front-end lobby and room views are scaffolded behind feature flags
-but backed by mock data only.
+**Status:** Front-end lobby and room views call the `/rooms` REST endpoints
+and Signal topics directly; mock payloads are loaded only when
+`NEXT_PUBLIC_ENABLE_MOCKS=true`.
 
 **Outstanding work:**
 

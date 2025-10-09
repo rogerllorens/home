@@ -18,6 +18,8 @@ export enum MediaVisibility {
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.tuweb.com';
 
+const MOCKS_ENABLED = process.env.NEXT_PUBLIC_ENABLE_MOCKS === 'true';
+
 export const createRequestHeaders = (requestId: string = createCorrelationId()) => ({
   'X-Request-ID': requestId
 });
@@ -73,15 +75,30 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 async function withFallback<T>(factory: () => Promise<T>, fallback: () => T): Promise<T> {
-  if (process.env.NODE_ENV === 'production') {
-    return factory();
-  }
   try {
     return await factory();
   } catch (error) {
+    if (!MOCKS_ENABLED) {
+      throw error;
+    }
     console.warn('[api] falling back to mock response for', factory.name || 'request', error);
     return fallback();
   }
+}
+
+function extractListFromResponse<T>(payload: unknown, candidates: string[]): T[] {
+  if (Array.isArray(payload)) {
+    return payload as T[];
+  }
+  if (payload && typeof payload === 'object') {
+    for (const key of candidates) {
+      const value = (payload as Record<string, unknown>)[key];
+      if (Array.isArray(value)) {
+        return value as T[];
+      }
+    }
+  }
+  return [];
 }
 
 export const queryKeys = {
@@ -284,6 +301,15 @@ export interface ForumThreadDetail extends ForumThreadSummary {
     createdAt: string;
     mediaThumb?: string;
   }[];
+}
+
+export interface ForumCategorySummary {
+  id: string;
+  name: string;
+  description?: string;
+  threads: number;
+  posts?: number;
+  prompt?: string;
 }
 
 export interface GroupRoomSummary {
@@ -973,64 +999,114 @@ const adminForumCategories: AdminForumCategory[] = [
   { id: 'support', name: 'Soporte', threads: 45, moderators: ['staff'], isPinned: false }
 ];
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export async function fetchFeaturedProfiles(): Promise<DiscoverProfileCard[]> {
-  await delay(120);
-  return featuredProfiles;
+  return withFallback(
+    async () => {
+      const response = await apiRequest<
+        { profiles?: DiscoverProfileCard[]; items?: DiscoverProfileCard[]; data?: DiscoverProfileCard[] } | DiscoverProfileCard[]
+      >('/discover/top?limit=12');
+      return extractListFromResponse<DiscoverProfileCard>(response, ['profiles', 'items', 'data']);
+    },
+    () => featuredProfiles
+  );
 }
 
 export async function fetchForumCategories() {
-  await delay(120);
-  return forumCategories;
+  return withFallback(
+    async () => apiRequest<ForumCategorySummary[]>('/forum/categories'),
+    () => forumCategories
+  );
 }
 
 export async function fetchForumThread(threadId: string): Promise<ForumThreadDetail | undefined> {
-  await delay(120);
-  return forumThreads.find((thr) => thr.id === threadId);
+  return withFallback(
+    async () => apiRequest<ForumThreadDetail>(`/forum/threads/${threadId}`),
+    () => forumThreads.find((thr) => thr.id === threadId)
+  );
 }
 
 export async function fetchForumThreads(): Promise<ForumThreadSummary[]> {
-  await delay(100);
-  return forumThreads.map(({ id, title, author, replies, createdAt, categoryId }) => ({
-    id,
-    title,
-    author,
-    replies,
-    createdAt,
-    categoryId
-  }));
+  return withFallback(
+    async () => {
+      const response = await apiRequest<
+        | ForumThreadSummary[]
+        | { threads?: ForumThreadSummary[]; items?: ForumThreadSummary[]; data?: ForumThreadSummary[] }
+      >('/forum/threads?limit=40');
+      return extractListFromResponse<ForumThreadSummary>(response, ['threads', 'items', 'data']);
+    },
+    () =>
+      forumThreads.map(({ id, title, author, replies, createdAt, categoryId }) => ({
+        id,
+        title,
+        author,
+        replies,
+        createdAt,
+        categoryId
+      }))
+  );
 }
 
 export async function fetchGroups(): Promise<GroupRoomSummary[]> {
-  await delay(100);
-  return groupRooms;
+  return withFallback(
+    async () => {
+      const response = await apiRequest<
+        GroupRoomSummary[] | { rooms?: GroupRoomSummary[]; items?: GroupRoomSummary[] }
+      >('/rooms/group');
+      return extractListFromResponse<GroupRoomSummary>(response, ['rooms', 'items']);
+    },
+    () => groupRooms
+  );
 }
 
 export async function fetchMassiveRooms(tab: RoomTab, topic?: string): Promise<{ rooms: RoomSummary[]; nextCursor?: string }> {
-  await delay(90);
-  if (tab === 'topics' && topic && topic !== 'all') {
-    return {
-      rooms: massiveRooms.topics.filter((room) => room.tags.includes(topic)),
-      nextCursor: undefined
-    };
-  }
-  return {
-    rooms: massiveRooms[tab],
-    nextCursor: undefined
-  };
+  return withFallback(
+    async () => {
+      const params = new URLSearchParams({ tab });
+      if (topic && topic !== 'all') {
+        params.set('topic', topic);
+      }
+      const response = await apiRequest<
+        { rooms?: RoomSummary[]; nextCursor?: string; items?: RoomSummary[] }
+      >(`/rooms?${params.toString()}`);
+      const rooms = extractListFromResponse<RoomSummary>(response, ['rooms', 'items']);
+      const nextCursor = typeof response === 'object' && response !== null ? (response as { nextCursor?: string }).nextCursor : undefined;
+      return { rooms, nextCursor };
+    },
+    () => {
+      if (tab === 'topics' && topic && topic !== 'all') {
+        return {
+          rooms: massiveRooms.topics.filter((room) => room.tags.includes(topic)),
+          nextCursor: undefined
+        };
+      }
+      return {
+        rooms: massiveRooms[tab],
+        nextCursor: undefined
+      };
+    }
+  );
 }
 
 export async function fetchMassiveRoomHistory(roomId: string): Promise<RoomMessage[]> {
-  await delay(110);
-  return massiveRoomMessages[roomId] ?? [];
+  return withFallback(
+    async () => {
+      const response = await apiRequest<
+        RoomMessage[] | { messages?: RoomMessage[]; items?: RoomMessage[] }
+      >(`/rooms/${roomId}/history?limit=200`);
+      return extractListFromResponse<RoomMessage>(response, ['messages', 'items']);
+    },
+    () => massiveRoomMessages[roomId] ?? []
+  );
 }
 
 export async function fetchMassiveRoom(roomId: string): Promise<RoomSummary | undefined> {
-  await delay(80);
-  return Object.values(massiveRooms)
-    .flat()
-    .find((room) => room.id === roomId);
+  return withFallback(
+    async () => apiRequest<RoomSummary>(`/rooms/${roomId}`),
+    () =>
+      Object.values(massiveRooms)
+        .flat()
+        .find((room) => room.id === roomId)
+  );
 }
 
 export async function fetchWallet(): Promise<WalletSummary> {
@@ -1059,26 +1135,44 @@ export async function searchDirectory(
   query: string,
   type?: 'users' | 'tags' | 'threads'
 ): Promise<SearchDirectoryResult> {
-  await delay(80);
-  if (!query) {
-    return searchDirectoryMock;
-  }
-  const lower = query.toLowerCase();
-  const result: SearchDirectoryResult = {
-    users: searchDirectoryMock.users.filter(
-      (user) => user.username.toLowerCase().includes(lower) || user.bio.toLowerCase().includes(lower)
-    ),
-    tags: searchDirectoryMock.tags.filter((tag) => tag.tag.toLowerCase().includes(lower)),
-    threads: searchDirectoryMock.threads.filter((thread) => thread.title.toLowerCase().includes(lower))
-  };
-  if (type) {
-    return {
-      users: type === 'users' ? result.users : [],
-      tags: type === 'tags' ? result.tags : [],
-      threads: type === 'threads' ? result.threads : []
-    };
-  }
-  return result;
+  return withFallback(
+    async () => {
+      const params = new URLSearchParams();
+      if (query) params.set('q', query);
+      if (type) params.set('type', type);
+      const response = await apiRequest<
+        | SearchDirectoryResult
+        | { users?: SearchDirectoryResult['users']; tags?: SearchDirectoryResult['tags']; threads?: SearchDirectoryResult['threads'] }
+      >(`/users/search?${params.toString()}`);
+      const parsed = response as Partial<SearchDirectoryResult>;
+      return {
+        users: Array.isArray(parsed.users) ? parsed.users : [],
+        tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+        threads: Array.isArray(parsed.threads) ? parsed.threads : []
+      };
+    },
+    () => {
+      if (!query) {
+        return searchDirectoryMock;
+      }
+      const lower = query.toLowerCase();
+      const result: SearchDirectoryResult = {
+        users: searchDirectoryMock.users.filter(
+          (user) => user.username.toLowerCase().includes(lower) || user.bio.toLowerCase().includes(lower)
+        ),
+        tags: searchDirectoryMock.tags.filter((tag) => tag.tag.toLowerCase().includes(lower)),
+        threads: searchDirectoryMock.threads.filter((thread) => thread.title.toLowerCase().includes(lower))
+      };
+      if (type) {
+        return {
+          users: type === 'users' ? result.users : [],
+          tags: type === 'tags' ? result.tags : [],
+          threads: type === 'threads' ? result.threads : []
+        };
+      }
+      return result;
+    }
+  );
 }
 
 export const staticCatalog = {
@@ -1110,36 +1204,50 @@ export const staticCatalog = {
 };
 
 export async function fetchAdminDashboard(): Promise<AdminDashboardMetrics> {
-  await delay(150);
-  return adminDashboard;
+  return withFallback(
+    async () => apiRequest<AdminDashboardMetrics>('/admin/dashboard'),
+    () => adminDashboard
+  );
 }
 
 export async function fetchAdminUsers(): Promise<AdminUserRow[]> {
-  await delay(150);
-  return adminUsers;
+  return withFallback(
+    async () => apiRequest<AdminUserRow[]>('/admin/users'),
+    () => adminUsers
+  );
 }
 
 export async function fetchAdminReports(): Promise<AdminReportItem[]> {
-  await delay(150);
-  return adminReports;
+  return withFallback(
+    async () => apiRequest<AdminReportItem[]>('/admin/reports'),
+    () => adminReports
+  );
 }
 
 export async function fetchAdminContent(): Promise<AdminContentItem[]> {
-  await delay(150);
-  return adminContent;
+  return withFallback(
+    async () => apiRequest<AdminContentItem[]>('/admin/content'),
+    () => adminContent
+  );
 }
 
 export async function fetchAdminEconomy(): Promise<AdminEconomyConfig> {
-  await delay(150);
-  return adminEconomy;
+  return withFallback(
+    async () => apiRequest<AdminEconomyConfig>('/admin/economy'),
+    () => adminEconomy
+  );
 }
 
 export async function fetchAdminPayouts(): Promise<AdminPayoutRequest[]> {
-  await delay(150);
-  return adminPayouts;
+  return withFallback(
+    async () => apiRequest<AdminPayoutRequest[]>('/admin/payouts'),
+    () => adminPayouts
+  );
 }
 
 export async function fetchAdminForum(): Promise<AdminForumCategory[]> {
-  await delay(150);
-  return adminForumCategories;
+  return withFallback(
+    async () => apiRequest<AdminForumCategory[]>('/admin/forum/categories'),
+    () => adminForumCategories
+  );
 }
