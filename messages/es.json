@@ -1,0 +1,703 @@
+{
+  "common": {
+    "siteName": "Xder",
+    "tagline": "Citas y amistades reales, sin ruido",
+    "description": "Xder reúne a personas que quieren crear conexiones auténticas: amistades nuevas, citas respetuosas y planes compartidos en cualquier ciudad.",
+    "ctaDownload": "Descargar la app",
+    "ctaHow": "Ver cómo funciona",
+    "ctaExploreProfiles": "Explorar perfiles por intereses",
+    "ctaJoinGroup": "Unirme a un grupo",
+    "ctaActivateIncognito": "Activar Modo Incógnito",
+    "nav": {
+      "features": "Funciones",
+      "pricing": "Planes",
+      "safety": "Seguridad",
+      "blog": "Blog",
+      "faq": "FAQs",
+      "about": "Sobre Xder",
+      "support": "Centro de ayuda",
+      "jobs": "Empleos",
+      "press": "Prensa",
+      "roadmap": "Roadmap"
+    },
+    "footer": {
+      "newsletterTitle": "Recibe novedades y guías útiles",
+      "newsletterDescription": "Un correo al mes con historias reales, consejos de seguridad y funciones nuevas.",
+      "legal": "Legal",
+      "privacy": "Privacidad",
+      "terms": "Términos",
+      "cookies": "Cookies",
+      "bases": "Bases jurídicas",
+      "contact": "Contacto",
+      "download": "Descargar",
+      "rights": "Todos los derechos reservados",
+      "follow": "Síguenos"
+    },
+    "searchPlaceholder": "Buscar artículos, ciudades o funciones",
+    "language": "Idioma",
+    "localeName": "Español",
+    "backToTop": "Volver arriba",
+    "newsletter": {
+      "email": "Tu correo",
+      "submit": "Quiero unirme",
+      "success": "Te enviamos un correo para confirmar tu suscripción.",
+      "error": "No pudimos procesar tu solicitud. Intenta de nuevo."
+    },
+    "contact": {
+      "name": "Nombre",
+      "email": "Correo",
+      "message": "Mensaje",
+      "topic": "Tema",
+      "submit": "Enviar mensaje",
+      "success": "Gracias por escribir. Te responderemos en 24 horas.",
+      "error": "Revisa los campos y vuelve a intentarlo.",
+      "topics": [
+        "Cuenta",
+        "Pagos",
+        "Reportes",
+        "Otro"
+      ]
+    },
+    "jobs": {
+      "apply": "Postularme",
+      "location": "Remoto flexible",
+      "benefits": [
+        "Presupuesto anual para bienestar y formación",
+        "Semana laboral de 4.5 días",
+        "Retiro anual con la comunidad y embajadores",
+        "Equipos multidisciplinares con mentoría",
+        "Acceso premium ilimitado a Xder"
+      ]
+    },
+    "ambassadors": {
+      "cta": "Quiero ser embajador/a",
+      "perks": [
+        "Eventos locales patrocinados",
+        "Acceso anticipado a nuevas funciones",
+        "Merchandising sostenible y personalizable",
+        "Soporte directo con el equipo de comunidad",
+        "Bonos trimestrales por objetivos alcanzados"
+      ]
+    },
+    "press": {
+      "kit": "Descargar media kit",
+      "contacts": "Contacto de prensa",
+      "pressEmail": "press@xder.app"
+    }
+  },
+  "home": {
+    "hero": {
+      "title": "Haz match con planes que importan",
+      "subtitle": "Crea círculos de confianza, comparte hobbies y descubre citas responsables con herramientas que cuidan tu bienestar.",
+      "primary": "Descargar Xder",
+      "secondary": "Explorar funciones"
+    },
+    "benefits": [
+      {
+        "title": "Perfiles curados",
+        "description": "Algoritmos transparentes que destacan intereses comunes y metas compatibles, sin ranking agresivo ni subastas de visibilidad."
+      },
+      {
+        "title": "Comunidades activas",
+        "description": "Organiza rutas de senderismo, clubs de lectura o viajes express con grupos moderados y reglas claras."
+      },
+      {
+        "title": "Seguridad de primera",
+        "description": "Verificaciones escalables, soporte humano 24/7 y herramientas para compartir ubicación de manera controlada."
+      }
+    ],
+    "how": {
+      "title": "Cómo funciona Xder",
+      "steps": [
+        {
+          "title": "Personaliza tu perfil",
+          "description": "Selecciona intereses, objetivos y niveles de energía social. Elige si quieres mostrarte para citas, amistades o ambas."
+        },
+        {
+          "title": "Explora experiencias",
+          "description": "Descubre grupos, actividades cercanas y personas alineadas con tus valores gracias a filtros inteligentes."
+        },
+        {
+          "title": "Conecta con seguridad",
+          "description": "Activa modo incógnito, comparte verificaciones y programa recordatorios para check-ins con tus contactos."
+        }
+      ]
+    },
+    "testimonial": {
+      "quote": "Encontré un grupo de running inclusivo y, unas semanas después, una cita que entendió mis límites desde el primer mensaje.",
+      "author": "Laura, Madrid"
+    },
+    "socialProof": [
+      "Equipos humanos en 32 ciudades",
+      "Más de 120 actividades semanales",
+      "Moderación humana en menos de 4 minutos"
+    ],
+    "finalCta": {
+      "title": "Únete a la comunidad que mezcla citas y amistad con equilibrio",
+      "description": "Descarga la app o explora las funciones premium para descubrir cómo cuidamos cada interacción.",
+      "primary": "Crear cuenta gratuita"
+    }
+  },
+  "about": {
+    "title": "Sobre Xder",
+    "mission": "Nuestra misión es acompañar relaciones significativas que comienzan en digital y florecen en el mundo real.",
+    "vision": "Imaginamos ciudades donde las personas puedan pedir ayuda, organizar un viaje o encontrar pareja desde un mismo espacio seguro.",
+    "values": [
+      {
+        "title": "Diversidad real",
+        "description": "Celebramos identidades múltiples, culturas y capacidades. Creamos experiencias pensadas para distintos ritmos sociales."
+      },
+      {
+        "title": "Transparencia",
+        "description": "Publicamos reportes trimestrales de seguridad y abrimos nuestro roadmap para que la comunidad participe."
+      },
+      {
+        "title": "Bienestar",
+        "description": "El equipo de confianza trabaja con especialistas en salud mental para diseñar guías y recordatorios empáticos."
+      }
+    ]
+  },
+  "features": {
+    "intro": "Funciones que combinan citas responsables con amistades auténticas.",
+    "list": [
+      {
+        "title": "Perfiles por intereses",
+        "description": "Agrupa tus pasiones en chips personalizables y descubre personas que comparten hobbies como cerámica, gaming cooperativo o voluntariado."
+      },
+      {
+        "title": "Búsqueda por países y ciudades",
+        "description": "Planea un viaje y conecta con comunidades locales antes de aterrizar. Incluye información cultural y horarios sugeridos."
+      },
+      {
+        "title": "Grupos y actividades",
+        "description": "Crea quedadas abiertas o solo por invitación, establece reglas y deja que la app gestione recordatorios y check-ins."
+      },
+      {
+        "title": "Filtros avanzados",
+        "description": "Filtra por idioma, disponibilidad horaria, tipos de plan y objetivos: amistad, citas, proyectos creativos o viajes compartidos."
+      },
+      {
+        "title": "Modo incógnito",
+        "description": "Activa privacidad extendida para navegar sin mostrar tu actividad, oculta tu ciudad y define quién puede verte."
+      },
+      {
+        "title": "Favoritos y marcadores",
+        "description": "Guarda perfiles, grupos y actividades para retomarlos luego. Recibe avisos cuando haya nuevos eventos relacionados."
+      },
+      {
+        "title": "Quién te marcó",
+        "description": "Revisa quién guardó tu perfil y el contexto del interés para iniciar conversaciones con intención."
+      },
+      {
+        "title": "Lectura de mensajes",
+        "description": "Conoce si tus mensajes fueron leídos, pospón respuestas o marca conversaciones para seguimiento posterior."
+      },
+      {
+        "title": "Panel de seguridad",
+        "description": "Controla verificaciones, reportes y accesos. Genera códigos de verificación compartibles para encuentros presenciales."
+      },
+      {
+        "title": "Mini-juegos sociales",
+        "description": "Rompe el hielo con dinámicas cooperativas diseñadas por psicólogos sociales. Respeta el modo de baja interacción."
+      }
+    ]
+  },
+  "pricing": {
+    "title": "Planes que crecen contigo",
+    "toggle": {
+      "monthly": "Mensual",
+      "yearly": "Anual (ahorra 20%)"
+    },
+    "plans": [
+      {
+        "name": "FREE",
+        "price": "0",
+        "period": "€/mes",
+        "description": "Empieza sin compromiso y prueba la comunidad.",
+        "features": [
+          "Perfiles ilimitados con intereses",
+          "5 mensajes diarios",
+          "Acceso a grupos abiertos",
+          "Filtros básicos por edad y ciudad",
+          "Panel de seguridad esencial",
+          "Soporte en menos de 24h",
+          "Modo claro y oscuro"
+        ]
+      },
+      {
+        "name": "PLUS",
+        "price": "12",
+        "period": "€/mes",
+        "description": "Ideal para descubrir grupos especializados y gestionar tu visibilidad.",
+        "features": [
+          "Mensajes ilimitados",
+          "Ver quién guardó tu perfil",
+          "Modo incógnito adaptable",
+          "Filtros avanzados por idioma y objetivos",
+          "Recordatorios de check-in con amigos",
+          "Eventos exclusivos moderados",
+          "Soporte prioritario en 4h",
+          "Lectura de mensajes"
+        ]
+      },
+      {
+        "name": "FULL",
+        "price": "24",
+        "period": "€/mes",
+        "description": "Para líderes de comunidad y personas que viajan con frecuencia.",
+        "features": [
+          "Búsqueda global por ciudades y países",
+          "Grupos privados ilimitados",
+          "Mini-juegos sociales premium",
+          "Análisis de compatibilidad avanzada",
+          "Historial extendido de coincidencias",
+          "Atajos de teclado y accesos profesionales",
+          "Soporte humano 24/7",
+          "Consultas con especialista en seguridad"
+        ]
+      }
+    ],
+    "legal": "Los precios incluyen impuestos aplicables en la UE. Renovación automática cancelable en cualquier momento. Las divisas pueden variar fuera de la zona euro.",
+    "cta": "Elegir plan"
+  },
+  "safety": {
+    "title": "Centro de seguridad",
+    "intro": "Protocolos proactivos y herramientas que te acompañan antes, durante y después de cada encuentro.",
+    "principles": [
+      {
+        "title": "Verificación progresiva",
+        "description": "Documentos cifrados, selfies dinámicos y referencias sociales opcionales."
+      },
+      {
+        "title": "Botón de alerta",
+        "description": "Solicita ayuda silenciosa, comparte ubicación en tiempo real y recibe llamadas de verificación."
+      },
+      {
+        "title": "Educación continua",
+        "description": "Guías mensuales creadas con especialistas en prevención de violencia y comunidades LGBTQIA+."
+      },
+      {
+        "title": "Moderación justa",
+        "description": "Evaluamos reportes con equipo multicultural y herramientas de detección de lenguaje dañino."
+      },
+      {
+        "title": "Soporte a víctimas",
+        "description": "Derivamos a líneas locales, ofrecemos seguimiento y recursos personalizados."
+      }
+    ],
+    "reporting": {
+      "title": "Cómo denunciar",
+      "steps": [
+        "Desde cualquier chat o perfil, toca el menú y selecciona \"Denunciar\".",
+        "Describe lo ocurrido con contexto o adjunta capturas.",
+        "Nuestro equipo responde en menos de 6 horas y puede bloquear al usuario de inmediato.",
+        "Te acompañamos con recursos y seguimiento opcional."
+      ]
+    }
+  },
+  "faq": {
+    "title": "Preguntas frecuentes",
+    "categories": [
+      {
+        "name": "Cuenta y perfil",
+        "items": [
+          {
+            "question": "¿Cómo verifico mi identidad?",
+            "answer": "Sigue el flujo guiado en Ajustes > Seguridad. Necesitarás un documento vigente y una selfie dinámica."
+          },
+          {
+            "question": "¿Puedo usar Xder solo para amistades?",
+            "answer": "Sí. Configura tus objetivos como \"Amistad\" y recibirás sugerencias afines sin resultados orientados a citas."
+          },
+          {
+            "question": "¿Cómo edito mis intereses?",
+            "answer": "Ve a tu perfil, toca \"Editar intereses\" y selecciona hasta 12 chips. Puedes ordenarlos con arrastrar y soltar."
+          },
+          {
+            "question": "¿Qué es el modo energía social?",
+            "answer": "Es una escala que indica cuánta interacción deseas esta semana. Ajusta el nivel para que coincida con tus planes reales."
+          }
+        ]
+      },
+      {
+        "name": "Seguridad",
+        "items": [
+          {
+            "question": "¿Qué hago si alguien incumple las normas?",
+            "answer": "Usa la opción de denuncia y bloqueo. Nuestro equipo revisa cada reporte con prioridad alta y te mantiene informado."
+          },
+          {
+            "question": "¿Cómo comparto mi ubicación con un amigo?",
+            "answer": "Activa el botón de seguridad antes del encuentro y elige a tus contactos de confianza. Recibirán alertas temporales."
+          },
+          {
+            "question": "¿Qué pasa si desactivo el modo incógnito?",
+            "answer": "Podrás aparecer en búsquedas nuevamente. Tus ajustes de privacidad anteriores se mantienen para que decidas a quién mostrarte."
+          },
+          {
+            "question": "¿Puedo programar recordatorios de check-in?",
+            "answer": "Sí, desde la pantalla de seguridad selecciona horarios y contactos. Puedes pausar los avisos cuando estés en casa."
+          }
+        ]
+      },
+      {
+        "name": "Pagos y planes",
+        "items": [
+          {
+            "question": "¿Cómo actualizo mi plan?",
+            "answer": "Entra a Ajustes > Suscripción y elige el plan deseado. El cambio es inmediato y prorrateado."
+          },
+          {
+            "question": "¿Ofrecen descuentos para estudiantes?",
+            "answer": "Sí, aplica tu correo educativo en la sección de promociones y valida tu identidad para obtener un 30% de descuento."
+          },
+          {
+            "question": "¿Qué métodos de pago aceptan?",
+            "answer": "Tarjetas de débito, crédito, Apple Pay, Google Pay y transferencias locales en países seleccionados."
+          },
+          {
+            "question": "¿Puedo cancelar la renovación automática?",
+            "answer": "Claro. Cancela desde la app o escribiendo a soporte antes del siguiente ciclo de facturación."
+          }
+        ]
+      },
+      {
+        "name": "Visibilidad",
+        "items": [
+          {
+            "question": "¿Quién puede ver mi perfil?",
+            "answer": "Solo personas que cumplan tus filtros de edad, objetivos y distancia, además de los grupos a los que te unes."
+          },
+          {
+            "question": "¿Cómo funcionan los favoritos?",
+            "answer": "Guarda perfiles o grupos. Nadie recibe notificaciones hasta que decidas iniciar la conversación."
+          },
+          {
+            "question": "¿Qué es la visibilidad viajera?",
+            "answer": "Te permite aparecer en la ciudad que visitarás por un periodo limitado para organizar planes anticipadamente."
+          },
+          {
+            "question": "¿Puedo ocultar mi estado en línea?",
+            "answer": "Sí, desde Ajustes > Privacidad. Las personas verán un tiempo relativo en lugar del indicador verde."
+          }
+        ]
+      },
+      {
+        "name": "Soporte",
+        "items": [
+          {
+            "question": "¿Cuál es el tiempo medio de respuesta?",
+            "answer": "Menos de 6 horas para reportes críticos y 12 horas para consultas generales."
+          },
+          {
+            "question": "¿Tienen soporte telefónico?",
+            "answer": "Ofrecemos llamadas programadas para casos sensibles y acompañamiento durante denuncias."
+          },
+          {
+            "question": "¿Puedo sugerir una nueva función?",
+            "answer": "Sí, desde el roadmap público puedes votar, comentar y proponer ideas."
+          },
+          {
+            "question": "¿Dónde encuentro tutoriales?",
+            "answer": "En el Centro de ayuda verás artículos con capturas y vídeos cortos."
+          }
+        ]
+      }
+    ]
+  },
+  "contact": {
+    "title": "Estamos para acompañarte",
+    "description": "Escríbenos para soporte técnico, sugerencias o alianzas. Respondemos siempre con empatía y soluciones claras.",
+    "emails": [
+      {
+        "label": "Soporte general",
+        "value": "support@xder.app"
+      },
+      {
+        "label": "Privacidad y datos",
+        "value": "privacy@xder.app"
+      },
+      {
+        "label": "Prensa",
+        "value": "press@xder.app"
+      }
+    ]
+  },
+  "support": {
+    "title": "Centro de ayuda",
+    "search": "Busca por palabra clave",
+    "categories": [
+      {
+        "title": "Primeros pasos",
+        "articles": [
+          "Configura tu perfil inclusivo",
+          "Activa tus filtros favoritos",
+          "Encuentra grupos con baja energía social"
+        ]
+      },
+      {
+        "title": "Seguridad",
+        "articles": [
+          "Comparte tu itinerario de forma segura",
+          "Activa alertas silenciosas",
+          "Gestiona reportes y bloqueos"
+        ]
+      }
+    ]
+  },
+  "guidelines": {
+    "title": "Normas de la comunidad",
+    "principles": [
+      {
+        "title": "Respeto activo",
+        "description": "Escucha, pregunta consentimientos y evita lenguaje discriminatorio en cualquier contexto."
+      },
+      {
+        "title": "Cuidado colectivo",
+        "description": "Protege la privacidad de otras personas y reporta conductas riesgosas incluso si no te afectan directamente."
+      },
+      {
+        "title": "Inclusión radical",
+        "description": "Celebramos expresiones de género, orientaciones y culturas diversas. Cualquier intento de exclusión será moderado."
+      },
+      {
+        "title": "No spam",
+        "description": "Evita mensajes masivos, promociones externas o encuestas no solicitadas."
+      }
+    ]
+  },
+  "legal": {
+    "privacy": {
+      "title": "Política de privacidad",
+      "intro": "Explicamos cómo recopilamos, usamos y protegemos tus datos personales conforme al RGPD.",
+      "sections": [
+        {
+          "title": "Datos que tratamos",
+          "description": "Información de contacto, intereses, verificaciones y datos de uso anonimizados."
+        },
+        {
+          "title": "Finalidades",
+          "description": "Ofrecer la app, mejorar funciones, prevenir abusos y cumplir obligaciones legales."
+        },
+        {
+          "title": "Derechos",
+          "description": "Acceso, rectificación, supresión, oposición, portabilidad y limitación. Escríbenos a privacy@xder.app."
+        }
+      ]
+    },
+    "terms": {
+      "title": "Términos de servicio",
+      "intro": "Condiciones que regulan el uso de la app, responsabilidades y limitaciones."
+    },
+    "cookies": {
+      "title": "Política de cookies",
+      "intro": "Usamos cookies para recordar preferencias, medir uso y activar funciones esenciales.",
+      "categories": [
+        {
+          "title": "Esenciales",
+          "description": "Necesarias para iniciar sesión, recordar idioma y mantener la seguridad."
+        },
+        {
+          "title": "Analítica",
+          "description": "Nos ayudan a entender qué funciones se usan para mejorar la experiencia."
+        },
+        {
+          "title": "Marketing",
+          "description": "Personalizan recomendaciones y campañas propias de Xder."
+        }
+      ]
+    },
+    "bases": {
+      "title": "Bases jurídicas del tratamiento",
+      "intro": "Detalle de las bases legales aplicadas a cada finalidad y los derechos asociados.",
+      "grounds": [
+        {
+          "title": "Ejecución de contrato",
+          "description": "Tratamiento necesario para prestar el servicio principal de Xder."
+        },
+        {
+          "title": "Consentimiento",
+          "description": "Para comunicaciones comerciales y analítica avanzada, siempre revocable."
+        },
+        {
+          "title": "Interés legítimo",
+          "description": "Prevención de fraude, mejora de seguridad y soporte de comunidades."
+        }
+      ]
+    }
+  },
+  "compare": {
+    "title": "Comparativa",
+    "intro": "Xder se enfoca en equilibrio entre citas y amistades, con herramientas comunitarias que no encontrarás en la mayoría de apps genéricas.",
+    "table": {
+      "headers": [
+        "Función",
+        "Xder",
+        "Apps genéricas"
+      ],
+      "rows": [
+        [
+          "Grupos moderados por intereses",
+          "Sí, con reglas claras",
+          "No o sin moderación"
+        ],
+        [
+          "Modo energía social",
+          "Escala ajustable semanal",
+          "No disponible"
+        ],
+        [
+          "Panel de seguridad",
+          "Alertas silenciosas y check-ins",
+          "Reportes básicos"
+        ],
+        [
+          "Mini-juegos sociales",
+          "Diseñados con psicología positiva",
+          "Mensajes prefabricados"
+        ],
+        [
+          "Roadmap público",
+          "Actualizaciones votadas por la comunidad",
+          "No transparente"
+        ]
+      ]
+    }
+  },
+  "download": {
+    "title": "Descarga Xder",
+    "description": "Disponible en iOS y Android. Detectamos tu sistema y te enviamos el enlace correcto.",
+    "stores": [
+      {
+        "name": "App Store",
+        "label": "Pronto disponible",
+        "os": "ios"
+      },
+      {
+        "name": "Google Play",
+        "label": "Pronto disponible",
+        "os": "android"
+      }
+    ]
+  },
+  "jobs": {
+    "title": "Únete al equipo",
+    "intro": "Buscamos personas que disfruten creando espacios seguros y experiencias digitales inclusivas.",
+    "positions": [
+      {
+        "title": "Product Designer (UI/UX)",
+        "description": "Diseña experiencias accesibles para la app y el web onboarding.",
+        "requirements": [
+          "3+ años diseñando productos móviles",
+          "Portafolio con proyectos inclusivos",
+          "Experiencia trabajando con design tokens"
+        ]
+      },
+      {
+        "title": "iOS/Android Engineer",
+        "description": "Implementa nuevas funcionalidades sociales con foco en rendimiento y seguridad.",
+        "requirements": [
+          "Experiencia en SwiftUI o Kotlin Multiplatform",
+          "Conocimiento de cifrado cliente-servidor",
+          "Interés por crear herramientas comunitarias"
+        ]
+      },
+      {
+        "title": "Community Marketing Lead",
+        "description": "Conecta con embajadores y diseña campañas locales con enfoque inclusivo.",
+        "requirements": [
+          "5+ años liderando comunidades",
+          "Capacidad para medir impacto social",
+          "Comunicación bilingüe"
+        ]
+      }
+    ]
+  },
+  "ambassadors": {
+    "title": "Programa de embajadores",
+    "intro": "Personas apasionadas por crear comunidades seguras en sus ciudades.",
+    "requirements": [
+      "Mayor de edad",
+      "Experiencia organizando eventos",
+      "Compromiso con la diversidad",
+      "Disponibilidad para formación mensual",
+      "Capacidad de comunicación digital"
+    ]
+  },
+  "press": {
+    "title": "Prensa y media kit",
+    "intro": "Recursos, cifras y contactos oficiales para medios y creadores.",
+    "highlights": [
+      "Más de 200.000 conexiones en 2023",
+      "Moderación híbrida humana + IA responsable",
+      "Presencia en 12 países y 48 ciudades"
+    ]
+  },
+  "changelog": {
+    "title": "Novedades",
+    "entries": [
+      {
+        "version": "1.6",
+        "date": "2024-03-08",
+        "items": [
+          "Nuevo modo energía social con recomendaciones dinámicas",
+          "Mejoramos el panel de seguridad con alertas proactivas"
+        ]
+      },
+      {
+        "version": "1.5",
+        "date": "2024-02-20",
+        "items": [
+          "Integración de grupos privados por invitación",
+          "Se añadió compatibilidad con chips de idioma"
+        ]
+      }
+    ]
+  },
+  "roadmap": {
+    "title": "Roadmap público",
+    "columns": [
+      {
+        "title": "Investigando",
+        "items": [
+          "Matchmaking cooperativo",
+          "Integraciones con calendarios"
+        ]
+      },
+      {
+        "title": "En desarrollo",
+        "items": [
+          "Modo viaje seguro",
+          "Video perfiles inclusivos"
+        ]
+      },
+      {
+        "title": "Lanzado",
+        "items": [
+          "Mini-juegos sociales",
+          "Visibilidad no binaria"
+        ]
+      }
+    ]
+  },
+  "supportArticles": [
+    {
+      "slug": "configura-tu-perfil-inclusivo",
+      "title": "Configura tu perfil inclusivo",
+      "summary": "Aprende a redactar biografías empáticas y destacar tus intereses.",
+      "category": "primeros-pasos"
+    }
+  ],
+  "cities": {
+    "madrid": {
+      "title": "Xder en Madrid",
+      "description": "Descubre rutas urbanas, cafés con cultura y planes nocturnos seguros en la capital española.",
+      "climate": "Clima templado con veranos calurosos",
+      "plans": [
+        "Picnic en El Retiro con música en vivo",
+        "Ruta de galerías independientes en Lavapiés",
+        "Quedadas matinales para correr en Madrid Río"
+      ]
+    }
+  }
+}

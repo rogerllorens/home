@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Xder icon 512</title>
+  <desc id="desc">Logotipo Xder en degradado naranja sobre fondo oscuro</desc>
+  <defs>
+    <linearGradient id="grad512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6A00" />
+      <stop offset="100%" stop-color="#FFA800" />
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="24" flood-color="#FF6A0044" />
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0A0A0A" />
+  <g filter="url(#glow)">
+    <path fill="url(#grad512)" d="M140 108h80l36 64 36-64h80l-92 148 96 148h-82l-38-66-38 66h-82l96-148z" />
+  </g>
+</svg>

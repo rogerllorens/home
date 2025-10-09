@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0B0B" />
+      <stop offset="100%" stop-color="#141414" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF6A00" />
+      <stop offset="100%" stop-color="#FFA800" />
+    </linearGradient>
+    <filter id="blur" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="90" result="blur" />
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <ellipse cx="860" cy="120" rx="220" ry="120" fill="#FF6A00" opacity="0.12" filter="url(#blur)" />
+  <ellipse cx="360" cy="520" rx="240" ry="150" fill="#FFA800" opacity="0.1" filter="url(#blur)" />
+  <rect x="120" y="140" width="960" height="350" rx="48" fill="#111" opacity="0.72" />
+  <rect x="130" y="150" width="940" height="330" rx="42" fill="#111" opacity="0.9" stroke="url(#glow)" stroke-width="2" />
+  <text x="180" y="270" fill="#FFA96B" font-family="'Inter', 'Manrope', 'Segoe UI', sans-serif" font-size="56" font-weight="600" letter-spacing="0.04em">Xder</text>
+  <text x="180" y="340" fill="#FFFFFF" font-family="'Inter', 'Manrope', 'Segoe UI', sans-serif" font-size="42" font-weight="600">Conecta citas y amistades con seguridad</text>
+  <text x="180" y="410" fill="#C9C9C9" font-family="'Inter', 'Manrope', 'Segoe UI', sans-serif" font-size="30" font-weight="400">Comunidades activas, filtros avanzados y herramientas para encuentros responsables.</text>
+  <g transform="translate(890 180) scale(0.8)">
+    <rect width="200" height="400" rx="36" fill="#0A0A0A" stroke="#1F1F1F" stroke-width="4" />
+    <rect x="20" y="40" width="160" height="80" rx="18" fill="#141414" />
+    <text x="40" y="90" fill="#FFA96B" font-size="32" font-weight="600" font-family="'Inter', sans-serif">Intereses</text>
+    <rect x="20" y="140" width="160" height="200" rx="18" fill="#141414" />
+    <text x="40" y="200" fill="#FFFFFF" font-size="24" font-family="'Inter', sans-serif">Grupos activos</text>
+    <text x="40" y="240" fill="#C9C9C9" font-size="18" font-family="'Inter', sans-serif">Viajes &bull; Gastronomía</text>
+    <rect x="20" y="360" width="160" height="20" rx="10" fill="#FF6A00" opacity="0.7" />
+  </g>
+</svg>
