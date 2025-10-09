@@ -1,0 +1,116 @@
+version: "3.9"
+services:
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN_ROOT=${DOMAIN_ROOT}
+      - API_HOST=${API_HOST}
+      - SIGNAL_HOST=${SIGNAL_HOST}
+    depends_on:
+      - api
+      - signal
+
+  api:
+    image: tuorg/api:latest
+    container_name: api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - SERVICE_NAME=api
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 20s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      - redis
+      - postgres
+
+  signal:
+    image: tuorg/signal:latest
+    container_name: signal
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - SERVICE_NAME=signal
+      - PORT=8081
+    expose:
+      - "8081"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/healthz"]
+      interval: 20s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      - redis
+      - api
+
+  coturn:
+    image: coturn/coturn:latest
+    container_name: coturn
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ../turn/turnserver.conf:/etc/turnserver.conf
+    command: ["-c", "/etc/turnserver.conf"]
+
+  sfu:
+    image: tuorg/sfu:latest
+    container_name: sfu
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - SERVICE_NAME=sfu
+      - ANNOUNCED_IP=${SFU_ANNOUNCED_IP}
+      - UDP_START=${SFU_UDP_RANGE_START}
+      - UDP_END=${SFU_UDP_RANGE_END}
+    network_mode: "host"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/healthz"]
+      interval: 20s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      - api
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=app
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  caddy_data:
+  caddy_config:
+  redis_data:
+  pg_data:

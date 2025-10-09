@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --bg: #0b0f14;
+  --surface: #121820;
+  --muted: #1b2330;
+  --text: #e5e7eb;
+  --text-muted: #9ca3af;
+  --accent: #f31260;
+  --accent-2: #8b5cf6;
+  --success: #22c55e;
+  --warn: #f59e0b;
+}
+
+:root,
+:host,
+body {
+  accent-color: var(--accent);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+body {
+  @apply min-h-screen bg-bg font-sans text-text antialiased;
+}
+
+a {
+  @apply transition-colors duration-200 text-accent hover:text-accent-2;
+}
+
+.muted {
+  @apply text-text-muted;
+}
+
+.glass-surface {
+  @apply bg-surface/80 backdrop-blur border border-muted/60;
+}
+
+.card {
+  @apply rounded-2xl border border-muted/60 bg-surface/80 p-6 shadow-lg shadow-black/30 transition-transform duration-200 hover:-translate-y-0.5;
+}
+
+.token-pill {
+  @apply inline-flex items-center gap-1 rounded-full bg-accent/15 px-3 py-1 text-sm font-semibold text-accent;
+}
+
+.sr-only {
+  @apply absolute -m-px h-px w-px overflow-hidden whitespace-nowrap border-0 p-0;
+}

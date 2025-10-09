@@ -1,0 +1,332 @@
+{
+  "brand": {
+    "name": "TKN Social"
+  },
+  "nav": {
+    "discover": "Discover",
+    "forum": "Forum",
+    "match": "Match",
+    "rooms": "Rooms",
+    "groups": "Groups",
+    "wallet": "Wallet",
+    "admin": "Admin"
+  },
+  "cta": {
+    "enter": "Enter now (+18)",
+    "goToMatch": "Go to Match",
+    "viewProfile": "View profile",
+    "createAccount": "Create account"
+  },
+  "home": {
+    "heroTitle": "Connect, share and monetise with zero friction",
+    "heroSubtitle": "Instant 1:1 chat, VIP rooms and a premium tokenised feed.",
+    "featuredProfiles": "Featured profiles",
+    "exploreCategories": "Browse by category",
+    "matchCta": "Find a compatible match in seconds"
+  },
+  "wallet": {
+    "balance": "Credits (TKN)",
+    "packs": "Credit packs",
+    "buy": "Buy",
+    "history": "Latest transactions",
+    "guestWarning": "If you clear cookies you may lose your balance. Create an account to keep it safe."
+  },
+  "match": {
+    "consents": "Preferences",
+    "searching": "Searching for a partner…",
+    "connecting": "Connecting…",
+    "error": "TURN/RTC error. Retry",
+    "next": "Next",
+    "gifts": "Gift",
+    "chat": "Chat",
+    "mute": "Mute",
+    "camera": "Camera",
+    "blur": "Blur",
+    "report": "Report",
+    "insufficient": "Insufficient balance",
+    "buyTokens": "Buy credits"
+  },
+  "rooms": {
+    "title": "Massive rooms",
+    "subtitle": "Thousands of people chatting with live gifting and active moderation.",
+    "disabled": "Massive rooms are disabled in this build.",
+    "trending": "Trending",
+    "random": "Random",
+    "topics": "Topics",
+    "allTopics": "All",
+    "loading": "Refreshing rooms…",
+    "empty": "No rooms match this filter yet.",
+    "conversionNote": "Send gifts or direct credits with the € conversion always visible.",
+    "topSupporters": "Top supporters",
+    "ctaDescription": "Join for free, send gifts and stand out in the room.",
+    "join": "Join",
+    "nsfw": "+18",
+    "sfw": "SFW",
+    "trendingBadge": "Trending",
+    "online": "online",
+    "modProtected": "Moderation active",
+    "rulesTitle": "Quick rules",
+    "ruleRespect": "Respect and consent at all times.",
+    "ruleNoSpam": "No spam or suspicious links.",
+    "ruleNoLeaks": "No leaking PPV content or personal data.",
+    "reportThanks": "Report sent to moderation.",
+    "reportButton": "Report room",
+    "giftBarTitle": "Live gifting",
+    "giftBarDescription": "Send Credits (TKN) and climb the live ranking.",
+    "giftBarEmpty": "Be the first to send a gift today.",
+    "giftCta": "Open the gift bar",
+    "sendGift": "Send gift",
+    "moderationPanel": "Moderation panel",
+    "slowMode": "Slow mode",
+    "off": "Off",
+    "reports": "Reports",
+    "requestMod": "Request mod access"
+  },
+  "forms": {
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "login": "Log in",
+    "register": "Sign up",
+    "upgrade": "Migrate balance",
+    "ageConfirm": "I confirm I am 18 or older"
+  },
+  "profile": {
+    "pass": "30 day access for {price} TKN",
+    "passActive": "Pass active until {date}",
+    "unlock": "Unlock for {price} TKN",
+    "passOnly": "Available with an active pass",
+    "empty": "No posts yet."
+  },
+  "forum": {
+    "categories": "Categories",
+    "threads": "Threads",
+    "empty": "Be the first to post"
+  },
+  "groups": {
+    "title": "Active rooms",
+    "create": "Create room",
+    "join": "Join",
+    "vip": "VIP",
+    "participants": "{count}/6 online"
+  },
+  "admin": {
+    "nav": {
+      "label": "Administration",
+      "dashboard": "Dashboard",
+      "users": "Users",
+      "reports": "Reports",
+      "content": "Content",
+      "economy": "Economy",
+      "payouts": "Payouts",
+      "forum": "Forum"
+    },
+    "dashboard": {
+      "metrics": {
+        "dau": "DAU",
+        "purchased": "Credits purchased",
+        "spent": "Credits spent",
+        "gmv": "GMV credits",
+        "gsv": "GSV credits",
+        "fee": "Platform fee",
+        "conversion": "Pack conversion %"
+      },
+      "charts": {
+        "title": "Activity {period}",
+        "subtitle": "Purchases vs spend (Credits TKN)",
+        "purchases": "Purchases: {value} credits (TKN)",
+        "spends": "Spend: {value} credits (TKN)",
+        "legendPurchases": "Purchases",
+        "legendSpends": "Spend"
+      },
+      "sources": {
+        "title": "Top sources",
+        "subtitle": "Where users are coming from"
+      }
+    },
+    "users": {
+      "title": "Users",
+      "table": {
+        "user": "User",
+        "created": "Signed up",
+        "balance": "Balance",
+        "earnings": "Earnings",
+        "flags": "Flags",
+        "reports": "Reports",
+        "actions": "Actions"
+      },
+      "earnings": {
+        "pending": "Pending: {value}",
+        "available": "Available: {value}"
+      },
+      "flags": {
+        "ban": "Banned",
+        "shadowban": "Shadowban",
+        "clean": "No flags"
+      },
+      "actions": {
+        "ban": "Ban",
+        "shadowban": "Shadowban",
+        "unban": "Restore"
+      },
+      "toast": "Action on @{username}: {action}"
+    },
+    "reports": {
+      "title": "Reports",
+      "subtitle": "Triage new abuse reports",
+      "status": {
+        "open": "Open",
+        "review": "In review",
+        "closed": "Closed"
+      },
+      "empty": "No reports for this status",
+      "target": {
+        "user": "User",
+        "post": "Post",
+        "media": "Media"
+      },
+      "reportedAt": "Reported on {date}",
+      "reportsCount": "{count} reports",
+      "previewAlt": "Preview for {target}",
+      "actions": {
+        "close": "Close",
+        "takedown": "Take down",
+        "ban": "Ban",
+        "shadowban": "Shadowban"
+      },
+      "toast": "Report {id}: {action}"
+    },
+    "content": {
+      "title": "Content",
+      "subtitle": "Filter and moderate uploads",
+      "filters": {
+        "all": "All",
+        "free": "Free",
+        "ppv": "PPV",
+        "pass_only": "Pass"
+      },
+      "untitled": "Untitled",
+      "meta": {
+        "size": "{mb} MB",
+        "created": "Uploaded {date}"
+      },
+      "status": {
+        "active": "Active",
+        "removed": "Removed",
+        "sensitive": "Sensitive"
+      },
+      "actions": {
+        "hide": "Hide",
+        "sensitive": "Mark sensitive",
+        "delete": "Delete"
+      },
+      "toast": "Action {action} on {id}"
+    },
+    "economy": {
+      "packs": {
+        "title": "Token packs",
+        "subtitle": "Manage pricing and amounts"
+      },
+      "gifts": {
+        "title": "Gift catalog",
+        "subtitle": "Adjust costs and animations"
+      },
+      "form": {
+        "id": "ID",
+        "name": "Name",
+        "tokens": "Tokens",
+        "price": "Price (€)",
+        "save": "Save changes",
+        "anim": "Animation",
+        "active": "Active"
+      },
+      "toast": {
+        "pack": "Pack {name} updated",
+        "gift": "Gift {name} updated"
+      },
+      "ranges": {
+        "title": "Allowed ranges",
+        "subtitle": "Global definition (read only)",
+        "ppv": "PPV per media",
+        "pass": "30-day pass",
+        "minute": "Per-minute price",
+        "vip": "VIP ticket"
+      }
+    },
+    "payouts": {
+      "title": "Payouts",
+      "subtitle": "Handle withdrawal requests",
+      "table": {
+        "user": "User",
+        "amount": "Amount",
+        "method": "Method",
+        "status": "Status",
+        "requested": "Requested",
+        "reference": "Reference",
+        "actions": "Actions"
+      },
+      "status": {
+        "requested": "Requested",
+        "paid": "Paid",
+        "rejected": "Rejected"
+      },
+      "actions": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "cancel": "Cancel",
+        "confirmApprove": "Confirm payout",
+        "confirmReject": "Confirm rejection"
+      },
+      "toast": {
+        "approved": "Payout {id} approved (ref {reference})",
+        "rejected": "Payout {id} rejected"
+      },
+      "modal": {
+        "approveTitle": "Approve withdrawal",
+        "rejectTitle": "Reject withdrawal",
+        "subtitle": "Request {id} from @{user} for {amount}"
+      },
+      "form": {
+        "reference": "External reference",
+        "note": "Internal note",
+        "optional": "Optional"
+      },
+      "processedAt": "Processed on {date}",
+      "noReference": "No reference"
+    },
+    "forum": {
+      "title": "Forum",
+      "subtitle": "Categories and moderation",
+      "threads": "{count} threads",
+      "pinned": "Pinned",
+      "actions": {
+        "pin": "Pin",
+        "unpin": "Unpin"
+      },
+      "toast": {
+        "pinned": "Category {id} pinned",
+        "unpinned": "Category {id} unpinned",
+        "created": "Category {name} created"
+      },
+      "create": {
+        "title": "New category",
+        "subtitle": "Organize the forum",
+        "name": "Name",
+        "moderator": "Moderator",
+        "submit": "Create category"
+      }
+    }
+  },
+  "footer": {
+    "tos": "Terms",
+    "privacy": "Privacy",
+    "content": "Content",
+    "dmca": "Notice & Action"
+  },
+  "notifications": {
+    "reportSent": "Report submitted!",
+    "giftSent": "Sent! 🎁",
+    "tokensLow": "You are running low on credits (TKN). Top-up now.",
+    "tokensRemaining": "You have {amount} credits (TKN) left · Top up"
+  }
+}

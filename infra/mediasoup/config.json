@@ -1,0 +1,21 @@
+{
+  "listenIps": [
+    { "ip": "0.0.0.0", "announcedIp": "<SFU_ANNOUNCED_IP>" }
+  ],
+  "webRtcTransport": {
+    "listenIps": [
+      { "ip": "0.0.0.0", "announcedIp": "<SFU_ANNOUNCED_IP>" }
+    ],
+    "initialAvailableOutgoingBitrate": 1000000,
+    "enableUdp": true,
+    "enableTcp": true,
+    "preferUdp": true,
+    "maxIncomingBitrate": 1500000
+  },
+  "plainTransport": {
+    "listenIp": { "ip": "0.0.0.0", "announcedIp": "<SFU_ANNOUNCED_IP>" }
+  },
+  "rtp": {
+    "portRange": { "min": 40000, "max": 41000 }
+  }
+}
