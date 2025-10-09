@@ -8,17 +8,20 @@ glance.
 
 ## 1. Payments & Token Ledger
 
-**Status:** Client flows call the wallet checkout endpoint, but no PSP is wired.
+**Status:** The local Fastify API now exposes `/wallet`, `/wallet/history`,
+`/wallet/purchase`, and the `/wallet/webhook` idempotent handler. Checkout
+sessions issue sandbox URLs and ledger entries are recorded in-memory for the
+MVP.
 
 **Outstanding work:**
 
-- Integrate an adult-compliant PSP (e.g. CCBill, Segpay, Epoch) using the
-  `/wallet/purchase` and `/wallet/webhook` contracts, including signature
-  verification and the `provider_ref` idempotency guard.
+- Integrate an adult-compliant PSP (e.g. CCBill, Segpay, Epoch) with the new
+  endpoints, including real signature verification and persistence.
 - Enforce per-user hourly/daily purchase limits and the "suspend purchases"
   toggle surfaced in the admin tools.
 - Provide administrative tooling to freeze/unfreeze purchases and review
-  anomalous activity (high spend, chargebacks).
+  anomalous activity (high spend, chargebacks) backed by a database rather than
+  the current in-memory store.
 
 **Considerations:** Coordinate secret management (`PAYMENT_PUBLIC_KEY`,
 `PAYMENT_SECRET`, `PAYMENT_WEBHOOK_SECRET`), 3DS/SCA coverage in supported
@@ -58,13 +61,15 @@ signature checks and monitor bucket usage to manage costs.
 
 ## 4. Real-Time Stack (Signal, TURN, SFU)
 
-**Status:** The UI expects a live Signal/SFU stack; mock data is used only
-when `NEXT_PUBLIC_ENABLE_MOCKS=true` in development.
+**Status:** A lightweight Signal gateway now runs alongside the API, handling
+match queueing, massive-room fan-out, slow-mode, and message reactions entirely
+in memory. WebRTC offers/candidates are relayed between peers once TURN/SFU is
+configured.
 
 **Outstanding work:**
 
-- Deploy the Signal WebSocket service with Redis-backed queues and connect the
-  Match UI through authenticated tickets.
+- Replace the in-memory queues with Redis/Kafka-backed fan-out for horizontal
+  scaling and persistence.
 - Configure coturn and mediasoup (or LiveKit) with announced IPs, UDP ranges,
   and instrumentation for ICE success/latency metrics.
 - Enforce group room capacity, VIP ticket charges, and reconnection attempts for
@@ -121,16 +126,16 @@ queue delays, and TURN reachability failures.
 
 ## 8. Massive Rooms Rollout
 
-**Status:** Front-end lobby and room views call the `/rooms` REST endpoints
-and Signal topics directly; mock payloads are loaded only when
-`NEXT_PUBLIC_ENABLE_MOCKS=true`.
+**Status:** `/rooms` REST endpoints and Signal message families are now
+implemented in the Fastify API/Signal service, providing live history, reports,
+reactions, and slow-mode enforcement for development and QA.
 
 **Outstanding work:**
 
-- Implement `/rooms` REST endpoints, `rooms` Prisma models, and Redis-backed
-  sharding for fan-out.
-- Extend the Signal service with the `ROOM_*` message family, backpressure
-  handling, slow-mode enforcement, and aggregation of reactions/polls.
+- Persist rooms/messages/moderation data to Postgres/Redis instead of the
+  in-memory store and introduce true sharding/backpressure controls.
+- Extend the Signal service with polls, prioritised moderation queues, and
+  aggregation once persistence exists.
 - Persist room membership, moderation actions, and token transfers/gifts in the
   ledger with the correct splits.
 
