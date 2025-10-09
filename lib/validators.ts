@@ -46,14 +46,29 @@ export const upgradeSchema = z.object({
 
 export const matchConsentSchema = z.array(z.string()).max(6);
 
+const optionalNumberFromInput = (min: number, max: number, messagePrefix: string) =>
+  z.preprocess(
+    (value) => {
+      if (value === '' || value === null || typeof value === 'undefined') {
+        return undefined;
+      }
+      if (typeof value === 'number') {
+        return Number.isNaN(value) ? undefined : value;
+      }
+      const parsed = Number(value);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    },
+    z
+      .number({ invalid_type_error: `${messagePrefix} debe ser numérico` })
+      .int()
+      .min(min, `${messagePrefix} mínimo ${min} TKN`)
+      .max(max, `${messagePrefix} máximo ${max} TKN`)
+      .optional()
+  );
+
 export const createGroupSchema = z.object({
   title: z.string().min(1).max(40).optional(),
-  vipPrice: z
-    .number()
-    .int()
-    .min(100)
-    .max(1000)
-    .optional()
+  vipPrice: optionalNumberFromInput(100, 1000, 'El precio VIP')
 });
 
 export const ppvPriceSchema = z

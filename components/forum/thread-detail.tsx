@@ -12,6 +12,11 @@ interface Props {
   thread: ForumThreadDetail;
 }
 
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('es-ES', {
+  dateStyle: 'medium',
+  timeStyle: 'short'
+});
+
 export function ThreadDetail({ thread }: Props) {
   const session = useSession();
   const isFollowing = session.isThreadFollowed(thread.id);
@@ -50,7 +55,7 @@ export function ThreadDetail({ thread }: Props) {
           <Card key={post.id} className="space-y-3 p-5">
             <div className="flex items-center justify-between text-xs text-text-muted">
               <span>@{post.author}</span>
-              <span>{new Date(post.createdAt).toLocaleString('es-ES')}</span>
+              <span>{DATE_TIME_FORMATTER.format(new Date(post.createdAt))}</span>
             </div>
             <p className="text-sm text-text">{post.body}</p>
             {post.mediaThumb ? (

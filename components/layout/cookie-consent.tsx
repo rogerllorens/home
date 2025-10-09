@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 
 const STORAGE_KEY = 'tkn:cookie-consent';
+const CONSENT_EVENT_NAME = 'tkn:cookie-consent-accepted';
 
 export function CookieConsent() {
   const [visible, setVisible] = useState(false);
@@ -17,6 +18,7 @@ export function CookieConsent() {
   const accept = () => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      window.dispatchEvent(new Event(CONSENT_EVENT_NAME));
     }
     setVisible(false);
   };

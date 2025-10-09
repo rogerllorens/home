@@ -92,12 +92,9 @@ export function ForumOverview({ categories, threads }: Props) {
                   </Badge>
                 ) : null}
               </div>
-              <Link
-                href={`/forum/${category.id}`}
-                className="rounded-full border border-accent/30 px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/10"
-              >
-                Ver hilos
-              </Link>
+              <Button asChild variant="outline" size="sm" className="rounded-full">
+                <Link href={`/forum/${category.id}`}>Ver hilos</Link>
+              </Button>
             </div>
             <div className="space-y-2 text-sm text-text-muted">
               {filteredThreads

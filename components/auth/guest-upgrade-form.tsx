@@ -113,15 +113,41 @@ export function GuestUpgradeForm() {
         <form className="space-y-4" onSubmit={onSubmit}>
           <Input type="hidden" {...register('sessionId')} />
           <div className="space-y-2">
-            <Input placeholder="Username" {...register('username')} />
+            <label className="text-xs font-semibold uppercase tracking-wide text-text-muted" htmlFor="upgrade-username">
+              Username
+            </label>
+            <Input
+              id="upgrade-username"
+              placeholder="Username"
+              autoComplete="username"
+              {...register('username')}
+            />
             {errors.username ? <p className="text-xs text-warn">{errors.username.message}</p> : null}
           </div>
           <div className="space-y-2">
-            <Input type="email" placeholder="Email" {...register('email')} />
+            <label className="text-xs font-semibold uppercase tracking-wide text-text-muted" htmlFor="upgrade-email">
+              Email
+            </label>
+            <Input
+              id="upgrade-email"
+              type="email"
+              placeholder="Email"
+              autoComplete="email"
+              {...register('email')}
+            />
             {errors.email ? <p className="text-xs text-warn">{errors.email.message}</p> : null}
           </div>
           <div className="space-y-2">
-            <Input type="password" placeholder="Password" {...register('password')} />
+            <label className="text-xs font-semibold uppercase tracking-wide text-text-muted" htmlFor="upgrade-password">
+              Password
+            </label>
+            <Input
+              id="upgrade-password"
+              type="password"
+              placeholder="Password"
+              autoComplete="new-password"
+              {...register('password')}
+            />
             {errors.password ? <p className="text-xs text-warn">{errors.password.message}</p> : null}
           </div>
           <div className="space-y-2">

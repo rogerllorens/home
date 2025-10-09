@@ -70,20 +70,42 @@ export function LoginForm() {
         </header>
         <form className="space-y-4" onSubmit={onSubmit}>
           <div className="space-y-2">
-            <Input placeholder={t('username')} {...register('usernameOrEmail')} />
+            <label className="text-xs font-semibold uppercase tracking-wide text-text-muted" htmlFor="login-username">
+              {t('username')} / Email
+            </label>
+            <Input
+              id="login-username"
+              placeholder={t('username')}
+              autoComplete="username"
+              {...register('usernameOrEmail')}
+            />
             {errors.usernameOrEmail ? (
               <p className="text-xs text-warn">{errors.usernameOrEmail.message}</p>
             ) : null}
           </div>
           <div className="space-y-2">
-            <Input type="password" placeholder={t('password')} {...register('password')} />
+            <label className="text-xs font-semibold uppercase tracking-wide text-text-muted" htmlFor="login-password">
+              {t('password')}
+            </label>
+            <Input
+              id="login-password"
+              type="password"
+              placeholder={t('password')}
+              autoComplete="current-password"
+              {...register('password')}
+            />
             {errors.password ? <p className="text-xs text-warn">{errors.password.message}</p> : null}
           </div>
           <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wide text-text-muted" htmlFor="login-totp">
+              Código TOTP (admins)
+            </label>
             <Input
+              id="login-totp"
               inputMode="numeric"
               placeholder="Código TOTP (admins)"
               maxLength={6}
+              autoComplete="one-time-code"
               {...register('totp')}
             />
             <p className="text-xs text-text-muted">

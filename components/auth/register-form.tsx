@@ -109,15 +109,41 @@ export function RegisterForm() {
         </header>
         <form className="space-y-4" onSubmit={onSubmit}>
           <div className="space-y-2">
-            <Input placeholder={t('username')} {...register('username')} />
+            <label className="text-xs font-semibold uppercase tracking-wide text-text-muted" htmlFor="register-username">
+              {t('username')}
+            </label>
+            <Input
+              id="register-username"
+              placeholder={t('username')}
+              autoComplete="username"
+              {...register('username')}
+            />
             {errors.username ? <p className="text-xs text-warn">{errors.username.message}</p> : null}
           </div>
           <div className="space-y-2">
-            <Input type="email" placeholder={t('email')} {...register('email')} />
+            <label className="text-xs font-semibold uppercase tracking-wide text-text-muted" htmlFor="register-email">
+              {t('email')}
+            </label>
+            <Input
+              id="register-email"
+              type="email"
+              placeholder={t('email')}
+              autoComplete="email"
+              {...register('email')}
+            />
             {errors.email ? <p className="text-xs text-warn">{errors.email.message}</p> : null}
           </div>
           <div className="space-y-2">
-            <Input type="password" placeholder={t('password')} {...register('password')} />
+            <label className="text-xs font-semibold uppercase tracking-wide text-text-muted" htmlFor="register-password">
+              {t('password')}
+            </label>
+            <Input
+              id="register-password"
+              type="password"
+              placeholder={t('password')}
+              autoComplete="new-password"
+              {...register('password')}
+            />
             {errors.password ? <p className="text-xs text-warn">{errors.password.message}</p> : null}
           </div>
           <div className="space-y-2">

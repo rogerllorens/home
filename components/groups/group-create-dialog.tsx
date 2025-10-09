@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/dialog';
 import { createGroupSchema } from '@/lib/validators';
 import { z } from 'zod';
 
-const schema = createGroupSchema.extend({ vipPrice: z.number().optional() });
+const schema = createGroupSchema;
 
 type FormValues = z.infer<typeof schema>;
 
@@ -40,13 +40,32 @@ export function GroupCreateDialog({ onCreate }: Props) {
       <Modal open={open} onOpenChange={setOpen} title="Crear sala grupal" description="Define título y precio VIP (opcional).">
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-2">
-            <label className="text-sm font-semibold">Título</label>
-            <Input placeholder="After hours" {...register('title')} />
+            <label className="text-sm font-semibold" htmlFor="group-title">
+              Título
+            </label>
+            <Input id="group-title" placeholder="After hours" {...register('title')} />
             {errors.title ? <p className="text-xs text-warn">{errors.title.message}</p> : null}
           </div>
           <div className="space-y-2">
-          <label className="text-sm font-semibold">Precio VIP (Créditos TKN)</label>
-            <Input type="number" min={100} max={1000} step={50} {...register('vipPrice', { valueAsNumber: true })} />
+            <label className="text-sm font-semibold" htmlFor="group-vip-price">
+              Precio VIP (Créditos TKN)
+            </label>
+            <Input
+              id="group-vip-price"
+              type="number"
+              min={100}
+              max={1000}
+              step={50}
+              {...register('vipPrice', {
+                setValueAs: (value) => {
+                  if (value === '' || value === null || typeof value === 'undefined') {
+                    return undefined;
+                  }
+                  const parsed = Number(value);
+                  return Number.isNaN(parsed) ? undefined : parsed;
+                }
+              })}
+            />
             {errors.vipPrice ? (
               <p className="text-xs text-warn">{errors.vipPrice.message}</p>
             ) : (

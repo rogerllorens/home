@@ -8,14 +8,14 @@ import { AppFooter } from '@/components/layout/app-footer';
 import { AgeGate } from '@/components/layout/age-gate';
 import { CookieConsent } from '@/components/layout/cookie-consent';
 import { DEFAULT_LOCALE, getMessages } from '@/lib/i18n';
-import { ErrorBoundary } from '@sentry/nextjs';
+import { ConsentAwareErrorBoundary } from '@/components/providers/consent-aware-error-boundary';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const poppins = Poppins({ subsets: ['latin'], weight: ['400', '600', '700'], variable: '--font-poppins' });
 
 export const metadata: Metadata = {
-  title: 'TKN Social Platform',
-  description: 'Plataforma social con chat 1:1, grupos, perfiles y foro impulsados por Créditos (TKN).' 
+  title: 'Plataforma social TKN',
+  description: 'Plataforma social con chat 1:1, grupos, perfiles y foro impulsados por Créditos (TKN).'
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={cn(inter.variable, poppins.variable, 'bg-bg text-text')}>
-        <ErrorBoundary
+        <ConsentAwareErrorBoundary
           fallback={
             <div className="flex min-h-screen flex-col items-center justify-center bg-bg text-center text-text">
               <p className="text-lg font-heading">Algo salió mal.</p>
@@ -44,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <CookieConsent />
             </div>
           </AppProviders>
-        </ErrorBoundary>
+        </ConsentAwareErrorBoundary>
       </body>
     </html>
   );
