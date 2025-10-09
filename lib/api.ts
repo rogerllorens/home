@@ -1109,6 +1109,71 @@ export async function fetchMassiveRoom(roomId: string): Promise<RoomSummary | un
   );
 }
 
+export async function sendMassiveRoomMessage(
+  roomId: string,
+  payload: { text: string; replyToId?: string }
+): Promise<RoomMessage> {
+  return withFallback(
+    async () =>
+      apiRequest<RoomMessage>(`/rooms/${roomId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ text: payload.text, replyToId: payload.replyToId })
+      }),
+    () => {
+      const message: RoomMessage = {
+        id: `mock-${Date.now()}`,
+        roomId,
+        author: {
+          id: 'self',
+          username: 'tú',
+          displayName: 'Tú',
+          role: 'member'
+        },
+        text: payload.text,
+        replyTo: payload.replyToId,
+        createdAt: new Date().toISOString(),
+        reactions: {},
+        pinned: false,
+        status: 'delivered'
+      };
+      massiveRoomMessages[roomId] = [message, ...(massiveRoomMessages[roomId] ?? [])];
+      return message;
+    }
+  );
+}
+
+export async function searchMassiveRoomMessages(roomId: string, term: string): Promise<RoomMessage[]> {
+  return withFallback(
+    async () =>
+      apiRequest<RoomMessage[]>(`/rooms/${roomId}/search?${new URLSearchParams({ q: term }).toString()}`),
+    () => {
+      const normalized = term.trim().toLowerCase();
+      if (!normalized) return [];
+      return (massiveRoomMessages[roomId] ?? []).filter((message) =>
+        (message.text ?? '').toLowerCase().includes(normalized)
+      );
+    }
+  );
+}
+
+export async function pinMassiveRoomMessage(roomId: string, messageId: string, pinned: boolean): Promise<void> {
+  return withFallback(
+    async () => {
+      await apiRequest(`/rooms/${roomId}/messages/${messageId}/pin`, {
+        method: 'POST',
+        body: JSON.stringify({ pinned })
+      });
+    },
+    () => {
+      const messages = massiveRoomMessages[roomId];
+      if (!messages) return;
+      massiveRoomMessages[roomId] = messages.map((message) =>
+        message.id === messageId ? { ...message, pinned } : message
+      );
+    }
+  );
+}
+
 export async function fetchWallet(): Promise<WalletSummary> {
   return withFallback(
     async () => apiRequest<WalletSummary>('/wallet'),

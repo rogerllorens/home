@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Crown, Gift, MessageSquarePlus, ShieldAlert, Users } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   MASSIVE_ROOM_REACTION_OPTIONS,
   formatNumberCompact,
@@ -16,6 +17,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { pinMassiveRoomMessage, queryKeys, searchMassiveRoomMessages, sendMassiveRoomMessage } from '@/lib/api';
 
 interface MassiveRoomViewProps {
   room: RoomSummary;
@@ -33,6 +35,35 @@ export function MassiveRoomView({
   enableInlineTopup
 }: MassiveRoomViewProps) {
   const t = useTranslations('rooms');
+  const queryClient = useQueryClient();
+
+  const toChatMessage = useCallback(
+    (message: RoomMessage): ChatMessage => ({
+      id: message.id,
+      author: {
+        id: message.author.id,
+        username: message.author.username,
+        avatar: message.author.avatarUrl,
+        isMuted: message.author.role === 'helper',
+        isSelf: false
+      },
+      body:
+        message.text ??
+        (message.poll
+          ? `${message.poll.question}\n${message.poll.options
+              .map((option) => `• ${option.label} (${option.votes})`)
+              .join('\n')}`
+          : ''),
+      createdAt: message.createdAt,
+      likes: Object.values(message.reactions ?? {}).reduce((acc, value) => acc + value, 0),
+      pinned: Boolean(message.pinned),
+      reactions: message.reactions,
+      replyToId: message.replyTo,
+      myReactions: message.myReactions ?? [],
+      status: message.status ?? 'read'
+    }),
+    []
+  );
 
   const participants: ChatParticipant[] = useMemo(
     () =>
@@ -45,31 +76,56 @@ export function MassiveRoomView({
     [room.topSupporters]
   );
 
-  const chatMessages: ChatMessage[] = useMemo(() => {
-    return initialMessages.map((message, index) => ({
-      id: message.id,
-      author: {
-        id: message.author.id,
-        username: message.author.username,
-        avatar: message.author.avatarUrl,
-        isMuted: message.author.role === 'helper'
-      },
-      body:
-        message.text ??
-        (message.poll
-          ? `${message.poll.question}\n${message.poll.options
-              .map((option) => `• ${option.label} (${option.votes})`)
-              .join('\n')}`
-          : ''),
-      createdAt: message.createdAt,
-      likes: Object.values(message.reactions ?? {}).reduce((acc, value) => acc + value, 0),
-      pinned: index === 0,
-      reactions: message.reactions,
-      replyToId: message.replyTo,
-      myReactions: [],
-      status: 'read'
-    }));
-  }, [initialMessages]);
+  const chatMessages: ChatMessage[] = useMemo(
+    () =>
+      initialMessages.map((message, index) => ({
+        ...toChatMessage(message),
+        pinned: index === 0 || Boolean(message.pinned)
+      })),
+    [initialMessages, toChatMessage]
+  );
+
+  const handleSendMessage = useCallback(
+    async (
+      message: ChatMessage,
+      helpers: { markDelivered: () => void; markRead: () => void; markFailed: (reason?: string) => void }
+    ) => {
+      try {
+        const payload = await sendMassiveRoomMessage(room.id, {
+          text: message.body,
+          replyToId: message.replyToId ?? undefined
+        });
+        if (payload) {
+          helpers.markDelivered();
+          helpers.markRead();
+          queryClient.setQueryData<RoomMessage[]>(queryKeys.roomHistory(room.id), (existing = []) => [payload, ...existing]);
+        }
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : undefined;
+        helpers.markFailed(reason ?? 'No se pudo enviar el mensaje en la sala.');
+      }
+    },
+    [queryClient, room.id, toChatMessage]
+  );
+
+  const handleSearch = useCallback(
+    async (term: string) => {
+      if (!term.trim()) {
+        return [];
+      }
+      const results = await searchMassiveRoomMessages(room.id, term);
+      return results.map(toChatMessage);
+    },
+    [room.id, toChatMessage]
+  );
+
+  const handlePinToggle = useCallback(
+    async (messageId: string, pinned: boolean) => {
+      await pinMassiveRoomMessage(room.id, messageId, pinned);
+      queryClient.invalidateQueries(queryKeys.roomHistory(room.id));
+    },
+    [queryClient, room.id]
+  );
 
   return (
     <div className="space-y-6">
@@ -90,7 +146,7 @@ export function MassiveRoomView({
           </div>
           <div className="flex flex-wrap gap-2 text-xs text-text-muted">
             {room.tags.map((tag) => (
-              <span key={tag} className="rounded-full bg-muted/40 px-3 py-1">
+              <span key={tag} className="rounded-full bg-muted/70 px-3 py-1 text-text">
                 #{tag}
               </span>
             ))}
@@ -126,6 +182,9 @@ export function MassiveRoomView({
             reactionsOptions={MASSIVE_ROOM_REACTION_OPTIONS}
             allowDirectTip={enableTokenTransfer}
             showInlineTopup={enableInlineTopup}
+            onMessageSend={handleSendMessage}
+            onSearch={handleSearch}
+            onPinToggle={handlePinToggle}
           />
         </Card>
         <aside className="space-y-4">

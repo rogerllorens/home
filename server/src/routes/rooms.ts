@@ -1,17 +1,22 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import type { RoomMessage } from '../types.js';
 import {
   addRoomMessage,
   bootstrapRooms,
   getReactions,
+  getRoom,
   getRoomMembers,
   joinRoom,
   leaveRoom,
   listRoomMessages,
   listRooms,
   recordReport,
+  searchRoomMessages,
+  setMessagePinned,
   setReaction,
   removeReaction,
+  updateRoomConfig,
   upsertRoom
 } from '../store.js';
 import { ApiHttpError, sendError } from '../utils.js';
@@ -44,6 +49,34 @@ const reactionSchema = z.object({
   msgId: z.string(),
   emoji: z.string().min(1).max(8)
 });
+
+const messageSendSchema = z.object({
+  text: z.string().trim().min(1).max(1000),
+  replyToId: z.string().optional()
+});
+
+const roomUpdateSchema = z.object({
+  slowModeSeconds: z.number().int().min(0).optional(),
+  rules: z.string().max(2000).optional()
+});
+
+function serializeRoomMessage(message: RoomMessage) {
+  return {
+    id: message.id,
+    roomId: message.roomId,
+    author: {
+      id: message.authorId,
+      username: message.authorId,
+      displayName: message.authorId,
+      role: 'member'
+    },
+    text: message.text,
+    replyTo: message.replyTo,
+    createdAt: new Date(message.createdAt).toISOString(),
+    reactions: getReactions(message.id),
+    pinned: message.pinned ?? false
+  };
+}
 
 export async function roomsRoutes(app: FastifyInstance) {
   bootstrapRooms();
@@ -78,6 +111,29 @@ export async function roomsRoutes(app: FastifyInstance) {
     });
   });
 
+  app.get('/rooms/:id', async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const room = getRoom(id);
+      if (!room) {
+        throw new ApiHttpError(404, 'ROOM_NOT_FOUND', 'Sala no encontrada');
+      }
+      reply.send({
+        id: room.id,
+        title: room.title,
+        tags: room.tags,
+        type: room.type,
+        slowModeSeconds: room.slowModeSeconds,
+        rules: room.rules,
+        isNSFW: room.isNSFW,
+        participants: getRoomMembers(room.id).length,
+        messagesPerMinute: Math.floor(Math.random() * 120)
+      });
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
   app.post('/rooms', async (request, reply) => {
     try {
       const payload = roomCreateSchema.parse(request.body);
@@ -101,12 +157,71 @@ export async function roomsRoutes(app: FastifyInstance) {
     }
   });
 
+  app.patch('/rooms/:id', async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const payload = roomUpdateSchema.parse(request.body);
+      const updated = updateRoomConfig(id, payload);
+      reply.send({
+        id: updated.id,
+        slowModeSeconds: updated.slowModeSeconds,
+        rules: updated.rules,
+        tags: updated.tags
+      });
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
   app.get('/rooms/:id/history', async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
       const query = historySchema.parse(request.query);
-      const messages = listRoomMessages(id, query.limit);
+      const messages = listRoomMessages(id, query.limit).map((message) => serializeRoomMessage(message));
       reply.send({ messages });
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
+  app.get('/rooms/:id/search', async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const term = ((request.query as { q?: string }).q ?? '').toString();
+      const messages = searchRoomMessages(id, term, MASSIVE_ROOM_MESSAGE_CACHE).map((message) => serializeRoomMessage(message));
+      reply.send(messages);
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
+  app.post('/rooms/:id/messages', async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const payload = messageSendSchema.parse(request.body);
+      const authorId = (request.headers['x-user-id'] as string) ?? (request.headers['x-session-id'] as string) ?? 'anon';
+      const message = addRoomMessage({
+        roomId: id,
+        authorId,
+        text: payload.text,
+        replyTo: payload.replyToId
+      });
+      const payloadMessage = serializeRoomMessage(message);
+      reply.status(201).send({ ...payloadMessage, status: 'delivered' });
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
+  app.post('/rooms/:id/messages/:msgId/pin', async (request, reply) => {
+    try {
+      const { id, msgId } = request.params as { id: string; msgId: string };
+      const pinned = z.boolean().parse((request.body as { pinned?: boolean })?.pinned ?? true);
+      const message = setMessagePinned(id, msgId, pinned);
+      if (!message) {
+        throw new ApiHttpError(404, 'MESSAGE_NOT_FOUND', 'Mensaje no encontrado');
+      }
+      reply.send({ ...serializeRoomMessage(message), pinned: message.pinned ?? false });
     } catch (error) {
       return sendError(reply, error);
     }

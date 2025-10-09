@@ -205,6 +205,10 @@ export function listRooms(): MassiveRoom[] {
   return Array.from(rooms.values());
 }
 
+export function getRoom(roomId: string): MassiveRoom | undefined {
+  return rooms.get(roomId);
+}
+
 export function upsertRoom(room: Partial<MassiveRoom> & { id?: string; createdBy: string }): MassiveRoom {
   const id = room.id ?? ulid();
   const existing = rooms.get(id);
@@ -225,6 +229,24 @@ export function upsertRoom(room: Partial<MassiveRoom> & { id?: string; createdBy
     roomMembers.set(id, new Map());
   }
   return record;
+}
+
+export function updateRoomConfig(
+  roomId: string,
+  updates: Partial<Pick<MassiveRoom, 'slowModeSeconds' | 'rules'> & { tags: string[] }>
+): MassiveRoom {
+  const room = rooms.get(roomId);
+  if (!room) {
+    throw new Error('ROOM_NOT_FOUND');
+  }
+  const next: MassiveRoom = {
+    ...room,
+    slowModeSeconds: updates.slowModeSeconds ?? room.slowModeSeconds,
+    rules: updates.rules ?? room.rules,
+    tags: updates.tags ?? room.tags
+  };
+  rooms.set(roomId, next);
+  return next;
 }
 
 export function joinRoom(roomId: string, userId: string, role: RoomMember['role'] = 'member'): RoomMember {
@@ -257,6 +279,7 @@ export function addRoomMessage(message: Omit<RoomMessage, 'id' | 'createdAt' | '
     id,
     createdAt: Date.now(),
     media: message.media ?? [],
+    pinned: message.pinned ?? false,
     ...message
   };
   const messages = roomMessages.get(message.roomId) ?? [];
@@ -267,6 +290,31 @@ export function addRoomMessage(message: Omit<RoomMessage, 'id' | 'createdAt' | '
 
 export function listRoomMessages(roomId: string, limit = MASSIVE_ROOM_MESSAGE_CACHE): RoomMessage[] {
   return (roomMessages.get(roomId) ?? []).slice(0, limit);
+}
+
+export function searchRoomMessages(roomId: string, term: string, limit = MASSIVE_ROOM_MESSAGE_CACHE): RoomMessage[] {
+  const normalized = term.trim().toLowerCase();
+  if (!normalized) {
+    return [];
+  }
+  return (roomMessages.get(roomId) ?? [])
+    .filter((message) => (message.text ?? '').toLowerCase().includes(normalized))
+    .slice(0, limit);
+}
+
+export function setMessagePinned(roomId: string, messageId: string, pinned: boolean): RoomMessage | undefined {
+  const messages = roomMessages.get(roomId);
+  if (!messages) return undefined;
+  const next = messages.map((message) =>
+    message.id === messageId
+      ? {
+          ...message,
+          pinned
+        }
+      : message
+  );
+  roomMessages.set(roomId, next);
+  return next.find((message) => message.id === messageId);
 }
 
 export function setReaction(messageId: string, emoji: string, userId: string): number {

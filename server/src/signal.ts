@@ -5,6 +5,7 @@ import { ulid } from 'ulid';
 import {
   addRoomMessage,
   getReactions,
+  getRoom,
   joinRoom,
   leaveRoom,
   listRoomMessages,
@@ -188,10 +189,14 @@ function handleRoomMessage(client: SignalClient, payload: any) {
   if (!roomId || !client.rooms.has(roomId)) {
     return;
   }
+  const room = getRoom(roomId);
   const now = Date.now();
   const last = client.slowMode.get(roomId) ?? 0;
-  if (now - last < SLOW_MODE_DEFAULT * 1000) {
-    client.ws.send(JSON.stringify({ type: 'SLOWMODE_ACTIVE', payload: { roomId, remainingMs: SLOW_MODE_DEFAULT * 1000 - (now - last) } }));
+  const slowModeSeconds = room?.slowModeSeconds ?? SLOW_MODE_DEFAULT;
+  if (slowModeSeconds > 0 && now - last < slowModeSeconds * 1000) {
+    client.ws.send(
+      JSON.stringify({ type: 'SLOWMODE_ACTIVE', payload: { roomId, remainingMs: slowModeSeconds * 1000 - (now - last) } })
+    );
     return;
   }
   client.slowMode.set(roomId, now);
@@ -201,10 +206,12 @@ function handleRoomMessage(client: SignalClient, payload: any) {
     text: payload?.text,
     replyTo: payload?.replyTo
   });
+  const enriched = { ...message, reactions: getReactions(message.id) };
   broadcastToRoom(roomId, {
     type: 'MSG_RECV',
-    payload: { ...message, reactions: getReactions(message.id) }
+    payload: enriched
   });
+  client.ws.send(JSON.stringify({ type: 'MSG_ACK', payload: { roomId, messageId: message.id, status: 'delivered' } }));
 }
 
 function handleReaction(client: SignalClient, payload: any, add: boolean) {

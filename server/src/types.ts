@@ -111,6 +111,7 @@ export interface RoomMessage {
   media: RoomMessageMedia[];
   createdAt: number;
   deletedAt?: number;
+  pinned?: boolean;
 }
 
 export interface MessageReaction {

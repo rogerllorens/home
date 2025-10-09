@@ -166,6 +166,9 @@ export interface RoomMessage {
     options: Array<{ id: string; label: string; votes: number; voted?: boolean }>;
     closesAt?: string;
   };
+  pinned?: boolean;
+  myReactions?: string[];
+  status?: 'sent' | 'delivered' | 'read';
 }
 
 export interface RoomPresenceSummary {

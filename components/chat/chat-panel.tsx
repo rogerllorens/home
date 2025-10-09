@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Check, CheckCheck, Gift, Heart, Loader2, MessageCircleReply, Reply, Smile, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,16 @@ interface ChatPanelProps {
   participants?: ChatParticipant[];
   initialMessages?: ChatMessage[];
   placeholder?: string;
-  onMessageSend?: (message: ChatMessage) => void;
+  onMessageSend?: (
+    message: ChatMessage,
+    helpers: {
+      markDelivered: () => void;
+      markRead: () => void;
+      markFailed: (reason?: string) => void;
+    }
+  ) => Promise<void> | void;
+  onSearch?: (term: string) => Promise<ChatMessage[]>;
+  onPinToggle?: (messageId: string, pinned: boolean) => Promise<void> | void;
   emptyState?: string;
   slowModeSeconds?: number;
   reactionsOptions?: readonly string[];
@@ -69,6 +78,8 @@ export function ChatPanel({
   initialMessages,
   placeholder,
   onMessageSend,
+  onSearch,
+  onPinToggle,
   emptyState,
   slowModeSeconds: slowModeSecondsProp,
   reactionsOptions,
@@ -108,6 +119,8 @@ export function ChatPanel({
   const [lastSendAt, setLastSendAt] = useState<number | null>(null);
   const [remoteTyping, setRemoteTyping] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<ChatMessage[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const slowModeSeconds = slowModeSecondsProp ?? (context === 'group' ? 5 : context === 'match' ? 3 : 0);
   const reactions = reactionsOptions ?? REACTIONS;
   const euroTip = formatFiat(tipAmount, session.preferredCurrency);
@@ -115,6 +128,7 @@ export function ChatPanel({
   const quickPacks = TOKEN_PACKS.slice(0, 2);
   const tokensLeftToday = Math.max(session.spendingLimits.daily - session.spendingUsage.today, 0);
   const tokensLeftMonth = Math.max(session.spendingLimits.monthly - session.spendingUsage.month, 0);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   const handleTipAmountChange = (value: string) => {
     const numeric = Number.parseInt(value, 10);
@@ -156,7 +170,10 @@ export function ChatPanel({
   };
 
   const messageMap = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
-  const filteredMessages = useMemo(() => {
+  const visibleMessages = useMemo(() => {
+    if (searchResults) {
+      return searchResults;
+    }
     const normalized = searchTerm.trim().toLowerCase();
     if (!normalized) return messages;
     return messages.filter((message) => {
@@ -164,9 +181,10 @@ export function ChatPanel({
       const haystack = `${message.author.username} ${message.body}`.toLowerCase();
       return haystack.includes(normalized);
     });
-  }, [messages, searchTerm]);
+  }, [messages, searchResults, searchTerm]);
 
   const pinnedMessages = useMemo(() => messages.filter((message) => message.pinned), [messages]);
+  const hasSearchActive = Boolean(searchResults || searchTerm.trim().length > 0);
 
   const composerPlaceholder = placeholder ?? messagePlaceholder[context];
   const emptyCopy = emptyState ?? defaultEmptyState[context];
@@ -181,7 +199,47 @@ export function ChatPanel({
     };
   }, [messages.length, context]);
 
-  const sendMessage = () => {
+  useEffect(() => {
+    if (!onSearch) {
+      setSearchResults(null);
+      setIsSearching(false);
+      return;
+    }
+    const query = searchTerm.trim();
+    if (query.length === 0) {
+      setSearchResults(null);
+      setIsSearching(false);
+      return;
+    }
+    let cancelled = false;
+    setIsSearching(true);
+    onSearch(query)
+      ?.then((results) => {
+        if (!cancelled) {
+          setSearchResults(results);
+          setIsSearching(false);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setSearchResults([]);
+          setIsSearching(false);
+          const reason = error instanceof Error ? error.message : undefined;
+          toast.error(reason ?? 'No se pudo buscar en el chat.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [searchTerm, onSearch]);
+
+  const updateMessageStatus = (messageId: string, status: ChatMessage['status']) => {
+    setMessages((prev) =>
+      prev.map((item) => (item.id === messageId ? { ...item, status } : item))
+    );
+  };
+
+  const sendMessage = async () => {
     const trimmed = draft.trim();
     if (!trimmed) return;
     const now = Date.now();
@@ -205,19 +263,29 @@ export function ChatPanel({
     setMessages((prev) => [...prev, message]);
     setDraft('');
     setReplyTo(null);
-    onMessageSend?.(message);
+    const helpers = {
+      markDelivered: () => updateMessageStatus(message.id, 'delivered'),
+      markRead: () => updateMessageStatus(message.id, 'read'),
+      markFailed: (reason?: string) => {
+        updateMessageStatus(message.id, 'sent');
+        if (reason) {
+          toast.error(reason);
+        }
+      }
+    };
+    try {
+      if (onMessageSend) {
+        await onMessageSend(message, helpers);
+      } else {
+        helpers.markDelivered();
+        helpers.markRead();
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : undefined;
+      helpers.markFailed(reason ?? 'No se pudo enviar el mensaje.');
+    }
     setShowMentions(false);
     setLastSendAt(now);
-    window.setTimeout(() => {
-      setMessages((prev) =>
-        prev.map((item) => (item.id === message.id ? { ...item, status: 'delivered' } : item))
-      );
-    }, 400);
-    window.setTimeout(() => {
-      setMessages((prev) =>
-        prev.map((item) => (item.id === message.id ? { ...item, status: 'read' } : item))
-      );
-    }, 1200);
     if (session.scope === 'user') {
       session.addNotification({
         type: 'comment',
@@ -266,16 +334,35 @@ export function ChatPanel({
   };
 
   const togglePin = (messageId: string) => {
+    const target = messageMap.get(messageId);
+    if (!target) return;
+    const nextPinned = !target.pinned;
     setMessages((prev) =>
       prev.map((message) =>
         message.id === messageId
           ? {
               ...message,
-              pinned: !message.pinned
+              pinned: nextPinned
             }
           : message
       )
     );
+    if (onPinToggle) {
+      Promise.resolve(onPinToggle(messageId, nextPinned)).catch((error) => {
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === messageId
+              ? {
+                  ...message,
+                  pinned: !nextPinned
+                }
+              : message
+          )
+        );
+        const reason = error instanceof Error ? error.message : undefined;
+        toast.error(reason ?? 'No se pudo actualizar el pin del mensaje.');
+      });
+    }
   };
 
   const handleReply = (message: ChatMessage) => {
@@ -295,6 +382,27 @@ export function ChatPanel({
 
   const clearReply = () => setReplyTo(null);
 
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleLongPressStart = (message: ChatMessage) => {
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+    }
+    longPressTimer.current = window.setTimeout(() => {
+      if (message.system) return;
+      handleReply(message);
+      if (!message.pinned) {
+        togglePin(message.id);
+        toast.info('Mensaje fijado rápidamente. Puedes verlo en la sección de destacados.');
+      }
+    }, 550);
+  };
+
   return (
     <>
       <div className="flex h-full flex-col gap-4">
@@ -308,6 +416,12 @@ export function ChatPanel({
             className="h-8 w-56"
             aria-label="Buscar en la conversación"
           />
+          {isSearching ? <Loader2 className="h-3 w-3 animate-spin text-accent" aria-hidden /> : null}
+          {hasSearchActive && !isSearching ? (
+            <span className="text-[0.6rem] text-text-muted/80">
+              {searchResults ? `${searchResults.length} resultados` : 'Filtrado local'}
+            </span>
+          ) : null}
         </div>
         {context === 'group' && pinnedMessages.length > 0 ? (
           <div className="flex flex-col gap-2 text-[0.7rem] text-text-muted">
@@ -401,10 +515,12 @@ export function ChatPanel({
         aria-live="polite"
         aria-relevant="additions text"
       >
-        {filteredMessages.length === 0 ? (
-          <p className="text-xs text-text-muted">{emptyCopy}</p>
+        {visibleMessages.length === 0 ? (
+          <p className="text-xs text-text-muted">
+            {hasSearchActive ? 'No encontramos mensajes que coincidan con tu búsqueda.' : emptyCopy}
+          </p>
         ) : (
-          filteredMessages.map((message) => {
+          visibleMessages.map((message) => {
             const replyTarget = message.replyToId ? messageMap.get(message.replyToId) : undefined;
             const isSelf = message.author.id === session.username || message.author.isSelf;
             return (
@@ -412,6 +528,10 @@ export function ChatPanel({
                 key={message.id}
                 id={`chat-message-${message.id}`}
                 className={cn('flex', isSelf ? 'justify-end' : 'justify-start')}
+                onTouchStart={() => handleLongPressStart(message)}
+                onTouchEnd={cancelLongPress}
+                onTouchCancel={cancelLongPress}
+                onMouseLeave={cancelLongPress}
               >
                 <div
                   className={cn(
@@ -532,7 +652,12 @@ export function ChatPanel({
           })
         )}
         {remoteTyping ? (
-          <div className="flex items-center gap-2 text-xs text-text-muted">
+          <div
+            className="flex items-center gap-2 text-xs text-text-muted"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
             {context === 'group' ? 'Alguien está escribiendo…' : 'Tu contacto está escribiendo…'}
           </div>
@@ -633,7 +758,7 @@ export function ChatPanel({
             >
               Reportar mensaje
             </Button>
-            <Button size="sm" onClick={sendMessage} disabled={!draft.trim()}>
+            <Button size="sm" onClick={() => void sendMessage()} disabled={!draft.trim()}>
               Enviar
             </Button>
           </div>
