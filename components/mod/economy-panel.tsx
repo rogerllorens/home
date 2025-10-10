@@ -22,8 +22,8 @@ export function EconomyPanel() {
   const [packId, setPackId] = useState<string>();
   const [giftId, setGiftId] = useState<string>();
 
-  const packs = data?.packs ?? [];
-  const gifts = data?.gifts ?? [];
+  const packs = useMemo(() => data?.packs ?? [], [data]);
+  const gifts = useMemo(() => data?.gifts ?? [], [data]);
 
   const selectedPack = useMemo(() => packs.find((pack) => pack.id === packId) ?? packs[0], [packId, packs]);
   const selectedGift = useMemo(() => gifts.find((gift) => gift.id === giftId) ?? gifts[0], [giftId, gifts]);

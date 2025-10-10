@@ -81,7 +81,7 @@ export const ProfileFeed: React.FC = () => {
   const embedCode = useMemo(() => {
     const url = `${session.referralLink}&profile=${demoProfile.username}`;
     return `<iframe src="${url}&embed=true" title="Perfil @${demoProfile.username}" width="320" height="420" style="border-radius:24px;border:none;overflow:hidden;background:#0B0F14;color:#E5E7EB"></iframe>`;
-  }, [demoProfile.username, session.referralLink]);
+  }, [session.referralLink]);
   const lockedMedia = demoProfile.media.filter((media) => media.visibility !== 'free');
   const bundleItems = lockedMedia.slice(0, 3);
   const bundlePrice = bundleItems.reduce((acc, item) => acc + (item.price ?? 0), 0);

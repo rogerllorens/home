@@ -440,11 +440,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [resolvedUsername]);
 
-  const appendTransaction = (tx: WalletTransaction) => {
+  const appendTransaction = useCallback((tx: WalletTransaction) => {
     setTransactions((prev) => [tx, ...prev].slice(0, 40));
-  };
+  }, []);
 
-  const credit = (amount: number, concept: string) => {
+  const credit = useCallback((amount: number, concept: string) => {
     setTokenBalance((prev) => prev + amount);
     appendTransaction({
       id: `credit-${Date.now()}`,
@@ -457,9 +457,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       { amount, concept, scope },
       { requestId: nextCorrelationId('credit'), tags: { feature: 'wallet' } }
     );
-  };
+  }, [appendTransaction, nextCorrelationId, scope]);
 
-  const emitSpendFailure = (
+  const emitSpendFailure = useCallback((
     reason: SpendFailureReason,
     context?: { dailyRemaining?: number; monthlyRemaining?: number }
   ) => {
@@ -470,9 +470,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       { ...context, balance: tokenBalance, scope },
       { requestId: nextCorrelationId('spend-fail') }
     );
-  };
+  }, [nextCorrelationId, scope, tokenBalance]);
 
-  const spend: SessionValue['spend'] = async (amount, concept, options) => {
+  const spend: SessionValue['spend'] = useCallback(async (amount, concept, options) => {
     if (purchasesSuspended) {
       emitSpendFailure('PURCHASES_SUSPENDED');
       return false;
@@ -515,32 +515,43 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     queryClient.invalidateQueries({ queryKey: queryKeys.wallet });
     queryClient.invalidateQueries({ queryKey: queryKeys.walletHistory });
     return true;
-  };
+  }, [
+    purchasesSuspended,
+    emitSpendFailure,
+    tokenBalance,
+    spendingLimits,
+    spentToday,
+    spentMonth,
+    scope,
+    nextCorrelationId,
+    queryClient
+  ]);
 
-  const toggleFollowUser = (username: string) => {
+  const toggleFollowUser = useCallback((username: string) => {
     setFollowedUsers((prev) =>
       prev.includes(username) ? prev.filter((item) => item !== username) : [...prev, username]
     );
-  };
+  }, []);
 
-  const toggleThreadFollow = (threadId: string) => {
+  const toggleThreadFollow = useCallback((threadId: string) => {
     setFollowedThreads((prev) =>
       prev.includes(threadId) ? prev.filter((item) => item !== threadId) : [...prev, threadId]
     );
-  };
+  }, []);
 
-  const toggleBookmark = (postId: string) => {
+  const toggleBookmark = useCallback((postId: string) => {
     setBookmarkedPosts((prev) =>
       prev.includes(postId) ? prev.filter((item) => item !== postId) : [...prev, postId]
     );
-  };
+  }, []);
 
-  const addNotification: SessionValue['addNotification'] = (notification) => {
-    const allowed =
-      notification.type === 'system' || notificationPreferences[notification.type as NotificationPreferenceKey];
-    if (!allowed) {
-      recordNotificationReceived(notification.type, { scope, muted: true }, {
-        requestId: nextCorrelationId('notification-muted')
+  const addNotification: SessionValue['addNotification'] = useCallback(
+    (notification) => {
+      const allowed =
+        notification.type === 'system' || notificationPreferences[notification.type as NotificationPreferenceKey];
+      if (!allowed) {
+        recordNotificationReceived(notification.type, { scope, muted: true }, {
+          requestId: nextCorrelationId('notification-muted')
       });
       return;
     }
@@ -552,53 +563,55 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       read: notification.read ?? false,
       metadata: notification.metadata
     };
-    setNotifications((prev) => [next, ...prev].slice(0, 50));
-    recordNotificationReceived(next.type, { scope, notificationId: next.id }, {
-      requestId: nextCorrelationId('notification')
-    });
-  };
+      setNotifications((prev) => [next, ...prev].slice(0, 50));
+      recordNotificationReceived(next.type, { scope, notificationId: next.id }, {
+        requestId: nextCorrelationId('notification')
+      });
+    },
+    [nextCorrelationId, notificationPreferences, scope]
+  );
 
-  const markNotificationsRead = () => {
+  const markNotificationsRead = useCallback(() => {
     setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })));
-  };
+  }, []);
 
-  const setSpendingLimits = (limits: SpendingLimits) => {
+  const setSpendingLimits = useCallback((limits: SpendingLimits) => {
     setSpendingLimitsState(limits);
-  };
+  }, []);
 
-  const setPreferredCurrency = (code: CurrencyCode) => {
+  const setPreferredCurrency = useCallback((code: CurrencyCode) => {
     setPreferredCurrencyState(code);
-  };
+  }, []);
 
-  const setCountryCode = (code: string) => {
+  const setCountryCode = useCallback((code: string) => {
     setCountryCodeState(code);
     const inferred = resolveLanguagesForCountry(code);
     setLanguageTagsState((prev) => (prev.length === 0 ? inferred : prev));
-  };
+  }, []);
 
-  const setLanguageTags = (tags: string[]) => {
+  const setLanguageTags = useCallback((tags: string[]) => {
     setLanguageTagsState(tags);
-  };
+  }, []);
 
-  const blockUser = (username: string) => {
+  const blockUser = useCallback((username: string) => {
     setBlockedUsers((prev) => (prev.includes(username) ? prev : [...prev, username]));
     setMutedUsers((prev) => (prev.includes(username) ? prev : [...prev, username]));
     setFollowedUsers((prev) => prev.filter((item) => item !== username));
-  };
+  }, []);
 
-  const unblockUser = (username: string) => {
+  const unblockUser = useCallback((username: string) => {
     setBlockedUsers((prev) => prev.filter((item) => item !== username));
-  };
+  }, []);
 
-  const muteUser = (username: string) => {
+  const muteUser = useCallback((username: string) => {
     setMutedUsers((prev) => (prev.includes(username) ? prev : [...prev, username]));
-  };
+  }, []);
 
-  const unmuteUser = (username: string) => {
+  const unmuteUser = useCallback((username: string) => {
     setMutedUsers((prev) => prev.filter((item) => item !== username));
-  };
+  }, []);
 
-  const adjustStats: SessionValue['adjustStats'] = (delta) => {
+  const adjustStats: SessionValue['adjustStats'] = useCallback((delta) => {
     setStats((prev) => {
       const nextCounts = {
         posts: Math.max(prev.posts + (delta.posts ?? 0), 0),
@@ -608,9 +621,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
       return { ...nextCounts, badges: resolveBadgesFromStats(nextCounts) };
     });
-  };
+  }, []);
 
-  const recordReferralConversion = () => {
+  const recordReferralConversion = useCallback(() => {
     adjustStats({ referrals: 1 });
     const reward = 500;
     credit(reward, 'Bonus referidos');
@@ -629,9 +642,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       { scope, reward },
       { requestId: nextCorrelationId('referral') }
     );
-  };
+  }, [adjustStats, addNotification, attributedReferrer, credit, nextCorrelationId, scope]);
 
-  const claimBonus: SessionValue['claimBonus'] = (bonusId, amountTokens, message) => {
+  const claimBonus: SessionValue['claimBonus'] = useCallback((bonusId, amountTokens, message) => {
     if (bonusesClaimed.includes(bonusId)) {
       return false;
     }
@@ -640,11 +653,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addNotification({ type: 'system', message, metadata: { bonusId, amountTokens } });
     toast.success(message);
     return true;
-  };
+  }, [addNotification, bonusesClaimed, credit]);
 
-  const setNotificationPreference: SessionValue['setNotificationPreference'] = (key, value) => {
+  const setNotificationPreference: SessionValue['setNotificationPreference'] = useCallback((key, value) => {
     setNotificationPreferencesState((prev) => ({ ...prev, [key]: value }));
-  };
+  }, []);
 
   const referralLink = useMemo(() => buildReferralLink(resolvedUsername), [resolvedUsername]);
 
@@ -736,7 +749,28 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       notificationPreferences,
       countryCode,
       languageTags,
-      nextCorrelationId
+      nextCorrelationId,
+      credit,
+      spend,
+      setPreferencesState,
+      toggleFollowUser,
+      toggleThreadFollow,
+      toggleBookmark,
+      addNotification,
+      markNotificationsRead,
+      setSpendingLimits,
+      setPreferredCurrency,
+      blockUser,
+      unblockUser,
+      muteUser,
+      unmuteUser,
+      adjustStats,
+      recordReferralConversion,
+      claimBonus,
+      setNotificationPreference,
+      setCountryCode,
+      setLanguageTags,
+      setAttributedReferrer
     ]
   );
 

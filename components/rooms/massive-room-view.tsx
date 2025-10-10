@@ -105,7 +105,7 @@ export function MassiveRoomView({
         helpers.markFailed(reason ?? 'No se pudo enviar el mensaje en la sala.');
       }
     },
-    [queryClient, room.id, toChatMessage]
+    [queryClient, room.id]
   );
 
   const handleSearch = useCallback(
