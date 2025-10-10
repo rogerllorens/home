@@ -1,0 +1,334 @@
+{
+  "brand": {
+    "name": "TKN Social"
+  },
+  "nav": {
+    "discover": "Descubrir",
+    "forum": "Foro",
+    "match": "Match",
+    "rooms": "Salas",
+    "groups": "Grupos",
+    "wallet": "Wallet",
+    "admin": "Admin"
+  },
+  "cta": {
+    "enter": "Entrar ahora (+18)",
+    "goToMatch": "Ir a Match",
+    "viewProfile": "Ver perfil",
+    "createAccount": "Crear cuenta"
+  },
+  "home": {
+    "heroTitle": "Conecta, comparte y monetiza sin fricciones",
+    "heroSubtitle": "Chat 1:1 al instante, grupos VIP y feed premium tokenizado.",
+    "featuredProfiles": "Perfiles destacados",
+    "exploreCategories": "Explora por categorías",
+    "matchCta": "Encuentra a alguien compatible en segundos"
+  },
+  "wallet": {
+    "balance": "Créditos (TKN)",
+    "packs": "Packs de créditos",
+    "buy": "Comprar",
+    "history": "Últimos movimientos",
+    "guestWarning": "Si borras cookies, podrías perder saldo. Crea cuenta para guardarlo."
+  },
+  "match": {
+    "consents": "Preferencias",
+    "searching": "Buscando pareja…",
+    "connecting": "Conectando…",
+    "error": "Error TURN/RTC. Reintentar",
+    "waitingUser": "Buscando usuario…",
+    "waiting": "Tu match aparecerá aquí",
+    "next": "Siguiente",
+    "gifts": "Regalar",
+    "chat": "Chat",
+    "mute": "Silenciar",
+    "camera": "Cámara",
+    "blur": "Blur",
+    "report": "Reportar",
+    "insufficient": "Saldo insuficiente",
+    "buyTokens": "Comprar créditos"
+  },
+  "rooms": {
+    "title": "Salas masivas",
+    "subtitle": "Miles de personas charlando con regalos y moderación en tiempo real.",
+    "disabled": "Las salas masivas no están disponibles en esta build.",
+    "trending": "Tendencia",
+    "random": "Random",
+    "topics": "Temáticas",
+    "allTopics": "Todas",
+    "loading": "Actualizando salas…",
+    "empty": "No hay salas disponibles en este filtro todavía.",
+    "conversionNote": "Envía regalos o créditos directos mostrando siempre la conversión a €.",
+    "topSupporters": "Top supporters",
+    "ctaDescription": "Entra gratis, envía regalos y hazte notar en la sala.",
+    "join": "Entrar",
+    "nsfw": "+18",
+    "sfw": "SFW",
+    "trendingBadge": "Tendencia",
+    "online": "conectados",
+    "modProtected": "Moderación activa",
+    "rulesTitle": "Normas rápidas",
+    "ruleRespect": "Respeto y consentimiento en todo momento.",
+    "ruleNoSpam": "No spamees ni envíes enlaces sospechosos.",
+    "ruleNoLeaks": "Prohibido filtrar contenido PPV o datos personales.",
+    "reportThanks": "Reporte enviado a moderación.",
+    "reportButton": "Reportar sala",
+    "giftBarTitle": "Regalos en vivo",
+    "giftBarDescription": "Envía Créditos (TKN) y aparece en el ranking en tiempo real.",
+    "giftBarEmpty": "Sé la primera persona en enviar un regalo hoy.",
+    "giftCta": "Abre la barra de regalos",
+    "sendGift": "Enviar regalo",
+    "moderationPanel": "Panel de moderación",
+    "slowMode": "Modo lento",
+    "off": "Off",
+    "reports": "Reportes",
+    "requestMod": "Solicitar permisos de moderación"
+  },
+  "forms": {
+    "username": "Usuario",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "login": "Iniciar sesión",
+    "register": "Crear cuenta",
+    "upgrade": "Migrar saldo",
+    "ageConfirm": "Confirmo que tengo 18 años o más"
+  },
+  "profile": {
+    "pass": "Acceso 30 días por {price} TKN",
+    "passActive": "Pase activo hasta {date}",
+    "unlock": "Desbloquear por {price} TKN",
+    "passOnly": "Disponible con Pase activo",
+    "empty": "Todavía no hay publicaciones."
+  },
+  "forum": {
+    "categories": "Categorías",
+    "threads": "Hilos",
+    "empty": "Sé el primero en crear uno"
+  },
+  "groups": {
+    "title": "Salas activas",
+    "create": "Crear sala",
+    "join": "Unirse",
+    "vip": "VIP",
+    "participants": "{count}/6 conectados"
+  },
+  "admin": {
+    "nav": {
+      "label": "Administración",
+      "dashboard": "Dashboard",
+      "users": "Usuarios",
+      "reports": "Reportes",
+      "content": "Contenido",
+      "economy": "Economía",
+      "payouts": "Retiros",
+      "forum": "Foro"
+    },
+    "dashboard": {
+      "metrics": {
+        "dau": "DAU",
+        "purchased": "Créditos comprados",
+        "spent": "Créditos gastados",
+        "gmv": "GMV créditos",
+        "gsv": "GSV créditos",
+        "fee": "Fee plataforma",
+        "conversion": "% conversión packs"
+      },
+      "charts": {
+        "title": "Actividad {period}",
+        "subtitle": "Compras vs gasto (Créditos TKN)",
+        "purchases": "Compras: {value} Créditos (TKN)",
+        "spends": "Gasto: {value} Créditos (TKN)",
+        "legendPurchases": "Compras",
+        "legendSpends": "Gasto"
+      },
+      "sources": {
+        "title": "Fuentes principales",
+        "subtitle": "¿Desde dónde llegan los usuarios?"
+      }
+    },
+    "users": {
+      "title": "Usuarios",
+      "table": {
+        "user": "Usuario",
+        "created": "Alta",
+        "balance": "Saldo",
+        "earnings": "Ganancias",
+        "flags": "Flags",
+        "reports": "Reportes",
+        "actions": "Acciones"
+      },
+      "earnings": {
+        "pending": "Pendiente: {value}",
+        "available": "Disponible: {value}"
+      },
+      "flags": {
+        "ban": "Baneado",
+        "shadowban": "Shadowban",
+        "clean": "Sin flags"
+      },
+      "actions": {
+        "ban": "Banear",
+        "shadowban": "Shadowban",
+        "unban": "Reactivar"
+      },
+      "toast": "Acción sobre @{username}: {action}"
+    },
+    "reports": {
+      "title": "Reportes",
+      "subtitle": "Gestiona denuncias recientes",
+      "status": {
+        "open": "Abiertos",
+        "review": "En revisión",
+        "closed": "Cerrados"
+      },
+      "empty": "No hay reportes en este estado",
+      "target": {
+        "user": "Usuario",
+        "post": "Post",
+        "media": "Media"
+      },
+      "reportedAt": "Reportado el {date}",
+      "reportsCount": "{count} reportes",
+      "previewAlt": "Previsualización de {target}",
+      "actions": {
+        "close": "Cerrar",
+        "takedown": "Retirar",
+        "ban": "Banear",
+        "shadowban": "Shadowban"
+      },
+      "toast": "Reporte {id}: {action}"
+    },
+    "content": {
+      "title": "Contenido",
+      "subtitle": "Filtra y modera uploads",
+      "filters": {
+        "all": "Todos",
+        "free": "Libre",
+        "ppv": "PPV",
+        "pass_only": "Pase"
+      },
+      "untitled": "Sin título",
+      "meta": {
+        "size": "{mb} MB",
+        "created": "Subido {date}"
+      },
+      "status": {
+        "active": "Activo",
+        "removed": "Retirado",
+        "sensitive": "Sensible"
+      },
+      "actions": {
+        "hide": "Ocultar",
+        "sensitive": "Marcar sensible",
+        "delete": "Eliminar"
+      },
+      "toast": "Acción {action} en {id}"
+    },
+    "economy": {
+      "packs": {
+        "title": "Packs de tokens",
+        "subtitle": "Gestiona precios y cantidades"
+      },
+      "gifts": {
+        "title": "Catálogo de regalos",
+        "subtitle": "Actualiza costos y animaciones"
+      },
+      "form": {
+        "id": "ID",
+        "name": "Nombre",
+        "tokens": "Tokens",
+        "price": "Precio (€)",
+        "save": "Guardar cambios",
+        "anim": "Animación",
+        "active": "Activo"
+      },
+      "toast": {
+        "pack": "Pack {name} actualizado",
+        "gift": "Regalo {name} actualizado"
+      },
+      "ranges": {
+        "title": "Rangos permitidos",
+        "subtitle": "Definición global (solo lectura)",
+        "ppv": "PPV por media",
+        "pass": "Pase 30 días",
+        "minute": "Pago por minuto",
+        "vip": "Ticket VIP"
+      }
+    },
+    "payouts": {
+      "title": "Payouts",
+      "subtitle": "Gestiona solicitudes de retiro",
+      "table": {
+        "user": "Usuario",
+        "amount": "Monto",
+        "method": "Método",
+        "status": "Estado",
+        "requested": "Solicitado",
+        "reference": "Referencia",
+        "actions": "Acciones"
+      },
+      "status": {
+        "requested": "Solicitado",
+        "paid": "Pagado",
+        "rejected": "Rechazado"
+      },
+      "actions": {
+        "approve": "Aprobar",
+        "reject": "Rechazar",
+        "cancel": "Cancelar",
+        "confirmApprove": "Confirmar pago",
+        "confirmReject": "Confirmar rechazo"
+      },
+      "toast": {
+        "approved": "Pago {id} aprobado (ref {reference})",
+        "rejected": "Pago {id} rechazado"
+      },
+      "modal": {
+        "approveTitle": "Aprobar retiro",
+        "rejectTitle": "Rechazar retiro",
+        "subtitle": "Solicitud {id} de @{user} por {amount}"
+      },
+      "form": {
+        "reference": "Referencia externa",
+        "note": "Nota interna",
+        "optional": "Opcional"
+      },
+      "processedAt": "Procesado el {date}",
+      "noReference": "Sin referencia"
+    },
+    "forum": {
+      "title": "Foro",
+      "subtitle": "Categorías y moderación",
+      "threads": "{count} hilos",
+      "pinned": "Destacado",
+      "actions": {
+        "pin": "Fijar",
+        "unpin": "Quitar fijo"
+      },
+      "toast": {
+        "pinned": "Categoría {id} fijada",
+        "unpinned": "Categoría {id} sin fijar",
+        "created": "Categoría {name} creada"
+      },
+      "create": {
+        "title": "Nueva categoría",
+        "subtitle": "Organiza el foro",
+        "name": "Nombre",
+        "moderator": "Moderador",
+        "submit": "Crear categoría"
+      }
+    }
+  },
+  "footer": {
+    "tos": "Términos",
+    "privacy": "Privacidad",
+    "content": "Contenidos",
+    "dmca": "Notice & Action"
+  },
+  "notifications": {
+    "reportSent": "¡Report enviado!",
+    "giftSent": "¡Enviado! 🎁",
+    "tokensLow": "Te faltan créditos (TKN). Compra un pack en 10 segundos.",
+    "tokensRemaining": "Te quedan {amount} créditos (TKN) · Recargar"
+  }
+}

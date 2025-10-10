@@ -1,0 +1,29 @@
+{
+  email admin@{env.DOMAIN_ROOT}
+}
+
+{env.API_HOST} {
+  encode gzip
+  reverse_proxy api:8080
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    Content-Security-Policy "default-src 'self' https: data: blob:; connect-src 'self' https: wss:; img-src 'self' https: data: blob:; media-src 'self' https: blob:; frame-ancestors 'none';"
+  }
+}
+
+{env.SIGNAL_HOST} {
+  reverse_proxy signal:8081 {
+    transport http {
+      versions h2c 1.1
+    }
+  }
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+  }
+}

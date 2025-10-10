@@ -1,0 +1,592 @@
+// Prisma schema defining the core data model for the tokenized social platform.
+// Database naming follows snake_case via the `@@map` and `@map` attributes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER  @map("user")
+  ADMIN @map("admin")
+  MOD   @map("mod")
+
+  @@map("user_role")
+}
+
+enum MediaType {
+  IMAGE @map("image")
+  VIDEO @map("video")
+
+  @@map("media_type")
+}
+
+enum MediaVisibility {
+  FREE      @map("free")
+  PPV       @map("ppv")
+  PASS_ONLY @map("pass_only")
+
+  @@map("media_visibility")
+}
+
+enum RoomType {
+  RANDOM @map("random")
+  GROUP  @map("group")
+  DIRECT @map("direct")
+
+  @@map("room_type")
+}
+
+enum RoomStatus {
+  ACTIVE @map("active")
+  CLOSED @map("closed")
+
+  @@map("room_status")
+}
+
+enum WalletTxType {
+  PURCHASE     @map("purchase")
+  SPEND        @map("spend")
+  SPLIT        @map("split")
+  PAYOUT       @map("payout")
+  HOLD_RELEASE @map("hold_release")
+
+  @@map("wallet_tx_type")
+}
+
+enum PayoutStatus {
+  REQUESTED @map("requested")
+  PAID      @map("paid")
+  REJECTED  @map("rejected")
+
+  @@map("payout_status")
+}
+
+enum ReportStatus {
+  OPEN   @map("open")
+  REVIEW @map("review")
+  CLOSED @map("closed")
+
+  @@map("report_status")
+}
+
+enum NotificationType {
+  GIFT     @map("gift")
+  PPV      @map("ppv")
+  PASS     @map("pass")
+  COMMENT  @map("comment")
+  MENTION  @map("mention")
+  REFERRAL @map("referral")
+  LIKE     @map("like")
+  FORUM    @map("forum")
+  SYSTEM   @map("system")
+
+  @@map("notification_type")
+}
+
+enum ReferralConversionType {
+  REGISTER @map("register")
+  PURCHASE @map("purchase")
+
+  @@map("referral_conversion_type")
+}
+
+enum EnforcementType {
+  BAN       @map("ban")
+  SHADOWBAN @map("shadowban")
+
+  @@map("enforcement_type")
+}
+
+model User {
+  id          String    @id @default(cuid())
+  username    String    @unique(map: "users_username_key")
+  email       String?   @unique(map: "users_email_key")
+  passHash    String    @map("pass_hash")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(6)
+  role        UserRole  @default(USER)
+  purchasesSuspended Boolean @default(false) @map("purchases_suspended")
+
+  Profile        Profile?
+  Wallet         Wallet?
+  Sessions       Session[]
+  Posts          Post[]
+  Media          Media[]
+  ForumThreads   ForumThread[]
+  ForumPosts     ForumPost[]
+  GiftEventsSent GiftEvent[]   @relation("GiftSent")
+  GiftEventsRecv GiftEvent[]   @relation("GiftRecv")
+  PassesBought   Pass[]        @relation("PassBuyer")
+  PassesSold     Pass[]        @relation("PassSeller")
+  ReportsFiled   Report[]      @relation("ReportReporter")
+  ReportsTarget  Report[]      @relation("ReportTargetUser")
+  Enforcements   Enforcement[]
+  PostLike       PostLike[]
+  PostComment    PostComment[]
+  WalletTx       WalletTx[]
+  PayoutRequests PayoutRequest[]
+  AdminAudit     AdminAuditLog[]
+  Following      UserFollow[]  @relation("UserFollower")
+  Followers      UserFollow[]  @relation("UserFollowing")
+  ThreadFollow   ForumThreadFollow[]
+  PostBookmarks  PostBookmark[]
+  BlocksInitiated UserBlock[]  @relation("UserBlocker")
+  BlocksReceived UserBlock[]   @relation("UserBlocked")
+  Notifications  Notification[]
+  SpendingLimit  UserSpendingLimit?
+  ReferralsMade  Referral[]    @relation("ReferralReferrer")
+  ReferralsReceived Referral[] @relation("ReferralReferred")
+  NotificationPreference NotificationPreference?
+  Stats          UserStat?
+
+  @@map("users")
+}
+
+model Profile {
+  userId      String   @id @map("user_id")
+  displayName String   @map("display_name")
+  bio         String?
+  tags        String[] @db.Text
+  avatarKey   String?  @map("avatar_key")
+  coverKey    String?  @map("cover_key")
+  User        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tags], type: Gin, map: "profile_tags_gin_idx")
+  @@map("profiles")
+}
+
+model Session {
+  id             String     @id @default(cuid())
+  userId         String?    @map("user_id")
+  isGuest        Boolean    @default(false) @map("is_guest")
+  ageConfirmed   Boolean    @default(false) @map("age_confirmed")
+  isShadowbanned Boolean    @default(false) @map("is_shadowbanned")
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastSeen       DateTime?  @map("last_seen") @db.Timestamptz(6)
+  User           User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  Wallet         Wallet?
+  WalletTx       WalletTx[]
+  Referrals      Referral[]  @relation("ReferralSession")
+
+  @@index([userId], map: "sessions_user_id_idx")
+  @@map("sessions")
+}
+
+model Media {
+  id          String          @id @default(cuid())
+  ownerId     String          @map("owner_id")
+  type        MediaType
+  visibility  MediaVisibility
+  priceTokens Int?            @map("price_tokens")
+  storageKey  String          @map("storage_key")
+  durationSec Int?            @map("duration_sec")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  deletedAt   DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  owner       User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  PostMedia   PostMedia[]
+  ForumPost   ForumPost[]
+  Report      Report[]
+  MediaHash   MediaHash[]
+
+  @@index([ownerId, visibility], map: "media_owner_visibility_idx")
+  @@map("media")
+}
+
+model Post {
+  id        String        @id @default(cuid())
+  ownerId   String        @map("owner_id")
+  text      String?
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  deletedAt DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  owner     User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  PostMedia PostMedia[]
+  Likes     PostLike[]
+  Comments  PostComment[]
+  Report    Report[]
+  Bookmarks PostBookmark[]
+
+  @@index([ownerId, createdAt], map: "posts_owner_created_idx")
+  @@map("posts")
+}
+
+model PostMedia {
+  postId  String @map("post_id")
+  mediaId String @map("media_id")
+  order   Int    @default(0)
+  Post    Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  Media   Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([postId, mediaId])
+  @@map("post_media")
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  Post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId], map: "post_like_post_user_key")
+  @@index([userId], map: "post_like_user_idx")
+  @@map("post_likes")
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  authorId  String   @map("author_id")
+  body      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  Post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  Author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt], map: "post_comment_post_created_idx")
+  @@map("post_comments")
+}
+
+model UserFollow {
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  Follower    User     @relation("UserFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  Following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId], map: "user_follow_following_idx")
+  @@map("user_follows")
+}
+
+model ForumThreadFollow {
+  userId    String   @map("user_id")
+  threadId  String   @map("thread_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Thread    ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@id([userId, threadId])
+  @@index([threadId], map: "thread_follow_thread_idx")
+  @@map("forum_thread_follows")
+}
+
+model PostBookmark {
+  userId    String   @map("user_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([postId], map: "post_bookmark_post_idx")
+  @@map("post_bookmarks")
+}
+
+model UserBlock {
+  blockerId String   @map("blocker_id")
+  blockedId String   @map("blocked_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  Blocker   User     @relation("UserBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  Blocked   User     @relation("UserBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId], map: "user_block_blocked_idx")
+  @@map("user_blocks")
+}
+
+model Pass {
+  id          String   @id @default(cuid())
+  buyerId     String   @map("buyer_id")
+  sellerId    String   @map("seller_id")
+  startedAt   DateTime @default(now()) @map("started_at") @db.Timestamptz(6)
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(6)
+  priceTokens Int      @map("price_tokens")
+  Buyer       User     @relation("PassBuyer", fields: [buyerId], references: [id])
+  Seller      User     @relation("PassSeller", fields: [sellerId], references: [id])
+
+  @@index([buyerId, sellerId], map: "pass_buyer_seller_idx")
+  @@index([sellerId, expiresAt], map: "pass_seller_expires_idx")
+  @@map("passes")
+}
+
+model Room {
+  id        String     @id @default(cuid())
+  type      RoomType
+  status    RoomStatus @default(ACTIVE)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([type, status], map: "rooms_type_status_idx")
+  @@map("rooms")
+}
+
+model Wallet {
+  id        String     @id @default(cuid())
+  userId    String?    @unique(map: "wallet_user_id_key") @map("user_id")
+  sessionId String?    @unique(map: "wallet_session_id_key") @map("session_id")
+  balance   Int        @default(0)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  User      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  Session   Session?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  WalletTx  WalletTx[]
+
+  @@map("wallets")
+}
+
+model WalletTx {
+  id            String       @id @default(cuid())
+  userId        String?      @map("user_id")
+  sessionId     String?      @map("session_id")
+  type          WalletTxType
+  amount        Int
+  ref           String?      @map("ref")
+  metadata      Json?
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  WalletUser    User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  WalletSession Session?     @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  Wallet        Wallet?      @relation(fields: [walletId], references: [id])
+  walletId      String?      @map("wallet_id")
+
+  @@index([userId], map: "wallet_tx_user_idx")
+  @@index([sessionId], map: "wallet_tx_session_idx")
+  @@index([ref], map: "wallet_tx_ref_idx")
+  @@map("wallet_tx")
+}
+
+model WalletPack {
+  id        String   @id
+  name      String
+  tokens    Int
+  priceCents Int    @map("price_cents")
+  isActive  Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("wallet_packs")
+}
+
+model GiftCatalog {
+  id       String      @id
+  name     String
+  tokens   Int
+  animKey  String      @map("anim_key")
+  isActive Boolean     @default(true) @map("is_active")
+  Gifts    GiftEvent[]
+
+  @@map("gift_catalog")
+}
+
+model GiftEvent {
+  id         String      @id @default(cuid())
+  fromUserId String      @map("from_user_id")
+  toUserId   String?     @map("to_user_id")
+  roomId     String?     @map("room_id")
+  postId     String?     @map("post_id")
+  giftId     String      @map("gift_id")
+  tokens     Int
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  From       User        @relation("GiftSent", fields: [fromUserId], references: [id])
+  To         User?       @relation("GiftRecv", fields: [toUserId], references: [id])
+  Gift       GiftCatalog @relation(fields: [giftId], references: [id])
+
+  @@index([createdAt], map: "gift_event_created_idx")
+  @@index([roomId], map: "gift_event_room_idx")
+  @@map("gift_events")
+}
+
+model ForumCategory {
+  id      String        @id @default(cuid())
+  name    String        @unique(map: "forum_category_name_key")
+  prompt  String?
+  Threads ForumThread[]
+
+  @@map("forum_categories")
+}
+
+model ForumThread {
+  id         String        @id @default(cuid())
+  authorId   String        @map("author_id")
+  categoryId String        @map("category_id")
+  title      String
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  Author     User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  Category   ForumCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  Posts      ForumPost[]
+  Followers  ForumThreadFollow[]
+
+  @@index([categoryId, createdAt], map: "forum_thread_category_created_idx")
+  @@map("forum_threads")
+}
+
+model ForumPost {
+  id        String      @id @default(cuid())
+  threadId  String      @map("thread_id")
+  authorId  String      @map("author_id")
+  body      String
+  mediaId   String?     @map("media_id")
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  deletedAt DateTime?   @map("deleted_at") @db.Timestamptz(6)
+  Thread    ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  Author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  Media     Media?      @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+
+  @@index([threadId, createdAt], map: "forum_post_thread_created_idx")
+  @@map("forum_posts")
+}
+
+model Report {
+  id            String       @id @default(cuid())
+  reporterId    String?      @map("reporter_id")
+  targetUserId  String?      @map("target_user_id")
+  targetMediaId String?      @map("target_media_id")
+  targetPostId  String?      @map("target_post_id")
+  reason        String
+  status        ReportStatus @default(OPEN)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  Reporter      User?        @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  TargetUser    User?        @relation("ReportTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  TargetMedia   Media?       @relation(fields: [targetMediaId], references: [id], onDelete: SetNull)
+  TargetPost    Post?        @relation(fields: [targetPostId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt], map: "report_status_created_idx")
+  @@map("reports")
+}
+
+model Enforcement {
+  id        String          @id @default(cuid())
+  userId    String          @map("user_id")
+  type      EnforcementType
+  reason    String?
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  User      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "enforcement_user_idx")
+  @@index([type, createdAt], map: "enforcement_type_created_idx")
+  @@map("enforcements")
+}
+
+model PayoutRequest {
+  id           String       @id @default(cuid())
+  userId       String       @map("user_id")
+  amountTokens Int          @map("amount_tokens")
+  method       String
+  status       PayoutStatus @default(REQUESTED)
+  requestedAt  DateTime     @default(now()) @map("requested_at") @db.Timestamptz(6)
+  processedAt  DateTime?    @map("processed_at") @db.Timestamptz(6)
+  reference    String?
+  note         String?
+  User         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, requestedAt], map: "payout_status_requested_idx")
+  @@map("payout_requests")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  message   String
+  metadata  Json?
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  readAt    DateTime?        @map("read_at") @db.Timestamptz(6)
+  User      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt], map: "notification_user_created_idx")
+  @@map("notifications")
+}
+
+model UserSpendingLimit {
+  userId       String   @id @map("user_id")
+  dailyTokens  Int      @map("daily_tokens")
+  monthlyTokens Int     @map("monthly_tokens")
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_spending_limits")
+}
+
+model NotificationPreference {
+  userId    String   @id @map("user_id")
+  gifts     Boolean  @default(true)
+  ppv       Boolean  @default(true)
+  passes    Boolean  @default(true)
+  comments  Boolean  @default(true)
+  mentions  Boolean  @default(true)
+  referrals Boolean  @default(true)
+  likes     Boolean  @default(true)
+  forum     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model Referral {
+  id             String                  @id @default(cuid())
+  referrerId     String                  @map("referrer_id")
+  referredUserId String?                 @map("referred_user_id")
+  sessionId      String?                 @map("session_id")
+  conversionType ReferralConversionType? @map("conversion_type")
+  convertedAt    DateTime?               @map("converted_at") @db.Timestamptz(6)
+  bonusTokens    Int?                    @map("bonus_tokens")
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  Referrer       User                    @relation("ReferralReferrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  Referred       User?                   @relation("ReferralReferred", fields: [referredUserId], references: [id], onDelete: SetNull)
+  Session        Session?                @relation("ReferralSession", fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([referrerId], map: "referrals_referrer_idx")
+  @@index([referredUserId], map: "referrals_referred_idx")
+  @@map("referrals")
+}
+
+model UserStat {
+  userId         String   @id @map("user_id")
+  postsCount     Int      @default(0) @map("posts_count")
+  likesReceived  Int      @default(0) @map("likes_received")
+  giftsReceived  Int      @default(0) @map("gifts_received")
+  referralsCount Int      @default(0) @map("referrals_count")
+  badges         String[] @db.Text
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  User           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_stats")
+}
+
+model MediaHash {
+  id        String   @id @default(cuid())
+  hash      String   @unique(map: "media_hash_hash_key")
+  mediaId   String?  @map("media_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  Media     Media?   @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt], map: "media_hash_created_idx")
+  @@map("media_hashes")
+}
+
+model ContentBlocklist {
+  id        String   @id @default(cuid())
+  phrase    String   @unique(map: "content_blocklist_phrase_key")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("content_blocklist")
+}
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  adminId    String   @map("admin_id")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String?  @map("target_id")
+  reason     String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  Admin      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt], map: "admin_audit_admin_created_idx")
+  @@index([targetType, targetId], map: "admin_audit_target_idx")
+  @@map("admin_audit_log")
+}
