@@ -16,7 +16,7 @@ const statuses: ('OPEN' | 'REVIEW' | 'CLOSED')[] = ['OPEN', 'REVIEW', 'CLOSED'];
 
 export function ReportsPanel() {
   const t = useTranslations('admin.reports');
-  const { data, isLoading } = useQuery(queryKeys.adminReports, fetchAdminReports);
+  const { data, isLoading } = useQuery({ queryKey: queryKeys.adminReports, queryFn: fetchAdminReports });
   const [selected, setSelected] = useState<(typeof statuses)[number]>('OPEN');
 
   const filtered = useMemo(() => {

@@ -13,13 +13,7 @@ import { toast } from 'sonner';
 import { CaptchaPlaceholder } from '@/components/ui/captcha-placeholder';
 import { upgradeGuest } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { COUNTRY_OPTIONS, INTEREST_TAGS, resolveDefaultCountry } from '@/lib/utils';
 import { Chip } from '@/components/ui/chip';
 import { useEffect, useState } from 'react';
@@ -151,20 +145,20 @@ export function GuestUpgradeForm() {
             {errors.password ? <p className="text-xs text-warn">{errors.password.message}</p> : null}
           </div>
           <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wide text-text-muted" htmlFor="upgrade-country">
+              País
+            </label>
             <Select
+              id="upgrade-country"
               value={countryCode}
-              onValueChange={(value) => setValue('countryCode', value, { shouldValidate: true })}
+              onChange={(event) => setValue('countryCode', event.target.value, { shouldValidate: true })}
+              aria-label="Selecciona tu país"
             >
-              <SelectTrigger aria-label="Selecciona tu país">
-                <SelectValue placeholder="País" />
-              </SelectTrigger>
-              <SelectContent>
-                {COUNTRY_OPTIONS.map((country) => (
-                  <SelectItem key={country.code} value={country.code}>
-                    {country.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              {COUNTRY_OPTIONS.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.name}
+                </option>
+              ))}
             </Select>
             {errors.countryCode ? <p className="text-xs text-warn">{errors.countryCode.message}</p> : null}
           </div>

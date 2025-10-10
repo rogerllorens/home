@@ -10,13 +10,16 @@ const buttonVariants = cva(
       variant: {
         default: 'bg-accent text-bg hover:bg-accent/90',
         outline: 'border border-accent text-accent hover:bg-accent/10',
-        ghost: 'text-text-muted hover:bg-muted/60'
+        ghost: 'text-text-muted hover:bg-muted/60',
+        secondary: 'bg-muted/60 text-text hover:bg-muted/80',
+        destructive: 'bg-red-500 text-white hover:bg-red-500/90'
       },
       size: {
         default: 'px-5 py-2.5',
         sm: 'px-4 py-2 text-xs',
         lg: 'px-7 py-3 text-base',
-        xs: 'px-3 py-1.5 text-xs'
+        xs: 'px-3 py-1.5 text-xs',
+        icon: 'h-10 w-10 rounded-full p-0'
       }
     },
     defaultVariants: {

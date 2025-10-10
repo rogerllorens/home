@@ -120,13 +120,13 @@ export function createGuestSession(params: {
   return session;
 }
 
-export function upgradeGuestSession(sessionId: string, params: {
+export async function upgradeGuestSession(sessionId: string, params: {
   username: string;
   email?: string;
   password: string;
   countryCode?: string;
   languageTags?: string[];
-}): Session {
+}): Promise<Session> {
   const session = getSession(sessionId);
   if (!session) {
     throw new Error('SESSION_NOT_FOUND');
@@ -140,10 +140,11 @@ export function upgradeGuestSession(sessionId: string, params: {
   if (params.email && getUserByEmail(params.email)) {
     throw new Error('EMAIL_TAKEN');
   }
+  const passHash = await hashPassword(params.password);
   const user = createUser({
     username: params.username,
     email: params.email,
-    passHash: undefined,
+    passHash,
     role: 'user',
     countryCode: params.countryCode,
     languageTags: params.languageTags ?? []

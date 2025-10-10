@@ -21,7 +21,7 @@ const visibilityOptions: Array<{ value: 'ALL' | MediaVisibility; label: string }
 
 export function ContentReview() {
   const t = useTranslations('admin.content');
-  const { data, isLoading } = useQuery(queryKeys.adminContent, fetchAdminContent);
+  const { data, isLoading } = useQuery({ queryKey: queryKeys.adminContent, queryFn: fetchAdminContent });
   const [selected, setSelected] = useState<'ALL' | MediaVisibility>('ALL');
 
   const filtered = useMemo(() => {

@@ -18,7 +18,7 @@ interface NewCategoryForm {
 
 export function ForumAdminPanel() {
   const t = useTranslations('admin.forum');
-  const { data, isLoading } = useQuery(queryKeys.adminForum, fetchAdminForum);
+  const { data, isLoading } = useQuery({ queryKey: queryKeys.adminForum, queryFn: fetchAdminForum });
   const form = useForm<NewCategoryForm>({ defaultValues: { name: '', moderator: '' } });
 
   const onSubmit = form.handleSubmit((values) => {

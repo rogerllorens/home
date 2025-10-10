@@ -38,7 +38,7 @@ const upgradeSchema = z.object({
   sessionId: z.string(),
   username: z.string().min(3),
   email: z.string().email().optional(),
-  password: z.string().min(8).optional(),
+  password: z.string().min(8),
   countryCode: z.string().min(2).max(3).optional(),
   languageTags: z.array(z.string()).optional()
 });
@@ -132,7 +132,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.post('/guest/upgrade', async (request, reply) => {
     try {
       const payload = upgradeSchema.parse(request.body);
-      const session = upgradeGuestSession(payload.sessionId, payload);
+      const session = await upgradeGuestSession(payload.sessionId, payload);
       const accessToken = signAccessToken(session);
       const refreshToken = signRefreshToken(session);
       reply

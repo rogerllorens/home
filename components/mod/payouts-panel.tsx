@@ -25,7 +25,7 @@ type DecisionForm = {
 
 export function PayoutsPanel() {
   const t = useTranslations('admin.payouts');
-  const { data, isLoading } = useQuery(queryKeys.adminPayouts, fetchAdminPayouts);
+  const { data, isLoading } = useQuery({ queryKey: queryKeys.adminPayouts, queryFn: fetchAdminPayouts });
   const [modalOpen, setModalOpen] = useState(false);
   const [mode, setMode] = useState<Mode>('approve');
   const [selectedId, setSelectedId] = useState<string | null>(null);

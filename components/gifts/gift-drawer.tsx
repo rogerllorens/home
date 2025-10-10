@@ -24,7 +24,7 @@ export function GiftDrawer() {
       execute: () =>
         sendGift({
           giftId,
-          tokens: gift.tokens ?? gift.cost,
+          tokens: gift.cost,
           concept: gift.name
         })
     });
@@ -33,7 +33,7 @@ export function GiftDrawer() {
     toast.success('¡Enviado! 🎁', {
       description: `${gift.name} por ${formatTokens(gift.cost)}`
     });
-    registerGiftEvent({ name: gift.name, tokens: gift.tokens ?? gift.cost });
+    registerGiftEvent({ name: gift.name, tokens: gift.cost });
     session.addNotification({
       type: 'gift',
       message: `Enviaste ${gift.name} (${formatTokens(gift.cost)}).`
@@ -48,7 +48,7 @@ export function GiftDrawer() {
           <div key={gift.id} className="flex items-center justify-between rounded-2xl bg-muted/40 px-4 py-3">
             <div>
               <p className="font-semibold">{gift.name}</p>
-              <p className="text-xs text-text-muted">{formatTokens(gift.tokens ?? gift.cost)}</p>
+              <p className="text-xs text-text-muted">{formatTokens(gift.cost)}</p>
             </div>
             <Button size="sm" onClick={() => handleSend(gift.id)} disabled={sendingId === gift.id}>
               Enviar

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { RoomMessage } from '../types.js';
+import { MASSIVE_ROOM_MESSAGE_CACHE } from '../config.js';
 import {
   addRoomMessage,
   bootstrapRooms,
@@ -229,7 +230,10 @@ export async function roomsRoutes(app: FastifyInstance) {
 
   app.post('/rooms/:id/report', async (request, reply) => {
     try {
-      const payload = reportSchema.parse({ ...request.body, roomId: (request.params as { id: string }).id });
+      const payload = reportSchema.parse({
+        ...((request.body as Record<string, unknown>) ?? {}),
+        roomId: (request.params as { id: string }).id
+      });
       const reporterId = request.headers['x-user-id'];
       if (!reporterId || typeof reporterId !== 'string') {
         throw new ApiHttpError(401, 'AUTH_REQUIRED', 'Se requiere autenticación');

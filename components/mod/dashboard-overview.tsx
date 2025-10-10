@@ -11,7 +11,7 @@ import { Spinner } from '@/components/ui/spinner';
 
 export function DashboardOverview() {
   const t = useTranslations('admin.dashboard');
-  const { data, isLoading } = useQuery(queryKeys.adminDashboard, fetchAdminDashboard);
+  const { data, isLoading } = useQuery({ queryKey: queryKeys.adminDashboard, queryFn: fetchAdminDashboard });
 
   const metrics = useMemo(() => {
     if (!data) return [];

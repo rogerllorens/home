@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Fragment } from 'react';
 
 type TabsProps<T extends string> = {
-  tabs: { id: T; label: string; content: React.ReactNode }[];
+  tabs: { id: T; label: React.ReactNode; content: React.ReactNode }[];
   selected: T;
   onChange: (id: T) => void;
   className?: string;

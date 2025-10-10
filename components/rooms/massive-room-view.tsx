@@ -122,7 +122,7 @@ export function MassiveRoomView({
   const handlePinToggle = useCallback(
     async (messageId: string, pinned: boolean) => {
       await pinMassiveRoomMessage(room.id, messageId, pinned);
-      queryClient.invalidateQueries(queryKeys.roomHistory(room.id));
+      queryClient.invalidateQueries({ queryKey: queryKeys.roomHistory(room.id) });
     },
     [queryClient, room.id]
   );

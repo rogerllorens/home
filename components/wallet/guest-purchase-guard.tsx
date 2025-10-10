@@ -4,13 +4,7 @@ import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { COUNTRY_OPTIONS, resolveDefaultCountry, resolveLanguagesForCountry } from '@/lib/utils';
 import { useSession } from '@/components/session-provider';
 
@@ -105,17 +99,16 @@ export function GuestPurchaseGuard({ open, onClose, onContinue, onUpgrade }: Pro
               <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                 Prioriza matches de tu país
               </p>
-              <Select value={country} onValueChange={setCountry}>
-                <SelectTrigger aria-label="Selecciona tu país">
-                  <SelectValue placeholder="País" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COUNTRY_OPTIONS.map((option) => (
-                    <SelectItem key={option.code} value={option.code}>
-                      {option.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+              <Select
+                value={country}
+                onChange={(event) => setCountry(event.target.value)}
+                aria-label="Selecciona tu país"
+              >
+                {COUNTRY_OPTIONS.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.name}
+                  </option>
+                ))}
               </Select>
               <p className="text-[0.7rem] text-text-muted">
                 Usamos tu país para conectarte con personas del mismo idioma cuando sea posible.

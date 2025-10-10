@@ -128,7 +128,7 @@ export function ChatPanel({
   const quickPacks = TOKEN_PACKS.slice(0, 2);
   const tokensLeftToday = Math.max(session.spendingLimits.daily - session.spendingUsage.today, 0);
   const tokensLeftMonth = Math.max(session.spendingLimits.monthly - session.spendingUsage.month, 0);
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimer = useRef<number | null>(null);
 
   const handleTipAmountChange = (value: string) => {
     const numeric = Number.parseInt(value, 10);

@@ -18,7 +18,8 @@ export function GroupLobby({ initialRooms }: Props) {
       id: `room-${Date.now()}`,
       title: values.title?.trim() || 'Sala sin título',
       participants: 0,
-      vipPrice: values.vipPrice
+      vipPrice: values.vipPrice,
+      preview: []
     };
     setRooms((prev) => [newRoom, ...prev]);
     toast.success('Sala creada');

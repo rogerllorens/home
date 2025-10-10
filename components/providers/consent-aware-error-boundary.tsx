@@ -17,7 +17,7 @@ export function ConsentAwareErrorBoundary({ children, fallback }: Props) {
   useEffect(() => {
     const loadBoundary = async () => {
       const sentryModule = await import('@sentry/nextjs');
-      setBoundary(() => sentryModule.ErrorBoundary);
+      setBoundary(() => sentryModule.ErrorBoundary as ComponentType<{ children: ReactNode; fallback: ReactNode }>);
     };
 
     const hasConsent = () => {

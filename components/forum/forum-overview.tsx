@@ -13,9 +13,9 @@ import { Flame, Images, MessageSquare, Sparkles, Stars, Upload } from 'lucide-re
 interface Category {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   threads: number;
-  posts: number;
+  posts?: number;
   prompt?: string;
 }
 
@@ -80,12 +80,12 @@ export function ForumOverview({ categories, threads }: Props) {
                   <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-muted/30">
                     {ICONS[category.id] ?? <MessageSquare className="h-4 w-4" aria-hidden />}
                   </span>
-                  {category.threads} hilos · {category.posts} posts
+                  {category.threads} hilos · {category.posts ?? 0} posts
                 </span>
                 <h3 id={`forum-cat-${category.id}`} className="text-lg font-semibold text-text">
                   {category.name}
                 </h3>
-                <p className="text-sm text-text-muted">{category.description}</p>
+                <p className="text-sm text-text-muted">{category.description ?? 'Nueva categoría, pronto más detalles.'}</p>
                 {category.prompt ? (
                   <Badge variant="outline" className="w-fit rounded-full border-accent/30 bg-accent/10 text-xs text-accent">
                     {category.prompt}

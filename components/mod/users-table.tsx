@@ -12,7 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 
 export function UsersTable() {
   const t = useTranslations('admin.users');
-  const { data, isLoading } = useQuery(queryKeys.adminUsers, fetchAdminUsers);
+  const { data, isLoading } = useQuery({ queryKey: queryKeys.adminUsers, queryFn: fetchAdminUsers });
 
   const onAction = (username: string, action: 'ban' | 'shadowban' | 'unban') => {
     toast.success(t('toast', { username, action: t(`actions.${action}`) }));

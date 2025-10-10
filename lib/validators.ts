@@ -28,9 +28,9 @@ export const registerSchema = z.object({
   username: usernameSchema,
   email: z.string().email('Correo no válido').optional().or(z.literal('').transform(() => undefined)),
   password: passwordSchema,
-  ageConfirmed: z.literal(true, {
-    errorMap: () => ({ message: 'Debes confirmar que eres mayor de edad' })
-  }),
+  ageConfirmed: z
+    .boolean()
+    .refine((value) => value, { message: 'Debes confirmar que eres mayor de edad' }),
   countryCode: countryCodeSchema,
   languageTags: z.array(z.string()).max(6).optional()
 });

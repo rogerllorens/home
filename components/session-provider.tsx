@@ -14,7 +14,9 @@ import {
   fetchWallet,
   fetchWalletHistory,
   staticCatalog,
-  queryKeys
+  queryKeys,
+  type WalletSummary,
+  type WalletTransactionItem
 } from '@/lib/api';
 import {
   formatTokens,
@@ -308,6 +310,16 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [attributedReferrer, setAttributedReferrer] = useState<string | null>(() =>
     loadFromStorage<string | null>(ATTRIBUTED_REFERRER_KEY, null)
   );
+  const resolvedUsername =
+    authUsername && authUsername.length > 0
+      ? authUsername
+      : scope === 'guest'
+      ? 'guest'
+      : scope === 'admin'
+      ? 'admin-team'
+      : scope === 'mod'
+      ? 'mod-team'
+      : 'creator-demo';
   const sessionCorrelationSeed = useMemo(() => createCorrelationId('session'), []);
   const nextCorrelationId = useCallback(
     (scopeLabel: string = 'req') => createCorrelationId(scopeLabel, sessionCorrelationSeed),
@@ -315,24 +327,34 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   );
   const queryClient = useQueryClient();
 
-  useQuery(queryKeys.wallet, fetchWallet, {
-    onSuccess: (data) => {
-      setTokenBalance(data.balance);
-      setPendingEarnings(data.pending);
-      setAvailableEarnings(data.available);
-      setSpentToday(data.spentToday);
-      setSpentMonth(data.spentMonth);
-      setPurchasesSuspended(data.purchasesSuspended);
-      setSpendingLimitsState({ daily: data.dailyLimit, monthly: data.monthlyLimit });
-      if (data.preferredCurrency) {
-        setPreferredCurrencyState(data.preferredCurrency as CurrencyCode);
-      }
-    }
+  const { data: walletData } = useQuery<WalletSummary>({
+    queryKey: queryKeys.wallet,
+    queryFn: fetchWallet
   });
 
-  useQuery(queryKeys.walletHistory, fetchWalletHistory, {
-    onSuccess: (data) => setTransactions(data)
+  const { data: walletHistoryData } = useQuery<WalletTransactionItem[]>({
+    queryKey: queryKeys.walletHistory,
+    queryFn: fetchWalletHistory
   });
+
+  useEffect(() => {
+    if (!walletData) return;
+    setTokenBalance(walletData.balance);
+    setPendingEarnings(walletData.pending);
+    setAvailableEarnings(walletData.available);
+    setSpentToday(walletData.spentToday);
+    setSpentMonth(walletData.spentMonth);
+    setPurchasesSuspended(walletData.purchasesSuspended);
+    setSpendingLimitsState({ daily: walletData.dailyLimit, monthly: walletData.monthlyLimit });
+    if (walletData.preferredCurrency) {
+      setPreferredCurrencyState(walletData.preferredCurrency as CurrencyCode);
+    }
+  }, [walletData]);
+
+  useEffect(() => {
+    if (!walletHistoryData) return;
+    setTransactions(walletHistoryData);
+  }, [walletHistoryData]);
 
   useEffect(() => {
     persistToStorage(PREFERENCES_KEY, preferences);
@@ -403,7 +425,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
-    if (ref && ref !== username) {
+    if (ref && ref !== resolvedUsername) {
       setAttributedReferrer(ref);
       setNotifications((prev) => [
         {
@@ -416,7 +438,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         ...prev
       ]);
     }
-  }, [username]);
+  }, [resolvedUsername]);
 
   const appendTransaction = (tx: WalletTransaction) => {
     setTransactions((prev) => [tx, ...prev].slice(0, 40));
@@ -624,17 +646,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setNotificationPreferencesState((prev) => ({ ...prev, [key]: value }));
   };
 
-  const username =
-    authUsername && authUsername.length > 0
-      ? authUsername
-      : scope === 'guest'
-      ? 'guest'
-      : scope === 'admin'
-      ? 'admin-team'
-      : scope === 'mod'
-      ? 'mod-team'
-      : 'creator-demo';
-  const referralLink = useMemo(() => buildReferralLink(username), [username]);
+  const referralLink = useMemo(() => buildReferralLink(resolvedUsername), [resolvedUsername]);
 
   const value = useMemo<SessionValue>(
     () => ({
@@ -647,7 +659,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
           : scope === 'mod'
           ? 'Moderador'
           : 'Creator',
-      username,
+      username: resolvedUsername,
       tokenBalance,
       pendingEarnings,
       availableEarnings,
@@ -701,6 +713,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }),
     [
       scope,
+      resolvedUsername,
       tokenBalance,
       pendingEarnings,
       availableEarnings,

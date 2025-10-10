@@ -18,7 +18,7 @@ import { Spinner } from '@/components/ui/spinner';
 
 export function EconomyPanel() {
   const t = useTranslations('admin.economy');
-  const { data, isLoading } = useQuery(queryKeys.adminEconomy, fetchAdminEconomy);
+  const { data, isLoading } = useQuery({ queryKey: queryKeys.adminEconomy, queryFn: fetchAdminEconomy });
   const [packId, setPackId] = useState<string>();
   const [giftId, setGiftId] = useState<string>();
 
