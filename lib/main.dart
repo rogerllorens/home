@@ -6,10 +6,10 @@ import 'dart:ui' as ui;
 
 import 'package:barcode_widget/barcode_widget.dart' as bw;
 import 'package:clipboard/clipboard.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:mobile_scanner/mobile_scanner.dart' as ms;
@@ -21,80 +21,222 @@ import 'package:url_launcher/url_launcher.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-    statusBarBrightness: Brightness.light,
-  ));
+  await SystemChrome.setPreferredOrientations(
+    <DeviceOrientation>[
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ],
+  );
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(statusBarColor: Colors.transparent),
+  );
   final appState = AppState();
   await appState.initialize();
   runApp(AppStateScope(appState: appState, child: const NexusQrApp()));
 }
 
-class AppState extends ChangeNotifier {
-  static const _historyKey = 'history';
-  static const _themeKey = 'theme';
-  late SharedPreferences _preferences;
+const Color kSeedColor = Color(0xFF006E5A);
+const Color kSeedColorDark = Color(0xFF004B3E);
+const Duration kShortAnim = Duration(milliseconds: 160);
+const Duration kMediumAnim = Duration(milliseconds: 260);
+const double kPreviewSize = 240;
+const String kHistoryKey = 'nexus_history_v4';
+const String kTemplatesKey = 'nexus_templates_v2';
+const String kSettingsKey = 'nexus_settings_v1';
+const String kOnboardingKey = 'nexus_onboarding_seen';
 
+class AppState extends ChangeNotifier {
+  SharedPreferences? _prefs;
   ThemeMode _themeMode = ThemeMode.system;
+  bool _highContrast = false;
+  bool _autoSaveSensitive = false;
+  bool _seenOnboarding = false;
+  Color _seed = kSeedColor;
+  String _defaultPalette = GeneratorPalette.duotone.id;
+  double _defaultQuietZone = 4;
+  int _defaultScale = 2;
+  int _autoCleanDays = 30;
+  String _defaultFileName = '{type}_{date}_{slug}';
   final List<HistoryEntry> _history = <HistoryEntry>[];
+  final List<SavedTemplate> _templates = <SavedTemplate>[];
 
   ThemeMode get themeMode => _themeMode;
-  List<HistoryEntry> get history => List.unmodifiable(_history);
+  bool get highContrast => _highContrast;
+  bool get autoSaveSensitive => _autoSaveSensitive;
+  bool get seenOnboarding => _seenOnboarding;
+  Color get seed => _seed;
+  String get defaultPalette => _defaultPalette;
+  double get defaultQuietZone => _defaultQuietZone;
+  int get defaultScale => _defaultScale;
+  int get autoCleanDays => _autoCleanDays;
+  String get defaultFileName => _defaultFileName;
+  List<HistoryEntry> get history => List<HistoryEntry>.unmodifiable(_history);
+  List<SavedTemplate> get templates => List<SavedTemplate>.unmodifiable(_templates);
 
   Future<void> initialize() async {
-    _preferences = await SharedPreferences.getInstance();
-    final storedTheme = _preferences.getInt(_themeKey);
-    if (storedTheme != null && storedTheme >= 0 && storedTheme < ThemeMode.values.length) {
-      _themeMode = ThemeMode.values[storedTheme];
-    }
-    final storedHistory = _preferences.getStringList(_historyKey) ?? <String>[];
+    _prefs = await SharedPreferences.getInstance();
+    _themeMode = ThemeMode.values[_prefs?.getInt('theme_mode') ?? ThemeMode.system.index];
+    _highContrast = _prefs?.getBool('high_contrast') ?? false;
+    _autoSaveSensitive = _prefs?.getBool('auto_save_sensitive') ?? false;
+    _seenOnboarding = _prefs?.getBool(kOnboardingKey) ?? false;
+    _seed = Color(_prefs?.getInt('seed_color') ?? kSeedColor.value);
+    _defaultPalette = _prefs?.getString('default_palette') ?? GeneratorPalette.duotone.id;
+    _defaultQuietZone = (_prefs?.getDouble('quiet_zone') ?? 4).clamp(0, 32);
+    _defaultScale = (_prefs?.getInt('default_scale') ?? 2).clamp(1, 4);
+    _autoCleanDays = _prefs?.getInt('auto_clean_days') ?? 30;
+    _defaultFileName = _prefs?.getString('file_name') ?? '{type}_{date}_{slug}';
+    final rawHistory = _prefs?.getStringList(kHistoryKey) ?? <String>[];
     _history
       ..clear()
-      ..addAll(
-        storedHistory
-            .map((item) => HistoryEntry.fromJson(jsonDecode(item) as Map<String, dynamic>))
-            .whereType<HistoryEntry>(),
-      );
+      ..addAll(rawHistory.map((e) => HistoryEntry.fromJson(jsonDecode(e) as Map<String, dynamic>)).whereType<HistoryEntry>());
+    final rawTemplates = _prefs?.getStringList(kTemplatesKey) ?? <String>[];
+    _templates
+      ..clear()
+      ..addAll(rawTemplates.map((e) => SavedTemplate.fromJson(jsonDecode(e) as Map<String, dynamic>)).whereType<SavedTemplate>());
+    _autoPurge();
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
-    if (mode == _themeMode) return;
     _themeMode = mode;
-    await _preferences.setInt(_themeKey, mode.index);
+    await _prefs?.setInt('theme_mode', mode.index);
     notifyListeners();
   }
 
-  Future<void> addToHistory(HistoryEntry entry) async {
-    _history.removeWhere((element) => element.value == entry.value && element.type == entry.type);
-    _history.insert(0, entry);
-    if (_history.length > 50) {
-      _history.removeRange(50, _history.length);
+  Future<void> setHighContrast(bool value) async {
+    _highContrast = value;
+    await _prefs?.setBool('high_contrast', value);
+    notifyListeners();
+  }
+
+  Future<void> setSeed(Color value) async {
+    _seed = value;
+    await _prefs?.setInt('seed_color', value.value);
+    notifyListeners();
+  }
+
+  Future<void> setAutoSaveSensitive(bool value) async {
+    _autoSaveSensitive = value;
+    await _prefs?.setBool('auto_save_sensitive', value);
+    notifyListeners();
+  }
+
+  Future<void> setDefaultPalette(String id) async {
+    _defaultPalette = id;
+    await _prefs?.setString('default_palette', id);
+    notifyListeners();
+  }
+
+  Future<void> setDefaultQuietZone(double value) async {
+    _defaultQuietZone = value;
+    await _prefs?.setDouble('quiet_zone', value);
+    notifyListeners();
+  }
+
+  Future<void> setDefaultScale(int value) async {
+    _defaultScale = value;
+    await _prefs?.setInt('default_scale', value);
+    notifyListeners();
+  }
+
+  Future<void> setAutoCleanDays(int days) async {
+    _autoCleanDays = days;
+    await _prefs?.setInt('auto_clean_days', days);
+    notifyListeners();
+    _autoPurge();
+  }
+
+  Future<void> setDefaultFileName(String pattern) async {
+    _defaultFileName = pattern;
+    await _prefs?.setString('file_name', pattern);
+    notifyListeners();
+  }
+
+  void markOnboardingSeen() {
+    _seenOnboarding = true;
+    _prefs?.setBool(kOnboardingKey, true);
+    notifyListeners();
+  }
+
+  Future<void> addHistory(HistoryEntry entry, {bool force = false}) async {
+    if (!force && !_autoSaveSensitive && entry.isSensitive) {
+      return;
     }
-    await _preferences.setStringList(
-      _historyKey,
-      _history.map((e) => jsonEncode(e.toJson())).toList(),
-    );
+    _history.removeWhere((element) => element.id == entry.id);
+    _history.insert(0, entry);
+    if (_history.length > 250) {
+      _history.removeRange(250, _history.length);
+    }
+    await _persistHistory();
     notifyListeners();
   }
 
-  Future<void> removeFromHistory(HistoryEntry entry) async {
-    _history.removeWhere((element) => element.id == entry.id);
-    await _preferences.setStringList(
-      _historyKey,
-      _history.map((e) => jsonEncode(e.toJson())).toList(),
-    );
+  Future<void> updateHistory(HistoryEntry entry) async {
+    final index = _history.indexWhere((element) => element.id == entry.id);
+    if (index == -1) return;
+    _history[index] = entry;
+    await _persistHistory();
+    notifyListeners();
+  }
+
+  Future<void> removeHistory(Iterable<String> ids) async {
+    _history.removeWhere((element) => ids.contains(element.id));
+    await _persistHistory();
     notifyListeners();
   }
 
   Future<void> clearHistory() async {
     _history.clear();
-    await _preferences.remove(_historyKey);
+    await _prefs?.remove(kHistoryKey);
     notifyListeners();
+  }
+
+  Future<void> addTemplate(SavedTemplate template) async {
+    final index = _templates.indexWhere((element) => element.id == template.id);
+    if (index >= 0) {
+      _templates[index] = template;
+    } else {
+      _templates.add(template);
+    }
+    await _persistTemplates();
+    notifyListeners();
+  }
+
+  Future<void> removeTemplate(String id) async {
+    _templates.removeWhere((element) => element.id == id);
+    await _persistTemplates();
+    notifyListeners();
+  }
+
+  Future<void> reorderTemplates(int oldIndex, int newIndex) async {
+    if (newIndex > oldIndex) newIndex--;
+    final item = _templates.removeAt(oldIndex);
+    _templates.insert(newIndex, item);
+    await _persistTemplates();
+    notifyListeners();
+  }
+
+  Future<void> _persistHistory() async {
+    await _prefs?.setStringList(
+      kHistoryKey,
+      _history.map((e) => jsonEncode(e.toJson())).toList(),
+    );
+  }
+
+  Future<void> _persistTemplates() async {
+    await _prefs?.setStringList(
+      kTemplatesKey,
+      _templates.map((e) => jsonEncode(e.toJson())).toList(),
+    );
+  }
+
+  void _autoPurge() {
+    if (_autoCleanDays <= 0) return;
+    final cutoff = DateTime.now().subtract(Duration(days: _autoCleanDays));
+    final removed = _history.removeWhere((element) => element.createdAt.isBefore(cutoff));
+    if (removed > 0) {
+      _persistHistory();
+      notifyListeners();
+    }
   }
 }
 
@@ -103,28 +245,41 @@ class AppStateScope extends InheritedNotifier<AppState> {
 
   static AppState of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppStateScope>();
-    assert(scope != null, 'AppStateScope not found in context');
+    assert(scope != null, 'AppStateScope not found');
     return scope!.notifier!;
   }
 }
 
-class NexusQrApp extends StatelessWidget {
+class NexusQrApp extends StatefulWidget {
   const NexusQrApp({super.key});
 
   @override
+  State<NexusQrApp> createState() => _NexusQrAppState();
+}
+
+class _NexusQrAppState extends State<NexusQrApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
   Widget build(BuildContext context) {
-    final appState = AppStateScope.of(context);
+    final state = AppStateScope.of(context);
     return AnimatedBuilder(
-      animation: appState,
+      animation: state,
       builder: (context, _) {
+        final lightScheme = state.highContrast
+            ? const ColorScheme.highContrastLight(primary: kSeedColor)
+            : ColorScheme.fromSeed(seedColor: state.seed, brightness: Brightness.light);
+        final darkScheme = state.highContrast
+            ? const ColorScheme.highContrastDark(primary: kSeedColorDark)
+            : ColorScheme.fromSeed(seedColor: kSeedColorDark, brightness: Brightness.dark);
         return MaterialApp(
+          navigatorKey: _navigatorKey,
           debugShowCheckedModeBanner: false,
           title: 'Nexus QR',
           localizationsDelegates: const [
-            AppLocalizationsDelegate(),
-            _FallbackMaterialLocalizations.delegate,
-            _FallbackWidgetsLocalizations.delegate,
-            _FallbackCupertinoLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: const [
             Locale('en'),
@@ -133,955 +288,403 @@ class NexusQrApp extends StatelessWidget {
             Locale('pt'),
             Locale('de'),
           ],
-          themeMode: appState.themeMode,
-          theme: _buildLightTheme(),
-          darkTheme: _buildDarkTheme(),
-          home: const SplashScreen(),
+          themeMode: state.themeMode,
+          theme: _buildTheme(lightScheme, false),
+          darkTheme: _buildTheme(darkScheme, true),
+          home: HomeShell(navigatorKey: _navigatorKey),
         );
       },
     );
   }
 
-  ThemeData _buildLightTheme() {
+  ThemeData _buildTheme(ColorScheme scheme, bool dark) {
     final base = ThemeData(
-      brightness: Brightness.light,
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2266FF)),
+      colorScheme: scheme,
+      brightness: scheme.brightness,
+      fontFamily: 'Roboto',
     );
     return base.copyWith(
-      scaffoldBackgroundColor: const Color(0xFFF7F9FC),
-      appBarTheme: base.appBarTheme.copyWith(centerTitle: true, elevation: 0),
-      snackBarTheme: base.snackBarTheme.copyWith(behavior: SnackBarBehavior.floating),
-      cardTheme: base.cardTheme.copyWith(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      scaffoldBackgroundColor: dark ? const Color(0xFF101417) : const Color(0xFFF1F5F7),
+      appBarTheme: AppBarTheme(
+        elevation: 0,
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        foregroundColor: scheme.onSurface,
+        titleTextStyle: base.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.2),
       ),
-    );
-  }
-
-  ThemeData _buildDarkTheme() {
-    final base = ThemeData(
-      brightness: Brightness.dark,
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5B8BFF), brightness: Brightness.dark),
-    );
-    return base.copyWith(
-      scaffoldBackgroundColor: const Color(0xFF0F172A),
-      snackBarTheme: base.snackBarTheme.copyWith(behavior: SnackBarBehavior.floating),
-      cardTheme: base.cardTheme.copyWith(
-        elevation: 1,
+      navigationBarTheme: NavigationBarThemeData(
+        indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+        elevation: 6,
+      ),
+      cardTheme: CardTheme(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 2,
+        shadowColor: scheme.shadow.withOpacity(0.12),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        contentTextStyle: base.textTheme.bodyMedium?.copyWith(color: scheme.onPrimaryContainer),
+      ),
+      tooltipTheme: const TooltipThemeData(waitDuration: Duration(milliseconds: 400)),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: scheme.surfaceVariant.withOpacity(dark ? 0.3 : 0.8),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ButtonStyle(
+          padding: MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.symmetric(horizontal: 24, vertical: 16)),
+          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          ),
+          elevation: MaterialStateProperty.resolveWith<double>((states) {
+            if (states.contains(MaterialState.pressed)) return 1;
+            if (states.contains(MaterialState.hovered)) return 3;
+            return 2;
+          }),
+        ),
       ),
     );
   }
 }
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+
+class HomeShell extends StatefulWidget {
+  const HomeShell({super.key, required this.navigatorKey});
+
+  final GlobalKey<NavigatorState> navigatorKey;
+
+  static _HomeShellState? of(BuildContext context) => context.findAncestorStateOfType<_HomeShellState>();
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  State<HomeShell> createState() => _HomeShellState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _HomeShellState extends State<HomeShell> {
+  final PageController _pageController = PageController();
+  final ValueNotifier<FabIntent> _fabIntent = ValueNotifier<FabIntent>(FabIntent.generate);
+  int _index = 0;
+  bool _showOnboarding = false;
+
   @override
   void initState() {
     super.initState();
-    Future<void>.delayed(const Duration(milliseconds: 1600), () {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 600),
-          pageBuilder: (_, __, ___) => const MainShell(),
-          transitionsBuilder: (_, animation, __, child) {
-            return FadeTransition(
-              opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOutCubic),
-              child: child,
-            );
-          },
-        ),
-      );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = AppStateScope.of(context);
+      if (!state.seenOnboarding) {
+        setState(() => _showOnboarding = true);
+      }
     });
   }
 
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      body: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [colorScheme.primaryContainer, colorScheme.surface],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.85, end: 1),
-              duration: const Duration(milliseconds: 1200),
-              curve: Curves.easeOutBack,
-              builder: (context, value, child) => Transform.scale(scale: value, child: child),
-              child: Container(
-                height: 200,
-                width: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      colorScheme.primary.withOpacity(0.15),
-                      colorScheme.primary.withOpacity(0.05),
-                    ],
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Icon(Icons.qr_code_2_rounded, size: 140, color: colorScheme.primary),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Nexus QR',
-              style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                AppLocalizations.of(context).t('splash_tagline'),
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class MainShell extends StatefulWidget {
-  const MainShell({super.key});
-
-  @override
-  State<MainShell> createState() => _MainShellState();
-}
-
-class _MainShellState extends State<MainShell> {
-  int _currentIndex = 0;
-
-  static final List<_Destination> _destinations = [
-    _Destination(icon: Icons.auto_awesome, labelKey: 'generator', builder: (_) => const GeneratorPage()),
-    _Destination(icon: Icons.document_scanner, labelKey: 'scanner', builder: (_) => const ScannerPage()),
-    _Destination(icon: Icons.history, labelKey: 'history', builder: (_) => const HistoryPage()),
-    _Destination(icon: Icons.settings_suggest, labelKey: 'settings', builder: (_) => const SettingsPage()),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final localization = AppLocalizations.of(context);
-    final colorScheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(localization.t(_destinations[_currentIndex].labelKey)),
-        actions: [
-          IconButton(
-            tooltip: localization.t('share_app'),
-            icon: const Icon(Icons.ios_share),
-            onPressed: () => Share.share(localization.t('share_app_message')),
-          ),
-        ],
-      ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        child: _destinations[_currentIndex].builder(context),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        height: 68,
-        destinations: [
-          for (final destination in _destinations)
-            NavigationDestination(
-              icon: Icon(destination.icon),
-              selectedIcon: Icon(destination.icon, color: colorScheme.primary),
-              label: localization.t(destination.labelKey),
-            ),
-        ],
-        onDestinationSelected: (value) => setState(() => _currentIndex = value),
-      ),
-    );
-  }
-}
-
-class _Destination {
-  const _Destination({required this.icon, required this.labelKey, required this.builder});
-
-  final IconData icon;
-  final String labelKey;
-  final WidgetBuilder builder;
-}
-
-enum QRContentType { text, url, wifi, email, phone, sms }
-
-enum CodeRenderType { qr, barcode }
-class GeneratorPage extends StatefulWidget {
-  const GeneratorPage({super.key});
-
-  @override
-  State<GeneratorPage> createState() => _GeneratorPageState();
-}
-
-class _GeneratorPageState extends State<GeneratorPage> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _textController = TextEditingController();
-  final TextEditingController _urlController = TextEditingController();
-  final TextEditingController _ssidController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _smsController = TextEditingController();
-
-  QRContentType _contentType = QRContentType.text;
-  CodeRenderType _renderType = CodeRenderType.qr;
-  String? _renderedValue;
-  Color _primaryColor = const Color(0xFF2266FF);
-  final GlobalKey _previewKey = GlobalKey();
-  bool _isSaving = false;
-
-  @override
   void dispose() {
-    _textController.dispose();
-    _urlController.dispose();
-    _ssidController.dispose();
-    _passwordController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    _smsController.dispose();
+    _pageController.dispose();
+    _fabIntent.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final localization = AppLocalizations.of(context);
-    final colorScheme = Theme.of(context).colorScheme;
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildIntroCard(localization, colorScheme),
-            const SizedBox(height: 18),
-            _buildTypeSelector(localization),
-            const SizedBox(height: 16),
-            Form(key: _formKey, child: _buildDynamicFields(localization)),
-            const SizedBox(height: 16),
-            _buildRenderTypeSelector(localization),
-            const SizedBox(height: 16),
-            _buildColorPicker(localization),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              icon: const Icon(Icons.bolt),
-              label: Text(localization.t('generate_code')),
-              onPressed: _onGenerate,
-            ),
-            const SizedBox(height: 24),
-            if (_renderedValue != null) _buildPreviewCard(localization, colorScheme),
-          ],
-        ),
-      ),
-    );
+  void _onDestinationSelected(int index) {
+    setState(() => _index = index);
+    _pageController.animateToPage(index, duration: kMediumAnim, curve: Curves.easeInOut);
   }
 
-  Widget _buildIntroCard(AppLocalizations localization, ColorScheme colorScheme) {
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
+  void switchTab(int index) => _onDestinationSelected(index);
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final bool wide = media.size.width >= 900;
+    final destinations = <NavigationDestination>[
+      const NavigationDestination(icon: Icon(Icons.qr_code_2_outlined), selectedIcon: Icon(Icons.qr_code_2), label: 'Crear'),
+      const NavigationDestination(icon: Icon(Icons.center_focus_strong_outlined), selectedIcon: Icon(Icons.center_focus_strong), label: 'Escanear'),
+      const NavigationDestination(icon: Icon(Icons.history_toggle_off), selectedIcon: Icon(Icons.history), label: 'Historial'),
+      const NavigationDestination(icon: Icon(Icons.tune_outlined), selectedIcon: Icon(Icons.tune), label: 'Ajustes'),
+    ];
+    final pages = <Widget>[
+      GeneratorPage(onFabIntentChanged: _fabIntent),
+      ScannerPage(onFabIntentChanged: _fabIntent),
+      HistoryPage(onFabIntentChanged: _fabIntent),
+      SettingsPage(onFabIntentChanged: _fabIntent),
+    ];
+    return Scaffold(
+      extendBody: true,
+      body: SafeArea(
         child: Row(
           children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [colorScheme.primary, colorScheme.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            if (wide)
+              NavigationRail(
+                selectedIndex: _index,
+                extended: media.size.width >= 1200,
+                destinations: const [
+                  NavigationRailDestination(icon: Icon(Icons.qr_code_2_outlined), selectedIcon: Icon(Icons.qr_code_2), label: Text('Crear')),
+                  NavigationRailDestination(icon: Icon(Icons.center_focus_strong_outlined), selectedIcon: Icon(Icons.center_focus_strong), label: Text('Escanear')),
+                  NavigationRailDestination(icon: Icon(Icons.history_toggle_off), selectedIcon: Icon(Icons.history), label: Text('Historial')),
+                  NavigationRailDestination(icon: Icon(Icons.tune_outlined), selectedIcon: Icon(Icons.tune), label: Text('Ajustes')),
+                ],
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
+                onDestinationSelected: _onDestinationSelected,
+                leading: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text('Nexus QR', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                 ),
-                borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(Icons.qr_code_2, color: Colors.white, size: 36),
-            ),
-            const SizedBox(width: 16),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  Text(
-                    localization.t('generator_title'),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  PageView(
+                    controller: _pageController,
+                    physics: const ClampingScrollPhysics(),
+                    onPageChanged: (index) => setState(() => _index = index),
+                    children: pages,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    localization.t('generator_subtitle'),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: wide ? 96 : 16,
+                        right: wide ? 96 : 16,
+                        bottom: media.padding.bottom + (wide ? 32 : 100),
+                      ),
+                      child: ValueListenableBuilder<FabIntent>(
+                        valueListenable: _fabIntent,
+                        builder: (context, intent, _) {
+                          if (intent == FabIntent.none) return const SizedBox.shrink();
+                          return AnimatedSwitcher(
+                            duration: kShortAnim,
+                            transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+                            child: _FabSwitcher(intent: intent),
+                          );
+                        },
+                      ),
+                    ),
                   ),
+                  if (_showOnboarding)
+                    Positioned.fill(
+                      child: OnboardingOverlay(
+                        onClose: () {
+                          AppStateScope.of(context).markOnboardingSeen();
+                          setState(() => _showOnboarding = false);
+                        },
+                      ),
+                    ),
                 ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildTypeSelector(AppLocalizations localization) {
-    final options = <QRContentType, String>{
-      QRContentType.text: localization.t('type_text'),
-      QRContentType.url: localization.t('type_url'),
-      QRContentType.wifi: localization.t('type_wifi'),
-      QRContentType.email: localization.t('type_email'),
-      QRContentType.phone: localization.t('type_phone'),
-      QRContentType.sms: localization.t('type_sms'),
-    };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(localization.t('content_type'), style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            for (final entry in options.entries)
-              ChoiceChip(
-                label: Text(entry.value),
-                selected: _contentType == entry.key,
-                onSelected: (selected) {
-                  if (selected) {
-                    setState(() => _contentType = entry.key);
-                  }
-                },
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDynamicFields(AppLocalizations localization) {
-    switch (_contentType) {
-      case QRContentType.text:
-        return TextFormField(
-          controller: _textController,
-          maxLines: 4,
-          decoration: InputDecoration(
-            labelText: localization.t('enter_text'),
-            border: const OutlineInputBorder(),
-          ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return localization.t('validation_required');
-            }
-            return null;
-          },
-        );
-      case QRContentType.url:
-        return TextFormField(
-          controller: _urlController,
-          decoration: InputDecoration(
-            labelText: localization.t('enter_url'),
-            border: const OutlineInputBorder(),
-            hintText: 'https://example.com',
-          ),
-          keyboardType: TextInputType.url,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return localization.t('validation_required');
-            }
-            final uri = Uri.tryParse(value.trim());
-            if (uri == null || !(uri.hasScheme && (uri.isScheme('https') || uri.isScheme('http')))) {
-              return localization.t('validation_url');
-            }
-            return null;
-          },
-        );
-      case QRContentType.wifi:
-        return Column(
-          children: [
-            TextFormField(
-              controller: _ssidController,
-              decoration: InputDecoration(
-                labelText: localization.t('wifi_name'),
-                border: const OutlineInputBorder(),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return localization.t('validation_required');
-                }
-                return null;
-              },
+      bottomNavigationBar: wide
+          ? null
+          : NavigationBar(
+              selectedIndex: _index,
+              destinations: destinations,
+              onDestinationSelected: _onDestinationSelected,
             ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _passwordController,
-              decoration: InputDecoration(
-                labelText: localization.t('wifi_password'),
-                border: const OutlineInputBorder(),
-              ),
-            ),
-          ],
-        );
-      case QRContentType.email:
-        return Column(
-          children: [
-            TextFormField(
-              controller: _emailController,
-              decoration: InputDecoration(
-                labelText: localization.t('email_address'),
-                border: const OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return localization.t('validation_required');
-                }
-                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)) {
-                  return localization.t('validation_email');
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _textController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: localization.t('email_message'),
-                border: const OutlineInputBorder(),
-              ),
-            ),
-          ],
-        );
-      case QRContentType.phone:
-        return TextFormField(
-          controller: _phoneController,
-          decoration: InputDecoration(
-            labelText: localization.t('phone_number'),
-            border: const OutlineInputBorder(),
-          ),
-          keyboardType: TextInputType.phone,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return localization.t('validation_required');
-            }
-            if (!RegExp(r'^[+0-9]{6,}$').hasMatch(value)) {
-              return localization.t('validation_phone');
-            }
-            return null;
-          },
-        );
-      case QRContentType.sms:
-        return Column(
-          children: [
-            TextFormField(
-              controller: _phoneController,
-              decoration: InputDecoration(
-                labelText: localization.t('phone_number'),
-                border: const OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.phone,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return localization.t('validation_required');
-                }
-                if (!RegExp(r'^[+0-9]{6,}$').hasMatch(value)) {
-                  return localization.t('validation_phone');
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _smsController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: localization.t('sms_message'),
-                border: const OutlineInputBorder(),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return localization.t('validation_required');
-                }
-                return null;
-              },
-            ),
-          ],
-        );
-    }
-  }
-  Widget _buildRenderTypeSelector(AppLocalizations localization) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(localization.t('output_type'), style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          children: [
-            ChoiceChip(
-              label: Text(localization.t('output_qr')),
-              selected: _renderType == CodeRenderType.qr,
-              onSelected: (selected) {
-                if (selected) {
-                  setState(() => _renderType = CodeRenderType.qr);
-                }
-              },
-            ),
-            ChoiceChip(
-              label: Text(localization.t('output_barcode')),
-              selected: _renderType == CodeRenderType.barcode,
-              onSelected: (selected) {
-                if (selected) {
-                  setState(() => _renderType = CodeRenderType.barcode);
-                }
-              },
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildColorPicker(AppLocalizations localization) {
-    const swatches = [
-      Color(0xFF2266FF),
-      Color(0xFFFF6B6B),
-      Color(0xFF34D399),
-      Color(0xFFFFB020),
-      Color(0xFFA855F7),
-      Color(0xFF0EA5E9),
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(localization.t('accent_color'), style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          children: [
-            for (final color in swatches)
-              GestureDetector(
-                onTap: () => setState(() => _primaryColor = color),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: _primaryColor == color ? Colors.white : Colors.transparent,
-                      width: 2,
-                    ),
-                    boxShadow: [
-                      if (_primaryColor == color)
-                        BoxShadow(color: color.withOpacity(0.4), blurRadius: 12, spreadRadius: 1),
-                    ],
-                  ),
-                  child: _primaryColor == color
-                      ? const Icon(Icons.check, color: Colors.white)
-                      : const SizedBox.shrink(),
-                ),
-              ),
-            IconButton(
-              onPressed: () => setState(() => _primaryColor = _randomColor()),
-              icon: const Icon(Icons.shuffle),
-              tooltip: localization.t('random_color'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPreviewCard(AppLocalizations localization, ColorScheme colorScheme) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(localization.t('preview_title'), style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            RepaintBoundary(
-              key: _previewKey,
-              child: Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: _renderType == CodeRenderType.qr
-                    ? SizedBox(
-                        height: 220,
-                        width: 220,
-                        child: CustomPaint(
-                          painter: QrPainter(
-                            data: _renderedValue!,
-                            version: QrVersions.auto,
-                            color: _primaryColor,
-                            emptyColor: Colors.white,
-                            errorCorrectionLevel: QrErrorCorrectLevel.M,
-                          ),
-                        ),
-                      )
-                    : Center(
-                        child: bw.BarcodeWidget(
-                          barcode: bw.Barcode.code128(),
-                          data: _renderedValue!,
-                          color: _primaryColor,
-                          width: double.infinity,
-                          height: 120,
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              _renderedValue!,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 18),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.center,
-              children: [
-                FilledButton.icon(
-                  icon: const Icon(Icons.save_alt),
-                  onPressed: _isSaving ? null : _saveImage,
-                  label: Text(_isSaving ? localization.t('saving') : localization.t('save_image')),
-                ),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.copy_all),
-                  onPressed: () => _copy(localization),
-                  label: Text(localization.t('copy')),
-                ),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.share),
-                  onPressed: () => _share(localization),
-                  label: Text(localization.t('share')),
-                ),
-                if (_contentType == QRContentType.url)
-                  TextButton.icon(
-                    icon: const Icon(Icons.open_in_new),
-                    onPressed: () => _launchUrl(_renderedValue!),
-                    label: Text(localization.t('open')),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _onGenerate() async {
-    if (!_formKey.currentState!.validate()) return;
-    final value = _encodeValue();
-    setState(() => _renderedValue = value);
-    final entry = HistoryEntry(
-      id: UniqueKey().toString(),
-      value: value,
-      type: _contentType,
-      format: _renderType,
-      createdAt: DateTime.now(),
-    );
-    await AppStateScope.of(context).addToHistory(entry);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context).t('generated_success'))),
-    );
-  }
-
-  String _encodeValue() {
-    switch (_contentType) {
-      case QRContentType.text:
-        return _textController.text.trim();
-      case QRContentType.url:
-        return _urlController.text.trim();
-      case QRContentType.wifi:
-        final ssid = _ssidController.text.trim();
-        final password = _passwordController.text.trim();
-        final auth = password.isEmpty ? 'nopass' : 'WPA';
-        return 'WIFI:T:$auth;S:$ssid;P:$password;;';
-      case QRContentType.email:
-        final email = _emailController.text.trim();
-        final body = _textController.text.trim();
-        final uri = Uri(
-          scheme: 'mailto',
-          path: email,
-          queryParameters: body.isNotEmpty ? {'body': body} : null,
-        );
-        return uri.toString();
-      case QRContentType.phone:
-        return 'tel:${_phoneController.text.trim()}';
-      case QRContentType.sms:
-        final number = _phoneController.text.trim();
-        final body = _smsController.text.trim();
-        final uri = Uri(
-          scheme: 'sms',
-          path: number,
-          queryParameters: body.isNotEmpty ? {'body': body} : null,
-        );
-        return uri.toString();
-    }
-  }
-  Future<void> _copy(AppLocalizations localization) async {
-    if (_renderedValue == null) return;
-    await FlutterClipboard.copy(_renderedValue!);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(localization.t('copied'))),
-    );
-  }
-
-  Future<void> _share(AppLocalizations localization) async {
-    if (_renderedValue == null) return;
-    try {
-      if (kIsWeb) {
-        await Share.share(_renderedValue!);
-      } else {
-        final boundary = _previewKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-        if (boundary != null) {
-          final image = await boundary.toImage(pixelRatio: 3);
-          final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-          final bytes = byteData?.buffer.asUint8List();
-          if (bytes != null) {
-            final xFile = XFile.fromData(
-              bytes,
-              mimeType: 'image/png',
-              name: 'nexus_qr_${DateTime.now().millisecondsSinceEpoch}.png',
-            );
-            await Share.shareXFiles([xFile], text: _renderedValue);
-          } else {
-            await Share.share(_renderedValue!);
-          }
-        } else {
-          await Share.share(_renderedValue!);
-        }
-      }
-    } catch (_) {
-      await Share.share(_renderedValue!);
-    }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(localization.t('shared'))),
-    );
-  }
-
-  Future<void> _saveImage() async {
-    if (_renderedValue == null) return;
-    setState(() => _isSaving = true);
-    try {
-      if (!await _ensureStoragePermission()) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context).t('permission_denied'))),
-          );
-        }
-        return;
-      }
-      final boundary = _previewKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) return;
-      final image = await boundary.toImage(pixelRatio: 4);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final pngBytes = byteData?.buffer.asUint8List();
-      if (pngBytes == null) return;
-      final result = await ImageGallerySaver.saveImage(
-        Uint8List.fromList(pngBytes),
-        name: 'nexus_qr_${DateTime.now().millisecondsSinceEpoch}',
-      );
-      if (!mounted) return;
-      final localization = AppLocalizations.of(context);
-      if ((result['isSuccess'] as bool?) ?? false) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(localization.t('saved'))),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(localization.t('save_failed'))),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).t('save_failed'))),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
-    }
-  }
-
-  Future<bool> _ensureStoragePermission() async {
-    if (kIsWeb) return true;
-    final platform = Theme.of(context).platform;
-    if (platform == TargetPlatform.android) {
-      final storage = await Permission.storage.request();
-      if (storage.isGranted) return true;
-      final photos = await Permission.photos.request();
-      return photos.isGranted;
-    }
-    if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
-      final photos = await Permission.photos.request();
-      return photos.isGranted;
-    }
-    return true;
-  }
-
-  Future<void> _launchUrl(String value) async {
-    final uri = Uri.parse(value);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).t('cannot_open'))),
-      );
-    }
-  }
-
-  Color _randomColor() {
-    final random = Random();
-    return Color.fromARGB(
-      255,
-      random.nextInt(156) + 100,
-      random.nextInt(156) + 100,
-      random.nextInt(156) + 100,
     );
   }
 }
 
-class ScannerPage extends StatefulWidget {
-  const ScannerPage({super.key});
+enum FabIntent { none, generate, refresh, flashlight, batch, historyActions }
+
+typedef FabIntentNotifier = ValueNotifier<FabIntent>;
+
+class _FabSwitcher extends StatelessWidget {
+  const _FabSwitcher({required this.intent});
+
+  final FabIntent intent;
 
   @override
-  State<ScannerPage> createState() => _ScannerPageState();
+  Widget build(BuildContext context) {
+    switch (intent) {
+      case FabIntent.generate:
+        return FloatingActionButton.extended(
+          key: const ValueKey('fab-generate'),
+          heroTag: 'fab-generate',
+          onPressed: () => GeneratorDispatcher.of(context).generate(),
+          icon: const Icon(Icons.auto_fix_high),
+          label: const Text('Generar'),
+        );
+      case FabIntent.refresh:
+        return FloatingActionButton.extended(
+          key: const ValueKey('fab-refresh'),
+          heroTag: 'fab-refresh',
+          onPressed: () => GeneratorDispatcher.of(context).refresh(),
+          icon: const Icon(Icons.refresh),
+          label: const Text('Actualizar'),
+        );
+      case FabIntent.batch:
+        return FloatingActionButton.extended(
+          key: const ValueKey('fab-batch'),
+          heroTag: 'fab-batch',
+          onPressed: () => GeneratorDispatcher.of(context).batch(),
+          icon: const Icon(Icons.playlist_add_check),
+          label: const Text('Procesar lote'),
+        );
+      case FabIntent.flashlight:
+        return FloatingActionButton.extended(
+          key: const ValueKey('fab-light'),
+          heroTag: 'fab-light',
+          onPressed: () => ScannerDispatcher.of(context).toggleTorch(),
+          icon: const Icon(Icons.bolt),
+          label: const Text('Linterna'),
+        );
+      case FabIntent.historyActions:
+        return FloatingActionButton.extended(
+          key: const ValueKey('fab-history'),
+          heroTag: 'fab-history',
+          onPressed: () => HistoryDispatcher.of(context).toggleSelection(),
+          icon: const Icon(Icons.select_all),
+          label: const Text('Acciones'),
+        );
+      case FabIntent.none:
+      default:
+        return const SizedBox.shrink();
+    }
+  }
 }
 
-class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver {
-  final ms.MobileScannerController _controller =
-      ms.MobileScannerController(formats: ms.BarcodeFormat.values);
-  ms.BarcodeCapture? _barcodeCapture;
-  bool _isProcessing = false;
-  bool _torchEnabled = false;
+class GeneratorDispatcher extends InheritedWidget {
+  const GeneratorDispatcher({super.key, required super.child, required this.generate, required this.refresh, required this.batch});
+
+  final VoidCallback generate;
+  final VoidCallback refresh;
+  final VoidCallback batch;
+
+  static GeneratorDispatcher of(BuildContext context) {
+    final dispatcher = context.dependOnInheritedWidgetOfExactType<GeneratorDispatcher>();
+    assert(dispatcher != null);
+    return dispatcher!;
+  }
+
+  @override
+  bool updateShouldNotify(GeneratorDispatcher oldWidget) => true;
+}
+
+class ScannerDispatcher extends InheritedWidget {
+  const ScannerDispatcher({super.key, required super.child, required this.toggleTorch});
+
+  final VoidCallback toggleTorch;
+
+  static ScannerDispatcher of(BuildContext context) {
+    final dispatcher = context.dependOnInheritedWidgetOfExactType<ScannerDispatcher>();
+    assert(dispatcher != null);
+    return dispatcher!;
+  }
+
+  @override
+  bool updateShouldNotify(ScannerDispatcher oldWidget) => true;
+}
+
+class HistoryDispatcher extends InheritedWidget {
+  const HistoryDispatcher({super.key, required super.child, required this.toggleSelection});
+
+  final VoidCallback toggleSelection;
+
+  static HistoryDispatcher of(BuildContext context) {
+    final dispatcher = context.dependOnInheritedWidgetOfExactType<HistoryDispatcher>();
+    assert(dispatcher != null);
+    return dispatcher!;
+  }
+
+  @override
+  bool updateShouldNotify(HistoryDispatcher oldWidget) => true;
+}
+class GeneratorPage extends StatefulWidget {
+  const GeneratorPage({super.key, required this.onFabIntentChanged});
+
+  final FabIntentNotifier onFabIntentChanged;
+
+  @override
+  State<GeneratorPage> createState() => _GeneratorPageState();
+}
+
+class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProviderStateMixin {
+  final GlobalKey _previewKey = GlobalKey();
+  final TextEditingController _labelController = TextEditingController(text: 'Escanéame');
+  final TextEditingController _batchController = TextEditingController();
+  final Map<GeneratorContentType, GeneratorFormState> _states = <GeneratorContentType, GeneratorFormState>{};
+  final ValueNotifier<bool> _batchEnabled = ValueNotifier<bool>(false);
+  GeneratorContentType _selectedType = GeneratorContentType.url;
+  GeneratorPalette _palette = GeneratorPalette.duotone;
+  Color _foreground = GeneratorPalette.duotone.foreground;
+  Color _background = GeneratorPalette.duotone.background;
+  double _quietZone = 4;
+  bool _showLogo = false;
+  Uint8List? _logoBytes;
+  bool _skeleton = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    final state = AppStateScope.of(context);
+    _palette = GeneratorPalette.fromId(state.defaultPalette);
+    _foreground = _palette.foreground;
+    _background = _palette.background;
+    _quietZone = state.defaultQuietZone;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onFabIntentChanged.value = FabIntent.generate;
+      Future<void>.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) setState(() => _skeleton = false);
+      });
+    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _controller.dispose();
+    _labelController.dispose();
+    _batchController.dispose();
+    _batchEnabled.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
-      _controller.stop();
-    } else if (state == AppLifecycleState.resumed) {
-      _controller.start();
-    }
+  GeneratorFormState _formState(GeneratorContentType type) {
+    return _states.putIfAbsent(type, () => GeneratorFormState(type: type));
   }
 
-  Future<void> _toggleTorch() async {
-    try {
-      await _controller.toggleTorch();
-      if (mounted) {
-        setState(() => _torchEnabled = !_torchEnabled);
-      }
-    } on Exception {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).t('torch_unavailable'))),
-      );
-    }
+  String _payloadFor(GeneratorContentType type) {
+    return _formState(type).buildPayload();
   }
 
   @override
   Widget build(BuildContext context) {
-    final localization = AppLocalizations.of(context);
-    final colorScheme = Theme.of(context).colorScheme;
-    return SafeArea(
-      child: Column(
+    final media = MediaQuery.of(context);
+    final content = ListView(
+      padding: EdgeInsets.only(bottom: media.padding.bottom + 160),
+      children: [
+        _buildPreviewCard(),
+        _buildTypeSelector(),
+        const SizedBox(height: 12),
+        _buildTemplateStrip(),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _buildFormSections(),
+        ),
+        const SizedBox(height: 48),
+      ],
+    );
+    return GeneratorDispatcher(
+      generate: () => _handleGenerate(save: true),
+      refresh: () => _handleGenerate(save: false),
+      batch: _showBatchPreview,
+      child: Stack(
         children: [
-          Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ms.MobileScanner(
-                  controller: _controller,
-                  onDetect: (capture) => _onDetect(capture, localization),
-                ),
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: _ScannerOverlayPainter(colorScheme.primary),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 24,
-                  right: 24,
-                  child: Column(
-                    children: [
-                      _ScannerIconButton(
-                        icon: _torchEnabled ? Icons.flash_on : Icons.flash_off,
-                        label: localization.t('torch'),
-                        onTap: _toggleTorch,
-                      ),
-                      const SizedBox(height: 12),
-                      _ScannerIconButton(
-                        icon: Icons.cameraswitch,
-                        label: localization.t('switch_camera'),
-                        onTap: () => _controller.switchCamera(),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_barcodeCapture != null)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: _ScanResultCard(
-                      capture: _barcodeCapture!,
-                      onClose: () => setState(() => _barcodeCapture = null),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Text(
-              localization.t('scanner_tip'),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+          content,
+          Positioned(
+            right: 24,
+            bottom: 24,
+            child: FilledButton(
+              onPressed: () => _handleGenerate(save: true),
+              child: const Text('Generar ahora'),
             ),
           ),
         ],
@@ -1089,121 +692,832 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _onDetect(ms.BarcodeCapture capture, AppLocalizations localization) async {
-    if (_isProcessing || capture.barcodes.isEmpty) return;
-    _isProcessing = true;
-    final barcode = capture.barcodes.first;
-    if (barcode.rawValue == null) {
-      _isProcessing = false;
-      return;
-    }
-    final value = barcode.rawValue!;
-    setState(() => _barcodeCapture = capture);
-    await AppStateScope.of(context).addToHistory(
-      HistoryEntry(
-        id: UniqueKey().toString(),
-        value: value,
-        type: _inferType(value),
-        format: barcode.format == ms.BarcodeFormat.qrCode ? CodeRenderType.qr : CodeRenderType.barcode,
-        createdAt: DateTime.now(),
+  Widget _buildPreviewCard() {
+    final payload = _payloadFor(_selectedType);
+    final hasData = payload.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: AnimatedSwitcher(
+        duration: kMediumAnim,
+        child: Card(
+          key: ValueKey<String>('preview-$payload'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Vista previa', style: Theme.of(context).textTheme.titleLarge),
+                          const SizedBox(height: 4),
+                          Text(_selectedType.description, style: Theme.of(context).textTheme.bodyMedium),
+                        ],
+                      ),
+                    ),
+                    FilledButton.tonal(onPressed: _saveTemplate, child: const Text('Guardar plantilla')),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+                child: Column(
+                  children: [
+                    RepaintBoundary(
+                      key: _previewKey,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _background,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 20, offset: const Offset(0, 10)),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(24),
+                        child: SizedBox(
+                          width: kPreviewSize,
+                          height: kPreviewSize,
+                          child: _skeleton
+                              ? const _PreviewSkeleton()
+                              : AnimatedSwitcher(
+                                  duration: kMediumAnim,
+                                  child: hasData
+                                      ? Hero(tag: 'previewHero', child: _selectedType.isBarcode ? _buildBarcode(payload) : _buildQr(payload))
+                                      : const _PreviewEmptyState(),
+                                ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _labelController,
+                      textAlign: TextAlign.center,
+                      decoration: const InputDecoration(labelText: 'Etiqueta opcional'),
+                    ),
+                    const SizedBox(height: 12),
+                    _PreviewActions(
+                      payload: payload,
+                      onCopy: () => _copy(payload),
+                      onShare: () => _share(payload),
+                      onOpen: () => _open(payload),
+                      onDownload: hasData ? _download : null,
+                    ),
+                    const SizedBox(height: 12),
+                    _PaletteSelector(
+                      palettes: GeneratorPalette.values,
+                      selected: _palette,
+                      onChanged: (value) {
+                        setState(() {
+                          _palette = value;
+                          _foreground = value.foreground;
+                          _background = value.background;
+                        });
+                        AppStateScope.of(context).setDefaultPalette(value.id);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Slider(
+                            value: _quietZone,
+                            min: 0,
+                            max: 32,
+                            divisions: 16,
+                            label: 'Margen ${_quietZone.toStringAsFixed(0)}',
+                            onChanged: (value) => setState(() => _quietZone = value),
+                          ),
+                        ),
+                        Switch(
+                          value: _showLogo,
+                          onChanged: (value) {
+                            setState(() => _showLogo = value);
+                            if (value && _logoBytes == null) {
+                              _loadLogo();
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Logo'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(localization.t('scanned_success'))),
-      );
-    }
-    await Future<void>.delayed(const Duration(seconds: 2));
-    _isProcessing = false;
   }
 
-  QRContentType _inferType(String value) {
-    if (value.startsWith('http://') || value.startsWith('https://')) {
-      return QRContentType.url;
+  Widget _buildQr(String payload) {
+    return CustomPaint(
+      painter: QrPainter(
+        data: payload,
+        version: QrVersions.auto,
+        gapless: true,
+        color: _foreground,
+        emptyColor: _background,
+        errorCorrectionLevel: QrErrorCorrectLevel.Q,
+        eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square),
+        dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square),
+      ),
+      child: Center(
+        child: _showLogo && _logoBytes != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.memory(_logoBytes!, width: 56, height: 56, fit: BoxFit.cover),
+              )
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildBarcode(String payload) {
+    final barcode = _selectedType == GeneratorContentType.barcodeEan13
+        ? bw.Barcode.ean13(drawEndChar: true)
+        : bw.Barcode.code128();
+    return bw.BarcodeWidget(
+      barcode: barcode,
+      data: payload,
+      color: _foreground,
+      backgroundColor: _background,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+    );
+  }
+
+  Widget _buildTypeSelector() {
+    return StickyHeader(
+      child: Container(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: _SegmentedSelector(
+          value: _selectedType,
+          items: GeneratorContentType.values,
+          onChanged: (value) {
+            setState(() => _selectedType = value);
+            widget.onFabIntentChanged.value = value.supportsBatch ? FabIntent.batch : FabIntent.generate;
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTemplateStrip() {
+    final templates = AppStateScope.of(context).templates;
+    if (templates.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 118,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: templates.length,
+        itemBuilder: (context, index) {
+          final template = templates[index];
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              onTap: () => _applyTemplate(template),
+              child: Container(
+                width: 220,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 14, offset: const Offset(0, 8)),
+                  ],
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(template.type.icon, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            template.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      template.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFormSections() {
+    final sections = _selectedType.sections;
+    final formState = _formState(_selectedType);
+    return Column(
+      children: [
+        for (final section in sections)
+          _FormSection(
+            section: section,
+            state: formState,
+            onChanged: () => setState(() {}),
+          ),
+        ValueListenableBuilder<bool>(
+          valueListenable: _batchEnabled,
+          builder: (context, enabled, _) {
+            return ExpansionTile(
+              leading: const Icon(Icons.playlist_add),
+              title: const Text('Modo lote'),
+              subtitle: const Text('Genera múltiples códigos desde una lista'),
+              initiallyExpanded: enabled,
+              onExpansionChanged: (value) => _batchEnabled.value = value,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _batchController,
+                        decoration: const InputDecoration(
+                          labelText: 'Entradas',
+                          hintText: 'Pedido #{{n}}',
+                        ),
+                        maxLines: 6,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              _batchController.text = 'Pedido #{{n}}\nPedido #{{n}}';
+                            },
+                            child: const Text('Ejemplo'),
+                          ),
+                          const SizedBox(width: 12),
+                          FilledButton.tonal(onPressed: _showBatchPreview, child: const Text('Previsualizar')),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleGenerate({required bool save}) async {
+    final payload = _payloadFor(_selectedType);
+    if (payload.isEmpty) {
+      _notify('Completa los campos');
+      return;
     }
-    if (value.startsWith('tel:')) {
-      return QRContentType.phone;
+    if (save) {
+      final entry = HistoryEntry(
+        id: UniqueKey().toString(),
+        type: _selectedType,
+        value: payload,
+        displayLabel: _labelController.text,
+        createdAt: DateTime.now(),
+        favorite: false,
+        tags: _selectedType.autoTags,
+        note: '',
+        source: HistorySource.created,
+        paletteId: _palette.id,
+        quietZone: _quietZone,
+      );
+      await AppStateScope.of(context).addHistory(entry, force: true);
+      _notify('Guardado en historial');
     }
-    if (value.startsWith('sms:')) {
-      return QRContentType.sms;
+    HapticFeedback.mediumImpact();
+  }
+
+  Future<void> _saveTemplate() async {
+    final payload = _payloadFor(_selectedType);
+    if (payload.isEmpty) {
+      _notify('Completa los campos para guardar');
+      return;
     }
-    if (value.startsWith('mailto:')) {
-      return QRContentType.email;
+    final form = _formState(_selectedType);
+    final titleController = TextEditingController(text: form.suggestedTemplateName());
+    final descriptionController = TextEditingController(text: form.describe());
+    final template = await showDialog<SavedTemplate>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Guardar plantilla'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Nombre')),
+              const SizedBox(height: 12),
+              TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Descripción'), maxLines: 2),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(
+                  SavedTemplate(
+                    id: UniqueKey().toString(),
+                    title: titleController.text.trim().isEmpty ? 'Plantilla sin título' : titleController.text.trim(),
+                    description: descriptionController.text.trim(),
+                    type: _selectedType,
+                    stateJson: form.toJson(),
+                    paletteId: _palette.id,
+                    label: _labelController.text,
+                    quietZone: _quietZone,
+                    includeLogo: _showLogo,
+                  ),
+                );
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+    titleController.dispose();
+    descriptionController.dispose();
+    if (template != null) {
+      await AppStateScope.of(context).addTemplate(template);
+      _notify('Plantilla guardada');
     }
-    if (value.startsWith('WIFI:')) {
-      return QRContentType.wifi;
+  }
+
+  Future<void> _applyTemplate(SavedTemplate template) async {
+    final state = GeneratorFormState.fromJson(template.type, template.stateJson);
+    setState(() {
+      _states[template.type] = state;
+      _selectedType = template.type;
+      _labelController.text = template.label ?? 'Escanéame';
+      _quietZone = template.quietZone ?? _quietZone;
+      _showLogo = template.includeLogo ?? false;
+      _palette = GeneratorPalette.fromId(template.paletteId ?? GeneratorPalette.duotone.id);
+      _foreground = _palette.foreground;
+      _background = _palette.background;
+    });
+    _notify('Plantilla aplicada');
+  }
+
+  Future<void> _copy(String payload) async {
+    await FlutterClipboard.copy(payload);
+    _notify('Copiado al portapapeles');
+  }
+
+  Future<void> _share(String payload) async {
+    if (_selectedType.isSensitive) {
+      final proceed = await _confirmSensitive();
+      if (proceed != true) return;
     }
-    return QRContentType.text;
+    await Share.share(payload, subject: _labelController.text.isEmpty ? 'Código generado' : _labelController.text);
+  }
+
+  Future<void> _open(String payload) async {
+    final uri = _selectedType.tryParseUri(payload);
+    if (uri == null) {
+      _notify('Contenido copiado');
+      await _copy(payload);
+      return;
+    }
+    if (!_isAllowedScheme(uri.scheme)) {
+      _notify('Esquema no permitido');
+      return;
+    }
+    if (!await canLaunchUrl(uri)) {
+      _notify('No se pudo abrir');
+      return;
+    }
+    await launchUrl(uri, mode: LaunchMode.platformDefault);
+  }
+
+  bool _isAllowedScheme(String scheme) {
+    const allowed = <String>['http', 'https', 'mailto', 'tel', 'sms', 'geo'];
+    return allowed.contains(scheme.toLowerCase());
+  }
+
+  Future<void> _download() async {
+    final boundary = _previewKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null) {
+      _notify('No se pudo capturar');
+      return;
+    }
+    final appState = AppStateScope.of(context);
+    final image = await boundary.toImage(pixelRatio: appState.defaultScale.toDouble());
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (data == null) {
+      _notify('Error al exportar');
+      return;
+    }
+    final bytes = data.buffer.asUint8List();
+    final filename = _composeFileName();
+    if (kIsWeb) {
+      await Share.shareXFiles(<XFile>[XFile.fromData(bytes, mimeType: 'image/png', name: filename)]);
+    } else {
+      final status = await Permission.storage.request();
+      if (!status.isGranted) {
+        _notify('Permiso denegado');
+        return;
+      }
+      final result = await ImageGallerySaver.saveImage(bytes, quality: 100, name: filename);
+      if (result is Map && result['isSuccess'] == true) {
+        _notify('Guardado en galería');
+      } else {
+        _notify('Fallo al guardar');
+      }
+    }
+  }
+
+  String _composeFileName() {
+    final now = DateTime.now();
+    final pattern = AppStateScope.of(context).defaultFileName;
+    final slug = _labelController.text.trim().isEmpty
+        ? _selectedType.name
+        : _labelController.text.trim().toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-');
+    return pattern
+        .replaceAll('{type}', _selectedType.name)
+        .replaceAll('{date}', '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}')
+        .replaceAll('{slug}', slug.isEmpty ? 'codigo' : slug);
+  }
+
+  Future<void> _loadLogo() async {
+    try {
+      final bytes = await rootBundle.load('assets/logo_placeholder.png');
+      setState(() => _logoBytes = bytes.buffer.asUint8List());
+    } catch (_) {
+      _notify('Logo no disponible en esta build');
+    }
+  }
+
+  Future<void> _showBatchPreview() async {
+    final payload = _batchController.text.trim();
+    if (payload.isEmpty) {
+      _notify('Introduce entradas para lote');
+      return;
+    }
+    final entries = _parseBatch(payload);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.7,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Row(
+                    children: [
+                      Text('Previsualización', style: Theme.of(context).textTheme.titleLarge),
+                      const Spacer(),
+                      Text('${entries.length} elementos'),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: entries.length,
+                    itemBuilder: (context, index) {
+                      final entry = entries[index];
+                      return ListTile(
+                        leading: CircleAvatar(child: Text('${index + 1}')),
+                        title: Text(entry.payload, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(entry.label ?? ''),
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: FilledButton(
+                    onPressed: () async {
+                      Navigator.of(context).pop();
+                      await _processBatch(entries);
+                    },
+                    child: const Text('Generar lote'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  List<BatchEntry> _parseBatch(String payload) {
+    final lines = payload.split(RegExp(r'\r?\n')).where((element) => element.trim().isNotEmpty).toList();
+    final List<BatchEntry> entries = <BatchEntry>[];
+    for (var i = 0; i < lines.length; i++) {
+      final n = i + 1;
+      entries.add(BatchEntry(payload: lines[i].replaceAll('{{n}}', '$n'), label: 'Lote $n'));
+    }
+    return entries;
+  }
+
+  Future<void> _processBatch(List<BatchEntry> entries) async {
+    final progress = ValueNotifier<int>(0);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Generando lote'),
+          content: ValueListenableBuilder<int>(
+            valueListenable: progress,
+            builder: (context, value, _) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(value: entries.isEmpty ? 0 : value / entries.length),
+                  const SizedBox(height: 12),
+                  Text('$value de ${entries.length} listos'),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+    for (var i = 0; i < entries.length; i++) {
+      final entry = entries[i];
+      final history = HistoryEntry(
+        id: UniqueKey().toString(),
+        type: _selectedType,
+        value: entry.payload,
+        displayLabel: entry.label ?? 'Lote ${i + 1}',
+        createdAt: DateTime.now(),
+        favorite: false,
+        tags: <String>['lote', ..._selectedType.autoTags],
+        note: '',
+        source: HistorySource.created,
+        paletteId: _palette.id,
+        quietZone: _quietZone,
+      );
+      await AppStateScope.of(context).addHistory(history, force: true);
+      progress.value = i + 1;
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+    }
+    Navigator.of(context).pop();
+    _notify('Lote generado (${entries.length})');
+  }
+
+  Future<bool?> _confirmSensitive() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Contenido sensible'),
+          content: const Text('Compartirás datos delicados (Wi-Fi, teléfono...). ¿Continuar?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+            ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Compartir')),
+          ],
+        );
+      },
+    );
+  }
+
+  void _notify(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Row(children: [const Icon(Icons.check_circle_outline), const SizedBox(width: 12), Expanded(child: Text(message))])),
+    );
   }
 }
 
-class _ScanResultCard extends StatelessWidget {
-  const _ScanResultCard({required this.capture, required this.onClose});
+class _PreviewSkeleton extends StatefulWidget {
+  const _PreviewSkeleton();
 
-  final ms.BarcodeCapture capture;
-  final VoidCallback onClose;
+  @override
+  State<_PreviewSkeleton> createState() => _PreviewSkeletonState();
+}
+
+class _PreviewSkeletonState extends State<_PreviewSkeleton> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final barcode = capture.barcodes.first;
-    final value = barcode.rawValue ?? '';
-    final localization = AppLocalizations.of(context);
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6),
+                Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6),
+              ],
+              stops: [(_controller.value - 0.2).clamp(0.0, 1.0), _controller.value, (_controller.value + 0.2).clamp(0.0, 1.0)],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PreviewEmptyState extends StatelessWidget {
+  const _PreviewEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.qr_code_2, size: 72, color: Theme.of(context).colorScheme.outline),
+        const SizedBox(height: 12),
+        Text('Completa los campos para ver el código', style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
+      ],
+    );
+  }
+}
+class StickyHeader extends StatelessWidget {
+  const StickyHeader({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      elevation: 3,
+      shadowColor: Colors.black12,
+      child: child,
+    );
+  }
+}
+
+class _SegmentedSelector extends StatelessWidget {
+  const _SegmentedSelector({required this.value, required this.items, required this.onChanged});
+
+  final GeneratorContentType value;
+  final List<GeneratorContentType> items;
+  final ValueChanged<GeneratorContentType> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: items.map((item) {
+        final selected = item == value;
+        return ChoiceChip(
+          avatar: Icon(item.icon, size: 18),
+          label: Text(item.label),
+          selected: selected,
+          onSelected: (_) => onChanged(item),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _PaletteSelector extends StatelessWidget {
+  const _PaletteSelector({required this.palettes, required this.selected, required this.onChanged});
+
+  final List<GeneratorPalette> palettes;
+  final GeneratorPalette selected;
+  final ValueChanged<GeneratorPalette> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 64,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (context, index) {
+          final palette = palettes[index];
+          final isSelected = palette == selected;
+          return GestureDetector(
+            onTap: () => onChanged(palette),
+            child: AnimatedContainer(
+              duration: kShortAnim,
+              width: 96,
+              decoration: BoxDecoration(
+                color: palette.background,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                  width: 2,
+                ),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 8))],
+              ),
+              child: Stack(
+                children: [
+                  Align(alignment: Alignment.center, child: Icon(Icons.qr_code_2, color: palette.foreground)),
+                  Positioned(
+                    right: 6,
+                    top: 6,
+                    child: Icon(
+                      isSelected ? Icons.check_circle : Icons.circle_outlined,
+                      size: 20,
+                      color: palette.foreground,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 6,
+                    left: 8,
+                    right: 8,
+                    child: Text(
+                      palette.title,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(color: palette.foreground, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemCount: palettes.length,
+      ),
+    );
+  }
+}
+
+class _FormSection extends StatefulWidget {
+  const _FormSection({required this.section, required this.state, required this.onChanged});
+
+  final GeneratorSection section;
+  final GeneratorFormState state;
+  final VoidCallback onChanged;
+
+  @override
+  State<_FormSection> createState() => _FormSectionState();
+}
+
+class _FormSectionState extends State<_FormSection> {
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.section.initiallyExpanded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: _expanded,
+          onExpansionChanged: (value) => setState(() => _expanded = value),
+          leading: Icon(widget.section.icon),
+          title: Text(widget.section.title, style: Theme.of(context).textTheme.titleMedium),
+          subtitle: Text(widget.section.subtitle),
+          childrenPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    localization.t('scan_result'),
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                IconButton(onPressed: onClose, icon: const Icon(Icons.close_rounded)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SelectableText(value, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilledButton.icon(
-                  icon: const Icon(Icons.copy),
-                  label: Text(localization.t('copy')),
-                  onPressed: () async {
-                    await FlutterClipboard.copy(value);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(localization.t('copied'))),
-                    );
-                  },
-                ),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.share),
-                  label: Text(localization.t('share')),
-                  onPressed: () async => Share.share(value),
-                ),
-                if (value.startsWith('http://') || value.startsWith('https://'))
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.open_in_new),
-                    label: Text(localization.t('open')),
-                    onPressed: () async {
-                      final uri = Uri.parse(value);
-                      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(localization.t('cannot_open'))),
-                        );
-                      }
-                    },
-                  ),
-              ],
-            ),
+            for (final field in widget.section.fields)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _GeneratorField(field: field, state: widget.state, onChanged: widget.onChanged),
+              ),
           ],
         ),
       ),
@@ -1211,8 +1525,1143 @@ class _ScanResultCard extends StatelessWidget {
   }
 }
 
-class _ScannerIconButton extends StatelessWidget {
-  const _ScannerIconButton({required this.icon, required this.label, required this.onTap});
+class _GeneratorField extends StatefulWidget {
+  const _GeneratorField({required this.field, required this.state, required this.onChanged});
+
+  final GeneratorField field;
+  final GeneratorFormState state;
+  final VoidCallback onChanged;
+
+  @override
+  State<_GeneratorField> createState() => _GeneratorFieldState();
+}
+
+class _GeneratorFieldState extends State<_GeneratorField> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.state.getValue(widget.field.id));
+    _focusNode = FocusNode();
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) {
+        _validate();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _validate() {
+    final validator = widget.field.validator;
+    if (validator != null) {
+      setState(() => _error = validator(_controller.text));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    switch (widget.field.kind) {
+      case GeneratorFieldKind.choice:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.field.label, style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: widget.field.options!.map((option) {
+                final selected = widget.state.getValue(widget.field.id) == option.value;
+                return FilterChip(
+                  label: Text(option.label),
+                  selected: selected,
+                  onSelected: (_) {
+                    widget.state.setValue(widget.field.id, option.value);
+                    widget.onChanged();
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+        );
+      case GeneratorFieldKind.switcher:
+        final value = widget.state.getValue(widget.field.id) == 'true';
+        return SwitchListTile(
+          title: Text(widget.field.label),
+          subtitle: widget.field.hint != null ? Text(widget.field.hint!) : null,
+          value: value,
+          onChanged: (newValue) {
+            widget.state.setValue(widget.field.id, newValue ? 'true' : 'false');
+            widget.onChanged();
+          },
+        );
+      case GeneratorFieldKind.multiline:
+      case GeneratorFieldKind.text:
+      default:
+        final isMultiline = widget.field.kind == GeneratorFieldKind.multiline;
+        return TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          keyboardType: widget.field.keyboardType,
+          maxLines: isMultiline ? 4 : 1,
+          onChanged: (value) {
+            widget.state.setValue(widget.field.id, value);
+            widget.onChanged();
+          },
+          decoration: InputDecoration(
+            labelText: widget.field.label,
+            hintText: widget.field.hint,
+            errorText: _error,
+          ),
+        );
+    }
+  }
+}
+class _PreviewActions extends StatelessWidget {
+  const _PreviewActions({
+    required this.payload,
+    required this.onCopy,
+    required this.onShare,
+    required this.onOpen,
+    required this.onDownload,
+  });
+
+  final String payload;
+  final VoidCallback onCopy;
+  final VoidCallback onShare;
+  final VoidCallback onOpen;
+  final VoidCallback? onDownload;
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = <_PreviewActionItem>[
+      _PreviewActionItem(icon: Icons.copy_all, label: 'Copiar', tooltip: 'Copiar contenido', onTap: onCopy),
+      _PreviewActionItem(icon: Icons.ios_share, label: 'Compartir', tooltip: 'Compartir código', onTap: onShare),
+      _PreviewActionItem(icon: Icons.open_in_new, label: 'Abrir', tooltip: 'Abrir destino seguro', onTap: onOpen),
+      _PreviewActionItem(icon: Icons.download, label: 'Descargar', tooltip: 'Guardar PNG', onTap: onDownload),
+    ];
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: actions.map((item) => _PreviewActionButton(item: item)).toList(),
+    );
+  }
+}
+
+class _PreviewActionItem {
+  _PreviewActionItem({required this.icon, required this.label, required this.tooltip, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final String tooltip;
+  final VoidCallback? onTap;
+}
+
+class _PreviewActionButton extends StatelessWidget {
+  const _PreviewActionButton({required this.item});
+
+  final _PreviewActionItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = item.onTap != null;
+    return Tooltip(
+      message: item.tooltip,
+      child: InkWell(
+        onTap: enabled ? item.onTap : null,
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: kShortAnim,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: enabled
+                ? Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.4)
+                : Theme.of(context).disabledColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(item.icon, color: enabled ? Theme.of(context).colorScheme.primary : Theme.of(context).disabledColor),
+              const SizedBox(height: 4),
+              Text(item.label, style: Theme.of(context).textTheme.labelMedium),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+enum GeneratorFieldKind { text, multiline, choice, switcher }
+
+typedef FieldValidator = String? Function(String value);
+
+class GeneratorOption {
+  const GeneratorOption({required this.label, required this.value});
+
+  final String label;
+  final String value;
+}
+
+class GeneratorField {
+  const GeneratorField({
+    required this.id,
+    required this.label,
+    this.hint,
+    this.kind = GeneratorFieldKind.text,
+    this.options,
+    this.validator,
+    this.keyboardType,
+  });
+
+  final String id;
+  final String label;
+  final String? hint;
+  final GeneratorFieldKind kind;
+  final List<GeneratorOption>? options;
+  final FieldValidator? validator;
+  final TextInputType? keyboardType;
+}
+
+class GeneratorSection {
+  const GeneratorSection({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.fields,
+    this.initiallyExpanded = false,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<GeneratorField> fields;
+  final bool initiallyExpanded;
+}
+
+enum GeneratorContentType {
+  url,
+  text,
+  wifi,
+  vcard,
+  event,
+  phone,
+  sms,
+  email,
+  geo,
+  barcodeEan13,
+  barcodeCode128,
+}
+
+extension GeneratorContentTypeX on GeneratorContentType {
+  String get label {
+    switch (this) {
+      case GeneratorContentType.url:
+        return 'URL';
+      case GeneratorContentType.text:
+        return 'Texto';
+      case GeneratorContentType.wifi:
+        return 'Wi-Fi';
+      case GeneratorContentType.vcard:
+        return 'vCard';
+      case GeneratorContentType.event:
+        return 'Evento';
+      case GeneratorContentType.phone:
+        return 'Teléfono';
+      case GeneratorContentType.sms:
+        return 'SMS';
+      case GeneratorContentType.email:
+        return 'Email';
+      case GeneratorContentType.geo:
+        return 'Geo';
+      case GeneratorContentType.barcodeEan13:
+        return 'EAN-13';
+      case GeneratorContentType.barcodeCode128:
+        return 'Code128';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case GeneratorContentType.url:
+        return 'Comparte un enlace con análisis de seguridad local.';
+      case GeneratorContentType.text:
+        return 'Texto libre ideal para mensajes rápidos.';
+      case GeneratorContentType.wifi:
+        return 'Credenciales Wi-Fi con confirmación antes de compartir.';
+      case GeneratorContentType.vcard:
+        return 'Tarjeta de contacto con botones inteligentes tras escanear.';
+      case GeneratorContentType.event:
+        return 'Invita a eventos con fechas y ubicación.';
+      case GeneratorContentType.phone:
+        return 'Número telefónico listo para llamar.';
+      case GeneratorContentType.sms:
+        return 'Mensaje SMS prellenado.';
+      case GeneratorContentType.email:
+        return 'Correo con asunto y cuerpo preparados.';
+      case GeneratorContentType.geo:
+        return 'Coordenadas geográficas para mapas.';
+      case GeneratorContentType.barcodeEan13:
+        return 'Código de barras EAN-13 con validación.';
+      case GeneratorContentType.barcodeCode128:
+        return 'Código de barras Code128 universal.';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case GeneratorContentType.url:
+        return Icons.link;
+      case GeneratorContentType.text:
+        return Icons.notes;
+      case GeneratorContentType.wifi:
+        return Icons.wifi;
+      case GeneratorContentType.vcard:
+        return Icons.badge;
+      case GeneratorContentType.event:
+        return Icons.event;
+      case GeneratorContentType.phone:
+        return Icons.phone;
+      case GeneratorContentType.sms:
+        return Icons.sms;
+      case GeneratorContentType.email:
+        return Icons.email;
+      case GeneratorContentType.geo:
+        return Icons.place;
+      case GeneratorContentType.barcodeEan13:
+        return Icons.view_week;
+      case GeneratorContentType.barcodeCode128:
+        return Icons.align_horizontal_center;
+    }
+  }
+
+  bool get isSensitive {
+    switch (this) {
+      case GeneratorContentType.wifi:
+      case GeneratorContentType.phone:
+      case GeneratorContentType.sms:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  bool get isBarcode => this == GeneratorContentType.barcodeEan13 || this == GeneratorContentType.barcodeCode128;
+
+  bool get supportsBatch => !isSensitive;
+
+  String get groupLabel => isBarcode ? 'Barras' : label;
+
+  List<String> get autoTags {
+    final tags = <String>[label];
+    if (isBarcode) tags.add('barcode');
+    return tags;
+  }
+
+  List<GeneratorSection> get sections {
+    switch (this) {
+      case GeneratorContentType.url:
+        return [
+          GeneratorSection(
+            title: 'Enlace seguro',
+            subtitle: 'Validamos esquemas y dominios sospechosos',
+            icon: Icons.link,
+            initiallyExpanded: true,
+            fields: [
+              GeneratorField(
+                id: 'url',
+                label: 'URL',
+                hint: 'https://ejemplo.com',
+                validator: _validateUrl,
+                keyboardType: TextInputType.url,
+              ),
+              GeneratorField(id: 'utm_source', label: 'UTM Source', hint: 'newsletter'),
+              GeneratorField(id: 'utm_medium', label: 'UTM Medium'),
+              GeneratorField(id: 'utm_campaign', label: 'UTM Campaign'),
+            ],
+          ),
+        ];
+      case GeneratorContentType.text:
+        return [
+          GeneratorSection(
+            title: 'Mensaje',
+            subtitle: 'Texto libre con contador',
+            icon: Icons.notes,
+            initiallyExpanded: true,
+            fields: [
+              GeneratorField(
+                id: 'text',
+                label: 'Contenido',
+                kind: GeneratorFieldKind.multiline,
+                hint: 'Escribe tu mensaje',
+              ),
+            ],
+          ),
+        ];
+      case GeneratorContentType.wifi:
+        return [
+          GeneratorSection(
+            title: 'Red Wi-Fi',
+            subtitle: 'Comparte con invitados de forma segura',
+            icon: Icons.wifi,
+            initiallyExpanded: true,
+            fields: [
+              GeneratorField(id: 'ssid', label: 'SSID', hint: 'Nombre de la red', validator: _required),
+              GeneratorField(
+                id: 'security',
+                label: 'Seguridad',
+                kind: GeneratorFieldKind.choice,
+                options: const [
+                  GeneratorOption(label: 'WPA/WPA2', value: 'WPA'),
+                  GeneratorOption(label: 'WEP', value: 'WEP'),
+                  GeneratorOption(label: 'Sin contraseña', value: 'nopass'),
+                ],
+              ),
+              GeneratorField(id: 'password', label: 'Contraseña', hint: 'Mínimo 8 caracteres'),
+              GeneratorField(id: 'hidden', label: 'Red oculta', kind: GeneratorFieldKind.switcher),
+            ],
+          ),
+        ];
+      case GeneratorContentType.vcard:
+        return [
+          GeneratorSection(
+            title: 'Perfil profesional',
+            subtitle: 'Completa tu tarjeta de presentación',
+            icon: Icons.badge,
+            initiallyExpanded: true,
+            fields: [
+              GeneratorField(id: 'name', label: 'Nombre completo', validator: _required),
+              GeneratorField(id: 'company', label: 'Empresa'),
+              GeneratorField(id: 'role', label: 'Cargo'),
+              GeneratorField(id: 'phone', label: 'Teléfono', keyboardType: TextInputType.phone),
+              GeneratorField(id: 'email', label: 'Email', keyboardType: TextInputType.emailAddress, validator: _validateEmailOptional),
+              GeneratorField(id: 'website', label: 'Sitio web', keyboardType: TextInputType.url),
+              GeneratorField(id: 'address', label: 'Dirección', kind: GeneratorFieldKind.multiline),
+              GeneratorField(id: 'notes', label: 'Notas', kind: GeneratorFieldKind.multiline),
+            ],
+          ),
+        ];
+      case GeneratorContentType.event:
+        return [
+          GeneratorSection(
+            title: 'Detalles del evento',
+            subtitle: 'Información lista para añadir al calendario',
+            icon: Icons.event,
+            initiallyExpanded: true,
+            fields: [
+              GeneratorField(id: 'title', label: 'Título', validator: _required),
+              GeneratorField(id: 'start', label: 'Inicio (YYYY-MM-DD HH:MM)', hint: '2024-05-01 20:30'),
+              GeneratorField(id: 'end', label: 'Fin (YYYY-MM-DD HH:MM)'),
+              GeneratorField(id: 'location', label: 'Ubicación'),
+              GeneratorField(id: 'description', label: 'Descripción', kind: GeneratorFieldKind.multiline),
+            ],
+          ),
+        ];
+      case GeneratorContentType.phone:
+        return [
+          GeneratorSection(
+            title: 'Número a llamar',
+            subtitle: 'Solicitaremos confirmación antes de compartir',
+            icon: Icons.phone,
+            initiallyExpanded: true,
+            fields: [
+              GeneratorField(id: 'phone', label: 'Número', hint: '+34900111222', validator: _validatePhone, keyboardType: TextInputType.phone),
+            ],
+          ),
+        ];
+      case GeneratorContentType.sms:
+        return [
+          GeneratorSection(
+            title: 'Mensaje SMS',
+            subtitle: 'Número y texto prellenado',
+            icon: Icons.sms,
+            initiallyExpanded: true,
+            fields: [
+              GeneratorField(id: 'phone', label: 'Número', validator: _validatePhone, keyboardType: TextInputType.phone),
+              GeneratorField(id: 'message', label: 'Mensaje', kind: GeneratorFieldKind.multiline),
+            ],
+          ),
+        ];
+      case GeneratorContentType.email:
+        return [
+          GeneratorSection(
+            title: 'Correo electrónico',
+            subtitle: 'Asunto y cuerpo opcionales',
+            icon: Icons.email,
+            initiallyExpanded: true,
+            fields: [
+              GeneratorField(id: 'email', label: 'Para', validator: _validateEmail, keyboardType: TextInputType.emailAddress),
+              GeneratorField(id: 'subject', label: 'Asunto'),
+              GeneratorField(id: 'body', label: 'Mensaje', kind: GeneratorFieldKind.multiline),
+            ],
+          ),
+        ];
+      case GeneratorContentType.geo:
+        return [
+          GeneratorSection(
+            title: 'Ubicación',
+            subtitle: 'Coordenadas geográficas',
+            icon: Icons.place,
+            initiallyExpanded: true,
+            fields: [
+              GeneratorField(id: 'lat', label: 'Latitud', keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+              GeneratorField(id: 'lng', label: 'Longitud', keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+            ],
+          ),
+        ];
+      case GeneratorContentType.barcodeEan13:
+        return [
+          GeneratorSection(
+            title: 'Código de barras EAN-13',
+            subtitle: 'Validamos longitud y dígito de control',
+            icon: Icons.view_week,
+            initiallyExpanded: true,
+            fields: [
+              GeneratorField(id: 'ean', label: 'Número EAN-13', hint: '12 o 13 dígitos', validator: _validateEan13, keyboardType: TextInputType.number),
+            ],
+          ),
+        ];
+      case GeneratorContentType.barcodeCode128:
+        return [
+          GeneratorSection(
+            title: 'Código Code128',
+            subtitle: 'Cualquier combinación alfanumérica',
+            icon: Icons.align_horizontal_center,
+            initiallyExpanded: true,
+            fields: [
+              GeneratorField(id: 'value', label: 'Contenido', validator: _required),
+            ],
+          ),
+        ];
+    }
+  }
+
+  Uri? tryParseUri(String payload) {
+    try {
+      if (this == GeneratorContentType.url || this == GeneratorContentType.email || this == GeneratorContentType.phone || this == GeneratorContentType.sms || this == GeneratorContentType.geo) {
+        return Uri.parse(payload);
+      }
+      return Uri.tryParse(payload);
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+String? _required(String value) {
+  if (value.trim().isEmpty) {
+    return 'Campo obligatorio';
+  }
+  return null;
+}
+
+String? _validateUrl(String value) {
+  if (value.trim().isEmpty) return 'Introduce un enlace';
+  if (value.startsWith('javascript:') || value.startsWith('data:')) {
+    return 'Esquema no permitido';
+  }
+  final uri = Uri.tryParse(value);
+  if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
+    return 'Debe ser http o https';
+  }
+  if (uri.host.isEmpty) {
+    return 'Dominio requerido';
+  }
+  return null;
+}
+
+String? _validateEmail(String value) {
+  if (value.trim().isEmpty) return 'Introduce un correo';
+  final regex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+  if (!regex.hasMatch(value.trim())) return 'Correo no válido';
+  return null;
+}
+
+String? _validateEmailOptional(String value) {
+  if (value.trim().isEmpty) return null;
+  return _validateEmail(value);
+}
+
+String? _validatePhone(String value) {
+  final clean = value.trim();
+  if (clean.isEmpty) return 'Introduce un número';
+  final regex = RegExp(r'^\+?[0-9 ]{6,}$');
+  if (!regex.hasMatch(clean)) return 'Número no válido';
+  return null;
+}
+
+String? _validateEan13(String value) {
+  final digits = value.replaceAll(RegExp('[^0-9]'), '');
+  if (digits.length < 12 || digits.length > 13) {
+    return 'Debe tener 12 o 13 dígitos';
+  }
+  return null;
+}
+
+class GeneratorFormState {
+  GeneratorFormState({required this.type});
+
+  final GeneratorContentType type;
+  final Map<String, String> _values = <String, String>{};
+
+  factory GeneratorFormState.fromJson(GeneratorContentType type, Map<String, dynamic>? json) {
+    final state = GeneratorFormState(type: type);
+    if (json != null) {
+      json.forEach((key, value) {
+        state._values[key] = value?.toString() ?? '';
+      });
+    }
+    return state;
+  }
+
+  Map<String, dynamic> toJson() => Map<String, String>.from(_values);
+
+  String getValue(String key) => _values[key] ?? '';
+
+  void setValue(String key, String value) {
+    _values[key] = value;
+  }
+
+  String buildPayload() {
+    switch (type) {
+      case GeneratorContentType.url:
+        final url = getValue('url');
+        final uri = Uri.tryParse(url);
+        if (uri == null) return '';
+        final query = Map<String, String>.from(uri.queryParameters);
+        void addParam(String key, String field) {
+          final value = getValue(field);
+          if (value.trim().isNotEmpty) {
+            query[key] = value.trim();
+          }
+        }
+        addParam('utm_source', 'utm_source');
+        addParam('utm_medium', 'utm_medium');
+        addParam('utm_campaign', 'utm_campaign');
+        final cleanUri = uri.replace(queryParameters: query.isEmpty ? null : query);
+        return cleanUri.toString();
+      case GeneratorContentType.text:
+        return getValue('text');
+      case GeneratorContentType.wifi:
+        final ssid = getValue('ssid');
+        if (ssid.isEmpty) return '';
+        final security = getValue('security').isEmpty ? 'WPA' : getValue('security');
+        final password = getValue('password');
+        final hidden = getValue('hidden') == 'true';
+        if (security != 'nopass' && password.length < 8) {
+          return '';
+        }
+        return 'WIFI:T:$security;S:$ssid;P:$password;H:${hidden ? 'true' : 'false'};;';
+      case GeneratorContentType.vcard:
+        final name = getValue('name');
+        if (name.isEmpty) return '';
+        final buffer = StringBuffer('BEGIN:VCARD\nVERSION:3.0\nFN:$name\n');
+        void addLine(String prefix, String field) {
+          final value = getValue(field);
+          if (value.trim().isNotEmpty) {
+            buffer.writeln('$prefix:$value');
+          }
+        }
+        addLine('ORG', 'company');
+        addLine('TITLE', 'role');
+        addLine('TEL', 'phone');
+        addLine('EMAIL', 'email');
+        addLine('URL', 'website');
+        addLine('ADR', 'address');
+        addLine('NOTE', 'notes');
+        buffer.write('END:VCARD');
+        return buffer.toString();
+      case GeneratorContentType.event:
+        final title = getValue('title');
+        if (title.isEmpty) return '';
+        final start = _formatDateTime(getValue('start'));
+        final end = _formatDateTime(getValue('end'));
+        final buffer = StringBuffer('BEGIN:VEVENT\nSUMMARY:$title\n');
+        if (start != null) buffer.writeln('DTSTART:$start');
+        if (end != null) buffer.writeln('DTEND:$end');
+        final location = getValue('location');
+        if (location.isNotEmpty) buffer.writeln('LOCATION:$location');
+        final description = getValue('description');
+        if (description.isNotEmpty) buffer.writeln('DESCRIPTION:$description');
+        buffer.write('END:VEVENT');
+        return 'BEGIN:VCALENDAR\nVERSION:2.0\n${buffer.toString()}\nEND:VCALENDAR';
+      case GeneratorContentType.phone:
+        final phone = getValue('phone');
+        return phone.isEmpty ? '' : 'tel:$phone';
+      case GeneratorContentType.sms:
+        final phone = getValue('phone');
+        if (phone.isEmpty) return '';
+        final message = Uri.encodeComponent(getValue('message'));
+        return 'sms:$phone?body=$message';
+      case GeneratorContentType.email:
+        final email = getValue('email');
+        if (email.isEmpty) return '';
+        final subject = Uri.encodeComponent(getValue('subject'));
+        final body = Uri.encodeComponent(getValue('body'));
+        final query = <String>[];
+        if (subject.isNotEmpty) query.add('subject=$subject');
+        if (body.isNotEmpty) query.add('body=$body');
+        final suffix = query.isEmpty ? '' : '?${query.join('&')}';
+        return 'mailto:$email$suffix';
+      case GeneratorContentType.geo:
+        final lat = getValue('lat');
+        final lng = getValue('lng');
+        if (lat.isEmpty || lng.isEmpty) return '';
+        return 'geo:$lat,$lng';
+      case GeneratorContentType.barcodeEan13:
+        final digits = getValue('ean').replaceAll(RegExp('[^0-9]'), '');
+        if (digits.length == 12) {
+          return digits + _computeEan13CheckDigit(digits);
+        }
+        return digits.length == 13 ? digits : '';
+      case GeneratorContentType.barcodeCode128:
+        return getValue('value');
+    }
+  }
+
+  String suggestedTemplateName() {
+    switch (type) {
+      case GeneratorContentType.url:
+        return 'Enlace seguro';
+      case GeneratorContentType.text:
+        return 'Nota rápida';
+      case GeneratorContentType.wifi:
+        return 'Wi-Fi invitados';
+      case GeneratorContentType.vcard:
+        return 'Contacto profesional';
+      case GeneratorContentType.event:
+        return 'Evento especial';
+      case GeneratorContentType.phone:
+        return 'Teléfono directo';
+      case GeneratorContentType.sms:
+        return 'SMS automático';
+      case GeneratorContentType.email:
+        return 'Correo predefinido';
+      case GeneratorContentType.geo:
+        return 'Ubicación favorita';
+      case GeneratorContentType.barcodeEan13:
+        return 'SKU EAN';
+      case GeneratorContentType.barcodeCode128:
+        return 'Etiqueta logística';
+    }
+  }
+
+  String describe() {
+    switch (type) {
+      case GeneratorContentType.url:
+        final uri = Uri.tryParse(getValue('url'));
+        return uri?.host ?? 'Enlace personalizado';
+      case GeneratorContentType.text:
+        final text = getValue('text');
+        return text.length > 40 ? '${text.substring(0, 40)}…' : text;
+      case GeneratorContentType.wifi:
+        return getValue('ssid');
+      case GeneratorContentType.vcard:
+        return getValue('name');
+      case GeneratorContentType.event:
+        return getValue('title');
+      case GeneratorContentType.phone:
+        return getValue('phone');
+      case GeneratorContentType.sms:
+        return '${getValue('phone')} · ${getValue('message')}';
+      case GeneratorContentType.email:
+        return getValue('email');
+      case GeneratorContentType.geo:
+        return '${getValue('lat')}, ${getValue('lng')}';
+      case GeneratorContentType.barcodeEan13:
+        return getValue('ean');
+      case GeneratorContentType.barcodeCode128:
+        return getValue('value');
+    }
+  }
+
+  static String _computeEan13CheckDigit(String digits) {
+    int sum = 0;
+    for (var i = 0; i < digits.length; i++) {
+      final value = int.tryParse(digits[i]) ?? 0;
+      sum += (i % 2 == 0) ? value : value * 3;
+    }
+    final mod = sum % 10;
+    return mod == 0 ? '0' : '${10 - mod}';
+  }
+
+  static String? _formatDateTime(String input) {
+    if (input.trim().isEmpty) return null;
+    final parts = input.split(' ');
+    if (parts.length != 2) return null;
+    final date = parts[0].split('-');
+    final time = parts[1].split(':');
+    if (date.length != 3 || time.length != 2) return null;
+    return '${date[0]}${date[1]}${date[2]}T${time[0]}${time[1]}00Z';
+  }
+}
+
+class GeneratorPalette {
+  const GeneratorPalette._(this.id, this.title, this.foreground, this.background);
+
+  final String id;
+  final String title;
+  final Color foreground;
+  final Color background;
+
+  static const GeneratorPalette duotone = GeneratorPalette._('duotone', 'Duotono', Color(0xFF0B3D91), Color(0xFFEDF2FF));
+  static const GeneratorPalette midnight = GeneratorPalette._('midnight', 'Midnight', Color(0xFFF8FBFF), Color(0xFF0F172A));
+  static const GeneratorPalette coral = GeneratorPalette._('coral', 'Coral', Color(0xFF31111D), Color(0xFFFFD9E3));
+  static const GeneratorPalette wasabi = GeneratorPalette._('wasabi', 'Wasabi', Color(0xFF163300), Color(0xFFDDFFD7));
+  static const GeneratorPalette graphite = GeneratorPalette._('graphite', 'Grafito', Color(0xFF0F0F0F), Color(0xFFEFEFEF));
+
+  static List<GeneratorPalette> get values => const [duotone, midnight, coral, wasabi, graphite];
+
+  static GeneratorPalette fromId(String id) {
+    return values.firstWhere((palette) => palette.id == id, orElse: () => duotone);
+  }
+}
+
+class BatchEntry {
+  BatchEntry({required this.payload, this.label});
+
+  final String payload;
+  final String? label;
+}
+enum HistorySource { created, scanned }
+
+class HistoryEntry {
+  HistoryEntry({
+    required this.id,
+    required this.type,
+    required this.value,
+    required this.displayLabel,
+    required this.createdAt,
+    required this.favorite,
+    required this.tags,
+    required this.note,
+    required this.source,
+    this.paletteId,
+    this.quietZone,
+  });
+
+  final String id;
+  final GeneratorContentType type;
+  final String value;
+  final String displayLabel;
+  final DateTime createdAt;
+  final bool favorite;
+  final List<String> tags;
+  final String note;
+  final HistorySource source;
+  final String? paletteId;
+  final double? quietZone;
+
+  bool get isSensitive => type.isSensitive;
+
+  HistoryEntry copyWith({
+    String? displayLabel,
+    bool? favorite,
+    List<String>? tags,
+    String? note,
+  }) {
+    return HistoryEntry(
+      id: id,
+      type: type,
+      value: value,
+      displayLabel: displayLabel ?? this.displayLabel,
+      createdAt: createdAt,
+      favorite: favorite ?? this.favorite,
+      tags: tags ?? this.tags,
+      note: note ?? this.note,
+      source: source,
+      paletteId: paletteId,
+      quietZone: quietZone,
+    );
+  }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'type': type.name,
+        'value': value,
+        'displayLabel': displayLabel,
+        'createdAt': createdAt.toIso8601String(),
+        'favorite': favorite,
+        'tags': tags,
+        'note': note,
+        'source': source.name,
+        'paletteId': paletteId,
+        'quietZone': quietZone,
+      };
+
+  static HistoryEntry? fromJson(Map<String, dynamic> json) {
+    try {
+      return HistoryEntry(
+        id: json['id'] as String,
+        type: GeneratorContentType.values.firstWhere((element) => element.name == json['type'] as String),
+        value: json['value'] as String,
+        displayLabel: json['displayLabel'] as String? ?? '',
+        createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
+        favorite: json['favorite'] as bool? ?? false,
+        tags: (json['tags'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
+        note: json['note'] as String? ?? '',
+        source: HistorySource.values.firstWhere((element) => element.name == json['source'] as String? ?? 'created'),
+        paletteId: json['paletteId'] as String?,
+        quietZone: (json['quietZone'] as num?)?.toDouble(),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class SavedTemplate {
+  SavedTemplate({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.type,
+    required this.stateJson,
+    this.paletteId,
+    this.label,
+    this.quietZone,
+    this.includeLogo,
+  });
+
+  final String id;
+  final String title;
+  final String description;
+  final GeneratorContentType type;
+  final Map<String, dynamic> stateJson;
+  final String? paletteId;
+  final String? label;
+  final double? quietZone;
+  final bool? includeLogo;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'title': title,
+        'description': description,
+        'type': type.name,
+        'state': stateJson,
+        'paletteId': paletteId,
+        'label': label,
+        'quietZone': quietZone,
+        'includeLogo': includeLogo,
+      };
+
+  static SavedTemplate? fromJson(Map<String, dynamic> json) {
+    try {
+      return SavedTemplate(
+        id: json['id'] as String,
+        title: json['title'] as String? ?? 'Plantilla',
+        description: json['description'] as String? ?? '',
+        type: GeneratorContentType.values.firstWhere((element) => element.name == json['type'] as String),
+        stateJson: Map<String, dynamic>.from(json['state'] as Map? ?? {}),
+        paletteId: json['paletteId'] as String?,
+        label: json['label'] as String?,
+        quietZone: (json['quietZone'] as num?)?.toDouble(),
+        includeLogo: json['includeLogo'] as bool?,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+
+class ScannerPage extends StatefulWidget {
+  const ScannerPage({super.key, required this.onFabIntentChanged});
+
+  final FabIntentNotifier onFabIntentChanged;
+
+  @override
+  State<ScannerPage> createState() => _ScannerPageState();
+}
+
+class _ScannerPageState extends State<ScannerPage> with SingleTickerProviderStateMixin {
+  late final ms.MobileScannerController _controller;
+  bool _torchEnabled = false;
+  bool _paused = false;
+  DateTime _lastDetection = DateTime.fromMillisecondsSinceEpoch(0);
+  ScanResult? _result;
+  late final AnimationController _laserController;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ms.MobileScannerController(
+      detectionSpeed: ms.DetectionSpeed.normal,
+      facing: ms.CameraFacing.back,
+    );
+    widget.onFabIntentChanged.value = FabIntent.flashlight;
+    _laserController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _laserController.dispose();
+    super.dispose();
+  }
+
+  void _togglePause() {
+    setState(() {
+      _paused = !_paused;
+      if (_paused) {
+        _controller.stop();
+        _laserController.stop();
+      } else {
+        _controller.start();
+        _laserController.repeat(reverse: true);
+      }
+    });
+  }
+
+  void _toggleTorch() {
+    _torchEnabled = !_torchEnabled;
+    _controller.toggleTorch();
+    setState(() {});
+  }
+
+  void _switchCamera() {
+    _controller.switchCamera();
+  }
+
+  Future<void> _handleDetection(ms.BarcodeCapture capture) async {
+    if (_paused) return;
+    final now = DateTime.now();
+    if (now.difference(_lastDetection) < const Duration(milliseconds: 700)) {
+      return;
+    }
+    _lastDetection = now;
+    final barcode = capture.barcodes.firstOrNull;
+    final rawValue = barcode?.rawValue ?? '';
+    if (rawValue.isEmpty) return;
+    final analysis = ScanResult.fromRaw(rawValue);
+    setState(() => _result = analysis);
+    widget.onFabIntentChanged.value = FabIntent.flashlight;
+    await HapticFeedback.lightImpact();
+    if (analysis.smartActions.isNotEmpty) {
+      _showResultSheet();
+    }
+  }
+
+  void _showResultSheet() {
+    final result = _result;
+    if (result == null) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return ScannerActionSheet(result: result, onFavorite: _toggleFavorite, onSave: _saveToHistory, onClose: () => Navigator.of(context).pop());
+      },
+    );
+  }
+
+  Future<void> _toggleFavorite() async {
+    final result = _result;
+    if (result == null) return;
+    final appState = AppStateScope.of(context);
+    final existing = appState.history.firstWhereOrNull((entry) => entry.value == result.payload);
+    if (existing != null) {
+      await appState.updateHistory(existing.copyWith(favorite: !existing.favorite));
+      _showSnack('Favorito actualizado');
+    }
+  }
+
+  Future<void> _saveToHistory({String note = ''}) async {
+    final result = _result;
+    if (result == null) return;
+    final entry = HistoryEntry(
+      id: UniqueKey().toString(),
+      type: result.type,
+      value: result.payload,
+      displayLabel: result.title,
+      createdAt: DateTime.now(),
+      favorite: false,
+      tags: <String>[result.type.label, if (result.isHttps) 'https'],
+      note: note,
+      source: HistorySource.scanned,
+      paletteId: null,
+      quietZone: null,
+    );
+    await AppStateScope.of(context).addHistory(entry, force: true);
+    _showSnack('Guardado en historial');
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Row(children: [const Icon(Icons.info_outline), const SizedBox(width: 12), Expanded(child: Text(message))])),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return ScannerDispatcher(
+      toggleTorch: _toggleTorch,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ms.MobileScanner(
+              controller: _controller,
+              onDetect: _handleDetection,
+            ),
+          ),
+          Positioned.fill(
+            child: CustomPaint(
+              painter: ScannerOverlayPainter(animation: _laserController),
+            ),
+          ),
+          Positioned(
+            right: 16,
+            top: 32,
+            child: Column(
+              children: [
+                _ScannerActionButton(
+                  icon: _torchEnabled ? Icons.flash_on : Icons.flash_off,
+                  label: 'Linterna',
+                  onTap: _toggleTorch,
+                ),
+                const SizedBox(height: 12),
+                _ScannerActionButton(
+                  icon: Icons.cameraswitch,
+                  label: 'Cámara',
+                  onTap: _switchCamera,
+                ),
+                const SizedBox(height: 12),
+                _ScannerActionButton(
+                  icon: _paused ? Icons.play_arrow : Icons.pause,
+                  label: _paused ? 'Reanudar' : 'Pausar',
+                  onTap: _togglePause,
+                ),
+              ],
+            ),
+          ),
+          if (_result != null)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                child: GestureDetector(
+                  onTap: _showResultSheet,
+                  child: _ScanPeekCard(result: _result!, colorScheme: colorScheme),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScannerActionButton extends StatelessWidget {
+  const _ScannerActionButton({required this.icon, required this.label, required this.onTap});
 
   final IconData icon;
   final String label;
@@ -1220,26 +2669,257 @@ class _ScannerIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface.withOpacity(0.8),
+    return Tooltip(
+      message: label,
+      child: Material(
+        color: Theme.of(context).colorScheme.surface.withOpacity(0.9),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 2,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
+          ),
         ),
-        child: Column(
+      ),
+    );
+  }
+}
+
+class ScannerOverlayPainter extends CustomPainter {
+  ScannerOverlayPainter({required this.animation}) : super(repaint: animation);
+
+  final Animation<double> animation;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black.withOpacity(0.4);
+    final rect = Rect.fromLTWH(size.width * 0.12, size.height * 0.2, size.width * 0.76, size.height * 0.6);
+    final outer = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final inner = Path()
+      ..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(24)));
+    canvas.drawPath(Path.combine(PathOperation.difference, outer, inner), paint);
+
+    final borderPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+    const cornerLength = 32.0;
+    void drawCorner(double left, double top, double dx, double dy) {
+      canvas.drawLine(Offset(left, top), Offset(left + dx * cornerLength, top), borderPaint);
+      canvas.drawLine(Offset(left, top), Offset(left, top + dy * cornerLength), borderPaint);
+    }
+
+    drawCorner(rect.left, rect.top, 1, 1);
+    drawCorner(rect.right, rect.top, -1, 1);
+    drawCorner(rect.left, rect.bottom, 1, -1);
+    drawCorner(rect.right, rect.bottom, -1, -1);
+
+    final laserY = rect.top + rect.height * animation.value;
+    final laserPaint = Paint()
+      ..shader = LinearGradient(colors: [Colors.redAccent.withOpacity(0.2), Colors.redAccent.withOpacity(0.8), Colors.redAccent.withOpacity(0.2)]).createShader(Rect.fromLTWH(rect.left, laserY, rect.width, 4))
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(Offset(rect.left, laserY), Offset(rect.right, laserY), laserPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant ScannerOverlayPainter oldDelegate) => oldDelegate.animation != animation;
+}
+
+class ScanResult {
+  ScanResult({
+    required this.payload,
+    required this.type,
+    required this.title,
+    required this.subtitle,
+    required this.smartActions,
+    required this.warnings,
+  });
+
+  final String payload;
+  final GeneratorContentType type;
+  final String title;
+  final String subtitle;
+  final List<SmartAction> smartActions;
+  final List<String> warnings;
+
+  bool get isHttps => type == GeneratorContentType.url && payload.startsWith('https://');
+
+  static ScanResult fromRaw(String rawValue) {
+    rawValue = rawValue.trim();
+    if (rawValue.startsWith('WIFI:')) {
+      final params = rawValue.substring(5).split(';');
+      final map = <String, String>{};
+      for (final part in params) {
+        if (part.contains(':')) {
+          final pieces = part.split(':');
+          map[pieces[0]] = pieces.sublist(1).join(':');
+        }
+      }
+      final ssid = map['S'] ?? 'Red Wi-Fi';
+      return ScanResult(
+        payload: rawValue,
+        type: GeneratorContentType.wifi,
+        title: ssid,
+        subtitle: 'Red Wi-Fi',
+        smartActions: [
+          SmartAction(icon: Icons.copy_all, label: 'Copiar clave', action: SmartActionType.copy),
+        ],
+        warnings: const <String>['No se conectará automáticamente en web.'],
+      );
+    }
+    if (rawValue.startsWith('BEGIN:VCARD')) {
+      return ScanResult(
+        payload: rawValue,
+        type: GeneratorContentType.vcard,
+        title: _extractLine(rawValue, 'FN') ?? 'Contacto',
+        subtitle: 'Tarjeta de contacto',
+        smartActions: [
+          SmartAction(icon: Icons.copy_all, label: 'Copiar', action: SmartActionType.copy),
+        ],
+        warnings: const <String>['Añade manualmente a tus contactos.'],
+      );
+    }
+    if (rawValue.startsWith('BEGIN:VEVENT') || rawValue.startsWith('BEGIN:VCALENDAR')) {
+      return ScanResult(
+        payload: rawValue,
+        type: GeneratorContentType.event,
+        title: _extractLine(rawValue, 'SUMMARY') ?? 'Evento',
+        subtitle: 'Evento escaneado',
+        smartActions: [SmartAction(icon: Icons.copy_all, label: 'Copiar', action: SmartActionType.copy)],
+        warnings: const <String>['Añade el evento manualmente a tu calendario.'],
+      );
+    }
+    if (rawValue.startsWith('geo:')) {
+      return ScanResult(
+        payload: rawValue,
+        type: GeneratorContentType.geo,
+        title: rawValue.substring(4),
+        subtitle: 'Coordenadas',
+        smartActions: [SmartAction(icon: Icons.map, label: 'Ver mapa', action: SmartActionType.open)],
+        warnings: const <String>[],
+      );
+    }
+    if (rawValue.startsWith('mailto:')) {
+      return ScanResult(
+        payload: rawValue,
+        type: GeneratorContentType.email,
+        title: rawValue.substring(7).split('?').first,
+        subtitle: 'Correo electrónico',
+        smartActions: [SmartAction(icon: Icons.email, label: 'Abrir', action: SmartActionType.open)],
+        warnings: const <String>[],
+      );
+    }
+    if (rawValue.startsWith('sms:')) {
+      return ScanResult(
+        payload: rawValue,
+        type: GeneratorContentType.sms,
+        title: rawValue.substring(4).split('?').first,
+        subtitle: 'Mensaje SMS',
+        smartActions: [SmartAction(icon: Icons.sms, label: 'Abrir', action: SmartActionType.open)],
+        warnings: const <String>['Confirma el destinatario antes de enviar.'],
+      );
+    }
+    if (rawValue.startsWith('tel:')) {
+      return ScanResult(
+        payload: rawValue,
+        type: GeneratorContentType.phone,
+        title: rawValue.substring(4),
+        subtitle: 'Teléfono',
+        smartActions: [SmartAction(icon: Icons.phone, label: 'Llamar', action: SmartActionType.open)],
+        warnings: const <String>['Verifica el número antes de llamar.'],
+      );
+    }
+    if (rawValue.startsWith('http://') || rawValue.startsWith('https://')) {
+      final uri = Uri.tryParse(rawValue);
+      final warnings = <String>[];
+      if (uri != null && uri.scheme != 'https') warnings.add('Este enlace no usa HTTPS. Revísalo antes de abrir.');
+      if (uri != null && uri.host.contains('xn--')) warnings.add('El dominio contiene caracteres inusuales.');
+      if (uri != null && uri.scheme == 'http' && uri.port != 80) warnings.add('Puerto no estándar: ${uri.port}.');
+      return ScanResult(
+        payload: rawValue,
+        type: GeneratorContentType.url,
+        title: uri?.host ?? rawValue,
+        subtitle: uri?.path ?? '',
+        smartActions: [
+          SmartAction(icon: Icons.open_in_new, label: 'Abrir', action: SmartActionType.open),
+          SmartAction(icon: Icons.copy, label: 'Copiar', action: SmartActionType.copy),
+        ],
+        warnings: warnings,
+      );
+    }
+    if (rawValue.length >= 12 && RegExp(r'^[0-9]+$').hasMatch(rawValue)) {
+      return ScanResult(
+        payload: rawValue,
+        type: GeneratorContentType.barcodeEan13,
+        title: rawValue,
+        subtitle: 'Código de barras',
+        smartActions: [SmartAction(icon: Icons.copy, label: 'Copiar', action: SmartActionType.copy)],
+        warnings: const <String>[],
+      );
+    }
+    return ScanResult(
+      payload: rawValue,
+      type: GeneratorContentType.text,
+      title: rawValue.length > 32 ? '${rawValue.substring(0, 32)}…' : rawValue,
+      subtitle: 'Contenido sin formato',
+      smartActions: [SmartAction(icon: Icons.copy, label: 'Copiar', action: SmartActionType.copy)],
+      warnings: const <String>[],
+    );
+  }
+
+  static String? _extractLine(String data, String key) {
+    for (final line in data.split('\n')) {
+      if (line.startsWith('$key:')) {
+        return line.substring(key.length + 1);
+      }
+    }
+    return null;
+  }
+}
+
+enum SmartActionType { copy, open }
+
+class SmartAction {
+  SmartAction({required this.icon, required this.label, required this.action});
+
+  final IconData icon;
+  final String label;
+  final SmartActionType action;
+}
+
+class _ScanPeekCard extends StatelessWidget {
+  const _ScanPeekCard({required this.result, required this.colorScheme});
+
+  final ScanResult result;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 6,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
           children: [
-            Icon(icon, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 4),
-            Text(label, style: Theme.of(context).textTheme.labelSmall),
+            CircleAvatar(child: Icon(result.type.icon)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(result.title, style: Theme.of(context).textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text(result.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            Icon(Icons.expand_less, color: colorScheme.primary),
           ],
         ),
       ),
@@ -1247,353 +2927,772 @@ class _ScannerIconButton extends StatelessWidget {
   }
 }
 
-class _ScannerOverlayPainter extends CustomPainter {
-  _ScannerOverlayPainter(this.primaryColor);
+class ScannerActionSheet extends StatelessWidget {
+  const ScannerActionSheet({super.key, required this.result, required this.onFavorite, required this.onSave, required this.onClose});
 
-  final Color primaryColor;
+  final ScanResult result;
+  final VoidCallback onFavorite;
+  final Future<void> Function({String note}) onSave;
+  final VoidCallback onClose;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.black.withOpacity(0.55)
-      ..style = PaintingStyle.fill;
-    final overlayPath = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
-    const scanSize = 250.0;
-    final rect = Rect.fromCenter(center: size.center(Offset.zero), width: scanSize, height: scanSize);
-    final scanPath = Path()..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(28)));
-    final difference = Path.combine(PathOperation.difference, overlayPath, scanPath);
-    canvas.drawPath(difference, paint);
-
-    final borderPaint = Paint()
-      ..color = primaryColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4;
-    canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(28)), borderPaint);
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.55,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  CircleAvatar(child: Icon(result.type.icon)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(result.title, style: Theme.of(context).textTheme.titleLarge)),
+                  IconButton(onPressed: onClose, icon: const Icon(Icons.close)),
+                ],
+              ),
+            ),
+            Wrap(
+              spacing: 8,
+              children: result.warnings.map((warning) => Chip(label: Text(warning), avatar: const Icon(Icons.warning, size: 18))).toList(),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(result.subtitle, style: Theme.of(context).textTheme.bodyLarge),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 12,
+                      children: result.smartActions
+                          .map(
+                            (action) => ActionChip(
+                              label: Text(action.label),
+                              avatar: Icon(action.icon),
+                              onPressed: () => _performAction(context, action, result),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton.tonalIcon(
+                      onPressed: () => onSave(note: ''),
+                      icon: const Icon(Icons.save),
+                      label: const Text('Guardar en historial'),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton.icon(onPressed: onFavorite, icon: const Icon(Icons.star_rate), label: const Text('Marcar como favorito')),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  void _performAction(BuildContext context, SmartAction action, ScanResult result) {
+    switch (action.action) {
+      case SmartActionType.copy:
+        FlutterClipboard.copy(result.payload);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copiado al portapapeles')));
+        break;
+      case SmartActionType.open:
+        final uri = result.type.tryParseUri(result.payload);
+        if (uri != null) {
+          launchUrl(uri, mode: LaunchMode.platformDefault);
+        }
+        break;
+    }
+  }
 }
 
+extension IterableExtras<E> on Iterable<E> {
+  E? get firstOrNull => isEmpty ? null : first;
+
+  E? firstWhereOrNull(bool Function(E element) test) {
+    for (final element in this) {
+      if (test(element)) return element;
+    }
+    return null;
+  }
+}
+
+
 class HistoryPage extends StatefulWidget {
-  const HistoryPage({super.key});
+  const HistoryPage({super.key, required this.onFabIntentChanged});
+
+  final FabIntentNotifier onFabIntentChanged;
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  String _query = '';
+  final TextEditingController _searchController = TextEditingController();
+  final Set<GeneratorContentType> _filters = <GeneratorContentType>{};
+  bool _selectionMode = false;
+  final Set<String> _selectedIds = <String>{};
+  String _sort = 'recent';
+
+  @override
+  void initState() {
+    super.initState();
+    widget.onFabIntentChanged.value = FabIntent.historyActions;
+    _searchController.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final appState = AppStateScope.of(context);
-    final localization = AppLocalizations.of(context);
-    final history = appState.history
-        .where((entry) => entry.value.toLowerCase().contains(_query.toLowerCase()))
-        .toList(growable: false);
-    return SafeArea(
+    final entries = _applyFilters(appState.history);
+    final stats = _computeStats(appState.history);
+    return HistoryDispatcher(
+      toggleSelection: _toggleSelectionMode,
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: TextField(
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: localization.t('search_history'),
-                border: const OutlineInputBorder(),
-              ),
-              onChanged: (value) => setState(() => _query = value),
-            ),
-          ),
-          const SizedBox(height: 12),
+          _buildSearchBar(),
+          _buildFilters(),
+          _HistoryStatsRow(stats: stats),
           Expanded(
-            child: history.isEmpty
-                ? _EmptyHistory(localization: localization)
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-                    itemBuilder: (context, index) {
-                      final entry = history[index];
-                      return Dismissible(
-                        key: ValueKey(entry.id),
-                        background: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.errorContainer,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          alignment: Alignment.centerRight,
-                          child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onErrorContainer),
-                        ),
-                        direction: DismissDirection.endToStart,
-                        onDismissed: (_) async {
-                          await appState.removeFromHistory(entry);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(localization.t('history_removed'))),
-                            );
-                          }
-                        },
-                        child: _HistoryTile(entry: entry, localization: localization),
-                      );
-                    },
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemCount: history.length,
+            child: entries.isEmpty
+                ? _HistoryEmptyState(onCreate: () => HomeShell.of(context)?.switchTab(0))
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 120),
+                    itemCount: entries.length,
+                    itemBuilder: (context, index) => _HistoryTile(
+                      entry: entries[index],
+                      selected: _selectedIds.contains(entries[index].id),
+                      selectionMode: _selectionMode,
+                      onTap: () => _onEntryTap(entries[index]),
+                      onLongPress: () => _onEntryLongPress(entries[index]),
+                    ),
                   ),
           ),
+          if (_selectionMode) _HistorySelectionBar(onCopy: _copySelected, onShare: _shareSelected, onDelete: _deleteSelected, count: _selectedIds.length),
+        ],
+      ),
+    );
+  }
+
+  List<HistoryEntry> _applyFilters(List<HistoryEntry> entries) {
+    Iterable<HistoryEntry> filtered = entries;
+    if (_filters.isNotEmpty) {
+      filtered = filtered.where((entry) => _filters.contains(entry.type));
+    }
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      filtered = filtered.where((entry) => entry.value.toLowerCase().contains(query) || entry.displayLabel.toLowerCase().contains(query));
+    }
+    List<HistoryEntry> sorted = filtered.toList();
+    switch (_sort) {
+      case 'recent':
+        sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
+      case 'old':
+        sorted.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case 'az':
+        sorted.sort((a, b) => a.displayLabel.compareTo(b.displayLabel));
+        break;
+      case 'za':
+        sorted.sort((a, b) => b.displayLabel.compareTo(a.displayLabel));
+        break;
+    }
+    return sorted;
+  }
+
+  HistoryStats _computeStats(List<HistoryEntry> entries) {
+    final now = DateTime.now();
+    final thisWeek = entries.where((e) => now.difference(e.createdAt).inDays < 7).length;
+    final qrCount = entries.where((e) => !e.type.isBarcode).length;
+    final barcodeCount = entries.length - qrCount;
+    return HistoryStats(total: entries.length, thisWeek: thisWeek, qrShare: qrCount, barcodeShare: barcodeCount);
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.search),
+          labelText: 'Buscar en historial',
+          suffixIcon: _searchController.text.isEmpty
+              ? null
+              : IconButton(icon: const Icon(Icons.clear), onPressed: () => _searchController.clear()),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilters() {
+    final chips = GeneratorContentType.values
+        .map((type) => FilterChip(
+              label: Text(type.label),
+              avatar: Icon(type.icon, size: 18),
+              selected: _filters.contains(type),
+              onSelected: (_) {
+                setState(() {
+                  if (_filters.contains(type)) {
+                    _filters.remove(type);
+                  } else {
+                    _filters.add(type);
+                  }
+                });
+              },
+            ))
+        .toList();
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(children: chips + [_buildSortMenu()]),
+    );
+  }
+
+  Widget _buildSortMenu() {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.sort),
+      onSelected: (value) => setState(() => _sort = value),
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'recent', child: Text('Más recientes')),
+        PopupMenuItem(value: 'old', child: Text('Más antiguos')),
+        PopupMenuItem(value: 'az', child: Text('A-Z')),
+        PopupMenuItem(value: 'za', child: Text('Z-A')),
+      ],
+    );
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _selectionMode = !_selectionMode;
+      if (!_selectionMode) {
+        _selectedIds.clear();
+      }
+    });
+  }
+
+  void _onEntryTap(HistoryEntry entry) {
+    if (_selectionMode) {
+      setState(() {
+        if (_selectedIds.contains(entry.id)) {
+          _selectedIds.remove(entry.id);
+          if (_selectedIds.isEmpty) _selectionMode = false;
+        } else {
+          _selectedIds.add(entry.id);
+        }
+      });
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => HistoryDetailSheet(entry: entry, onUpdate: _updateEntry, onDelete: _deleteEntry),
+    );
+  }
+
+  void _onEntryLongPress(HistoryEntry entry) {
+    if (!_selectionMode) {
+      setState(() {
+        _selectionMode = true;
+        _selectedIds.add(entry.id);
+      });
+    }
+  }
+
+  Future<void> _copySelected() async {
+    final appState = AppStateScope.of(context);
+    final selected = appState.history.where((entry) => _selectedIds.contains(entry.id)).map((e) => e.value).join('\n');
+    await FlutterClipboard.copy(selected);
+    _toggleSelectionMode();
+  }
+
+  Future<void> _shareSelected() async {
+    final appState = AppStateScope.of(context);
+    final selected = appState.history.where((entry) => _selectedIds.contains(entry.id)).map((e) => e.value).join('\n');
+    await Share.share(selected, subject: 'Historial Nexus QR');
+    _toggleSelectionMode();
+  }
+
+  Future<void> _deleteSelected() async {
+    final appState = AppStateScope.of(context);
+    await appState.removeHistory(_selectedIds);
+    _toggleSelectionMode();
+  }
+
+  Future<void> _updateEntry(HistoryEntry entry) async {
+    await AppStateScope.of(context).updateHistory(entry);
+  }
+
+  Future<void> _deleteEntry(HistoryEntry entry) async {
+    await AppStateScope.of(context).removeHistory(<String>{entry.id});
+  }
+}
+
+class HistoryStats {
+  HistoryStats({required this.total, required this.thisWeek, required this.qrShare, required this.barcodeShare});
+
+  final int total;
+  final int thisWeek;
+  final int qrShare;
+  final int barcodeShare;
+}
+
+class _HistoryStatsRow extends StatelessWidget {
+  const _HistoryStatsRow({required this.stats});
+
+  final HistoryStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = [
+      _HistoryStatCard(label: 'Creados esta semana', value: stats.thisWeek.toString()),
+      _HistoryStatCard(label: '% QR', value: stats.total == 0 ? '0%' : '${((stats.qrShare / stats.total) * 100).round()}%'),
+      _HistoryStatCard(label: '% Barras', value: stats.total == 0 ? '0%' : '${((stats.barcodeShare / stats.total) * 100).round()}%'),
+    ];
+    return SizedBox(
+      height: 120,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        itemBuilder: (context, index) => cards[index],
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemCount: cards.length,
+      ),
+    );
+  }
+}
+
+class _HistoryStatCard extends StatelessWidget {
+  const _HistoryStatCard({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 180,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12, offset: const Offset(0, 6))],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 8),
+          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
         ],
       ),
     );
   }
 }
 
-class _EmptyHistory extends StatelessWidget {
-  const _EmptyHistory({required this.localization});
+class _HistoryEmptyState extends StatelessWidget {
+  const _HistoryEmptyState({required this.onCreate});
 
-  final AppLocalizations localization;
+  final VoidCallback onCreate;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              height: 160,
-              width: 160,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(32),
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                Icons.inventory_2_outlined,
-                size: 80,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              localization.t('history_empty_title'),
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              localization.t('history_empty_subtitle'),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.qr_code_2, size: 96, color: Theme.of(context).colorScheme.outline),
+          const SizedBox(height: 16),
+          Text('Aún no hay nada aquí. Crea tu primer código en menos de 10 segundos.', textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: onCreate, child: const Text('Crear código')),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistorySelectionBar extends StatelessWidget {
+  const _HistorySelectionBar({required this.onCopy, required this.onShare, required this.onDelete, required this.count});
+
+  final Future<void> Function() onCopy;
+  final Future<void> Function() onShare;
+  final Future<void> Function() onDelete;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, -4))],
+      ),
+      child: Row(
+        children: [
+          Text('$count seleccionados'),
+          const Spacer(),
+          IconButton(onPressed: () => onCopy(), icon: const Icon(Icons.copy_all)),
+          IconButton(onPressed: () => onShare(), icon: const Icon(Icons.ios_share)),
+          IconButton(onPressed: () => onDelete(), icon: const Icon(Icons.delete_outline)),
+        ],
       ),
     );
   }
 }
 
 class _HistoryTile extends StatelessWidget {
-  const _HistoryTile({required this.entry, required this.localization});
+  const _HistoryTile({required this.entry, required this.selected, required this.selectionMode, required this.onTap, required this.onLongPress});
 
   final HistoryEntry entry;
-  final AppLocalizations localization;
+  final bool selected;
+  final bool selectionMode;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      color: selected ? Theme.of(context).colorScheme.secondaryContainer : null,
+      child: ListTile(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        leading: CircleAvatar(child: Icon(entry.type.icon)),
+        title: Text(entry.displayLabel.isEmpty ? entry.value : entry.displayLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text('${entry.type.label} · ${_formatDate(entry.createdAt)}'),
+        trailing: selectionMode
+            ? Icon(selected ? Icons.check_circle : Icons.circle_outlined)
+            : PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'copy') {
+                    FlutterClipboard.copy(entry.value);
+                  } else if (value == 'share') {
+                    Share.share(entry.value, subject: entry.displayLabel);
+                  } else if (value == 'delete') {
+                    AppStateScope.of(context).removeHistory(<String>{entry.id});
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'copy', child: Text('Copiar')),
+                  PopupMenuItem(value: 'share', child: Text('Compartir')),
+                  PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                ],
+              ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    if (difference.inMinutes < 60) return '${difference.inMinutes} min';
+    if (difference.inHours < 24) return '${difference.inHours} h';
+    return '${date.day}/${date.month}/${date.year}';
+  }
+}
+
+
+class HistoryDetailSheet extends StatefulWidget {
+  const HistoryDetailSheet({super.key, required this.entry, required this.onUpdate, required this.onDelete});
+
+  final HistoryEntry entry;
+  final Future<void> Function(HistoryEntry entry) onUpdate;
+  final Future<void> Function(HistoryEntry entry) onDelete;
+
+  @override
+  State<HistoryDetailSheet> createState() => _HistoryDetailSheetState();
+}
+
+class _HistoryDetailSheetState extends State<HistoryDetailSheet> {
+  late TextEditingController _labelController;
+  late TextEditingController _noteController;
+  bool _favorite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _labelController = TextEditingController(text: widget.entry.displayLabel);
+    _noteController = TextEditingController(text: widget.entry.note);
+    _favorite = widget.entry.favorite;
+  }
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                _HistoryIcon(type: entry.type, format: entry.format, colorScheme: colorScheme),
+                CircleAvatar(child: Icon(entry.type.icon)),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        entry.title(localization),
-                        style: Theme.of(context).textTheme.titleSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        entry.friendlyTimestamp(localization),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                      ),
-                    ],
+                  child: TextField(
+                    controller: _labelController,
+                    decoration: const InputDecoration(labelText: 'Etiqueta'),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: () => _showActions(context),
+                  icon: Icon(_favorite ? Icons.star : Icons.star_border),
+                  onPressed: () => setState(() => _favorite = !_favorite),
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            SelectableText(entry.value, style: Theme.of(context).textTheme.bodyLarge),
             const SizedBox(height: 12),
-            Text(
-              entry.value,
-              style: Theme.of(context).textTheme.bodyMedium,
+            TextField(
+              controller: _noteController,
+              decoration: const InputDecoration(labelText: 'Notas'),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              children: [
+                FilledButton.icon(
+                  onPressed: () {
+                    FlutterClipboard.copy(entry.value);
+                    Navigator.of(context).pop();
+                  },
+                  icon: const Icon(Icons.copy_all),
+                  label: const Text('Copiar'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () => Share.share(entry.value, subject: entry.displayLabel),
+                  icon: const Icon(Icons.share),
+                  label: const Text('Compartir'),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    await widget.onDelete(entry);
+                    Navigator.of(context).pop();
+                  },
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Eliminar'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () async {
+                final updated = entry.copyWith(
+                  displayLabel: _labelController.text,
+                  favorite: _favorite,
+                  note: _noteController.text,
+                );
+                await widget.onUpdate(updated);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Guardar cambios'),
             ),
           ],
         ),
       ),
     );
   }
-
-  Future<void> _showActions(BuildContext context) async {
-    final localization = AppLocalizations.of(context);
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.copy),
-                title: Text(localization.t('copy')),
-                onTap: () async {
-                  await FlutterClipboard.copy(entry.value);
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(localization.t('copied'))),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.share),
-                title: Text(localization.t('share')),
-                onTap: () async {
-                  await Share.share(entry.value);
-                  Navigator.of(context).pop();
-                },
-              ),
-              if (entry.value.startsWith('http://') || entry.value.startsWith('https://'))
-                ListTile(
-                  leading: const Icon(Icons.open_in_browser),
-                  title: Text(localization.t('open')),
-                  onTap: () async {
-                    final uri = Uri.parse(entry.value);
-                    Navigator.of(context).pop();
-                    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(localization.t('cannot_open'))),
-                      );
-                    }
-                  },
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
 
-class _HistoryIcon extends StatelessWidget {
-  const _HistoryIcon({required this.type, required this.format, required this.colorScheme});
 
-  final QRContentType type;
-  final CodeRenderType format;
-  final ColorScheme colorScheme;
+class SettingsPage extends StatefulWidget {
+  const SettingsPage({super.key, required this.onFabIntentChanged});
+
+  final FabIntentNotifier onFabIntentChanged;
 
   @override
-  Widget build(BuildContext context) {
-    IconData icon;
-    switch (type) {
-      case QRContentType.url:
-        icon = Icons.link;
-        break;
-      case QRContentType.wifi:
-        icon = Icons.wifi;
-        break;
-      case QRContentType.email:
-        icon = Icons.alternate_email;
-        break;
-      case QRContentType.phone:
-        icon = Icons.phone;
-        break;
-      case QRContentType.sms:
-        icon = Icons.sms;
-        break;
-      case QRContentType.text:
-        icon = Icons.notes;
-        break;
-    }
-    final gradient = LinearGradient(
-      colors: [colorScheme.primary, colorScheme.secondary],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        gradient: gradient,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Icon(format == CodeRenderType.qr ? icon : Icons.view_week, color: Colors.white),
-    );
-  }
+  State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+class _SettingsPageState extends State<SettingsPage> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onFabIntentChanged.value = FabIntent.none;
+  }
 
   @override
   Widget build(BuildContext context) {
     final appState = AppStateScope.of(context);
-    final localization = AppLocalizations.of(context);
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
-        children: [
-          _SettingsSection(
-            title: localization.t('appearance'),
-            child: _ThemeSelector(appState: appState, localization: localization),
-          ),
-          const SizedBox(height: 20),
-          _SettingsSection(
-            title: localization.t('privacy'),
-            child: _PrivacyControls(appState: appState, localization: localization),
-          ),
-          const SizedBox(height: 20),
-          _SettingsSection(
-            title: localization.t('about'),
-            child: _AboutApp(localization: localization),
-          ),
-        ],
-      ),
+    final themeMode = appState.themeMode;
+    return AnimatedBuilder(
+      animation: appState,
+      builder: (context, _) {
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
+          children: [
+            _SettingsSection(
+              title: 'Apariencia',
+              children: [
+                ToggleButtons(
+                  isSelected: [themeMode == ThemeMode.light, themeMode == ThemeMode.dark, themeMode == ThemeMode.system],
+                  borderRadius: BorderRadius.circular(16),
+                  onPressed: (index) {
+                    final modes = [ThemeMode.light, ThemeMode.dark, ThemeMode.system];
+                    appState.setThemeMode(modes[index]);
+                  },
+                  children: const [
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Icon(Icons.light_mode)),
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Icon(Icons.dark_mode)),
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Icon(Icons.brightness_auto)),
+                  ],
+                ),
+                SwitchListTile(
+                  title: const Text('Alto contraste'),
+                  subtitle: const Text('Aumenta la legibilidad de textos y controles'),
+                  value: appState.highContrast,
+                  onChanged: (value) => appState.setHighContrast(value),
+                ),
+              ],
+            ),
+            _SettingsSection(
+              title: 'Privacidad',
+              children: [
+                SwitchListTile(
+                  title: const Text('Guardar datos sensibles automáticamente'),
+                  subtitle: const Text('Incluye Wi-Fi, teléfonos y SMS en el historial'),
+                  value: appState.autoSaveSensitive,
+                  onChanged: (value) => appState.setAutoSaveSensitive(value),
+                ),
+                ListTile(
+                  title: const Text('Autolimpieza del historial'),
+                  subtitle: Text('${appState.autoCleanDays} días'),
+                  trailing: DropdownButton<int>(
+                    value: appState.autoCleanDays,
+                    items: const [0, 7, 30, 90]
+                        .map((days) => DropdownMenuItem(value: days, child: Text(days == 0 ? 'Desactivado' : '$days días')))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        appState.setAutoCleanDays(value);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+            _SettingsSection(
+              title: 'Exportación',
+              children: [
+                ListTile(
+                  title: const Text('Escala por defecto'),
+                  trailing: DropdownButton<int>(
+                    value: appState.defaultScale,
+                    items: const [1, 2, 3, 4]
+                        .map((scale) => DropdownMenuItem(value: scale, child: Text('${scale}x')))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        appState.setDefaultScale(value);
+                      }
+                    },
+                  ),
+                ),
+                ListTile(
+                  title: const Text('Patrón de nombre de archivo'),
+                  subtitle: Text(appState.defaultFileName),
+                  onTap: () async {
+                    final controller = TextEditingController(text: appState.defaultFileName);
+                    final result = await showDialog<String>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Patrón de exportación'),
+                        content: TextField(
+                          controller: controller,
+                          decoration: const InputDecoration(helperText: '{type} {date} {slug} disponibles'),
+                        ),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
+                          ElevatedButton(onPressed: () => Navigator.of(context).pop(controller.text), child: const Text('Guardar')),
+                        ],
+                      ),
+                    );
+                    if (result != null) {
+                      await appState.setDefaultFileName(result);
+                    }
+                  },
+                ),
+              ],
+            ),
+            _SettingsSection(
+              title: 'Plantillas',
+              children: [
+                ReorderableListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: appState.templates.length,
+                  onReorder: (oldIndex, newIndex) { appState.reorderTemplates(oldIndex, newIndex); },
+                  itemBuilder: (context, index) {
+                    final template = appState.templates[index];
+                    return ListTile(
+                      key: ValueKey(template.id),
+                      leading: Icon(template.type.icon),
+                      title: Text(template.title),
+                      subtitle: Text(template.description),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => appState.removeTemplate(template.id),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Center(
+              child: Text('Nexus QR v3.0.0', style: Theme.of(context).textTheme.bodySmall),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
 class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({required this.title, required this.child});
+  const _SettingsSection({required this.title, required this.children});
 
   final String title;
-  final Widget child;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
     return Card(
+      margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
-            child,
+            ...children,
           ],
         ),
       ),
@@ -1601,726 +3700,98 @@ class _SettingsSection extends StatelessWidget {
   }
 }
 
-class _ThemeSelector extends StatelessWidget {
-  const _ThemeSelector({required this.appState, required this.localization});
 
-  final AppState appState;
-  final AppLocalizations localization;
+class OnboardingOverlay extends StatefulWidget {
+  const OnboardingOverlay({super.key, required this.onClose});
+
+  final VoidCallback onClose;
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: appState,
-      builder: (context, _) {
-        return Wrap(
-          spacing: 12,
-          children: [
-            ChoiceChip(
-              label: Text(localization.t('theme_system')),
-              selected: appState.themeMode == ThemeMode.system,
-              onSelected: (selected) {
-                if (selected) {
-                  appState.setThemeMode(ThemeMode.system);
-                }
-              },
-            ),
-            ChoiceChip(
-              label: Text(localization.t('theme_light')),
-              selected: appState.themeMode == ThemeMode.light,
-              onSelected: (selected) {
-                if (selected) {
-                  appState.setThemeMode(ThemeMode.light);
-                }
-              },
-            ),
-            ChoiceChip(
-              label: Text(localization.t('theme_dark')),
-              selected: appState.themeMode == ThemeMode.dark,
-              onSelected: (selected) {
-                if (selected) {
-                  appState.setThemeMode(ThemeMode.dark);
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+  State<OnboardingOverlay> createState() => _OnboardingOverlayState();
 }
 
-class _PrivacyControls extends StatelessWidget {
-  const _PrivacyControls({required this.appState, required this.localization});
+class _OnboardingOverlayState extends State<OnboardingOverlay> {
+  int _index = 0;
 
-  final AppState appState;
-  final AppLocalizations localization;
+  final List<_OnboardingSlide> _slides = const [
+    _OnboardingSlide(
+      icon: Icons.auto_awesome,
+      title: 'Genera códigos en segundos',
+      description: 'Elige plantillas inteligentes y personaliza colores, logos y márgenes.'
+    ),
+    _OnboardingSlide(
+      icon: Icons.center_focus_strong,
+      title: 'Escáner profesional',
+      description: 'Overlay con láser animado, linterna y acciones inteligentes por tipo de contenido.'
+    ),
+    _OnboardingSlide(
+      icon: Icons.history,
+      title: 'Historial con control total',
+      description: 'Filtra, busca, selecciona y gestiona tus códigos con un par de toques.'
+    ),
+  ];
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(localization.t('privacy_description'), style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.delete_sweep),
-          label: Text(localization.t('clear_history')),
-          onPressed: () async {
-            final confirmed = await showDialog<bool>(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  title: Text(localization.t('clear_history')),
-                  content: Text(localization.t('clear_history_confirm')),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: Text(localization.t('cancel')),
-                    ),
-                    FilledButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: Text(localization.t('confirm')),
-                    ),
-                  ],
-                );
-              },
-            );
-            if (confirmed == true) {
-              await appState.clearHistory();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(localization.t('history_cleared'))),
-              );
-            }
-          },
-        ),
-      ],
-    );
+  void _next() {
+    if (_index >= _slides.length - 1) {
+      widget.onClose();
+    } else {
+      setState(() => _index++);
+    }
   }
-}
-
-class _AboutApp extends StatelessWidget {
-  const _AboutApp({required this.localization});
-
-  final AppLocalizations localization;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [colorScheme.primary, colorScheme.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(Icons.shield, color: Colors.white),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final slide = _slides[_index];
+    return Material(
+      color: Colors.black.withOpacity(0.7),
+      child: Center(
+        child: Card(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Nexus QR', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(localization.t('version'), style: Theme.of(context).textTheme.bodySmall),
+                Icon(slide.icon, size: 72, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(height: 16),
+                Text(slide.title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                Text(slide.description, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var i = 0; i < _slides.length; i++)
+                      Container(
+                        width: 12,
+                        height: 12,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i == _index ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _next,
+                  child: Text(_index == _slides.length - 1 ? 'Empezar' : 'Siguiente'),
+                ),
+                TextButton(onPressed: widget.onClose, child: const Text('Saltar')),
               ],
             ),
-          ],
+          ),
         ),
-        const SizedBox(height: 12),
-        Text(localization.t('about_description'), style: Theme.of(context).textTheme.bodyMedium),
-      ],
+      ),
     );
   }
 }
 
-class HistoryEntry {
-  HistoryEntry({
-    required this.id,
-    required this.value,
-    required this.type,
-    required this.format,
-    required this.createdAt,
-  });
+class _OnboardingSlide {
+  const _OnboardingSlide({required this.icon, required this.title, required this.description});
 
-  final String id;
-  final String value;
-  final QRContentType type;
-  final CodeRenderType format;
-  final DateTime createdAt;
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'value': value,
-        'type': type.index,
-        'format': format.index,
-        'createdAt': createdAt.toIso8601String(),
-      };
-
-  static HistoryEntry? fromJson(Map<String, dynamic> json) {
-    try {
-      final typeIndex = json['type'] as int? ?? 0;
-      final formatIndex = json['format'] as int? ?? 0;
-      return HistoryEntry(
-        id: json['id'] as String? ?? UniqueKey().toString(),
-        value: json['value'] as String? ?? '',
-        type: QRContentType.values[typeIndex.clamp(0, QRContentType.values.length - 1)],
-        format: CodeRenderType.values[formatIndex.clamp(0, CodeRenderType.values.length - 1)],
-        createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-
-  String title(AppLocalizations localization) {
-    switch (type) {
-      case QRContentType.text:
-        return localization.t('history_type_text');
-      case QRContentType.url:
-        return localization.t('history_type_url');
-      case QRContentType.wifi:
-        return localization.t('history_type_wifi');
-      case QRContentType.email:
-        return localization.t('history_type_email');
-      case QRContentType.phone:
-        return localization.t('history_type_phone');
-      case QRContentType.sms:
-        return localization.t('history_type_sms');
-    }
-    return localization.t('history_type_text');
-  }
-
-  String friendlyTimestamp(AppLocalizations localization) {
-    final now = DateTime.now();
-    final difference = now.difference(createdAt);
-    if (difference.inMinutes < 1) {
-      return localization.t('time_just_now');
-    }
-    if (difference.inMinutes < 60) {
-      return localization
-          .t('time_minutes')
-          .replaceFirst('{value}', difference.inMinutes.toString());
-    }
-    if (difference.inHours < 24) {
-      return localization.t('time_hours').replaceFirst('{value}', difference.inHours.toString());
-    }
-    if (difference.inDays < 7) {
-      return localization.t('time_days').replaceFirst('{value}', difference.inDays.toString());
-    }
-    return localization.t('time_date').replaceFirst(
-          '{value}',
-          '${createdAt.day}/${createdAt.month}/${createdAt.year}',
-        );
-  }
-}
-
-class AppLocalizations {
-  AppLocalizations(this.locale);
-
-  final Locale locale;
-
-  static AppLocalizations of(BuildContext context) {
-    final localization = Localizations.of<AppLocalizations>(context, AppLocalizations);
-    assert(localization != null, 'AppLocalizations not found in context');
-    return localization!;
-  }
-
-  static const Map<String, Map<String, String>> _localizedValues = {
-    'en': {
-      'splash_tagline': 'Create, scan and secure your codes in seconds.',
-      'generator': 'Create',
-      'scanner': 'Scan',
-      'history': 'History',
-      'settings': 'Settings',
-      'share_app': 'Share app',
-      'share_app_message': 'Try Nexus QR to create and scan professional QR codes!',
-      'generator_title': 'Generate professional codes',
-      'generator_subtitle': 'Select the content type, personalise it and export safely.',
-      'content_type': 'Content type',
-      'type_text': 'Text',
-      'type_url': 'Website',
-      'type_wifi': 'Wi-Fi',
-      'type_email': 'Email',
-      'type_phone': 'Phone',
-      'type_sms': 'SMS',
-      'enter_text': 'Enter message',
-      'enter_url': 'Enter secure URL',
-      'wifi_name': 'Network name (SSID)',
-      'wifi_password': 'Password (optional)',
-      'email_address': 'Email address',
-      'email_message': 'Message (optional)',
-      'phone_number': 'Phone number',
-      'sms_message': 'Message',
-      'validation_required': 'This field is required.',
-      'validation_url': 'Enter a valid secure URL (https://).',
-      'validation_email': 'Enter a valid email address.',
-      'validation_phone': 'Enter a valid phone number.',
-      'output_type': 'Output format',
-      'output_qr': 'QR Code',
-      'output_barcode': 'Barcode',
-      'accent_color': 'Accent colour',
-      'random_color': 'Random',
-      'generate_code': 'Generate code',
-      'preview_title': 'Preview & export',
-      'saving': 'Saving…',
-      'save_image': 'Save image',
-      'copy': 'Copy',
-      'share': 'Share',
-      'open': 'Open',
-      'generated_success': 'Code generated and stored securely.',
-      'copied': 'Copied to clipboard.',
-      'shared': 'Share sheet opened.',
-      'saved': 'Saved to gallery.',
-      'save_failed': 'Unable to save the image.',
-      'permission_denied': 'Permission denied.',
-      'cannot_open': 'Cannot open link.',
-      'scanner_tip': 'Align the code within the frame. Nexus QR automatically detects both QR and barcodes.',
-      'torch': 'Torch',
-      'torch_unavailable': 'Torch unavailable on this device',
-      'switch_camera': 'Flip',
-      'scan_result': 'Result',
-      'scanned_success': 'Code stored in history.',
-      'history_removed': 'Entry removed.',
-      'search_history': 'Search in history…',
-      'history_empty_title': 'Your hub is still empty',
-      'history_empty_subtitle': 'Every scan or creation will appear here so you can share or reuse it instantly.',
-      'history_type_text': 'Text snippet',
-      'history_type_url': 'Website link',
-      'history_type_wifi': 'Wi-Fi access',
-      'history_type_email': 'Email shortcut',
-      'history_type_phone': 'Phone number',
-      'history_type_sms': 'SMS message',
-      'appearance': 'Appearance',
-      'privacy': 'Privacy',
-      'about': 'About',
-      'theme_system': 'System',
-      'theme_light': 'Light',
-      'theme_dark': 'Dark',
-      'privacy_description': 'Your data stays on device. You can erase it at any time.',
-      'clear_history': 'Clear history',
-      'clear_history_confirm': 'Do you really want to delete all saved items? This action cannot be undone.',
-      'cancel': 'Cancel',
-      'confirm': 'Delete',
-      'history_cleared': 'History cleared.',
-      'version': 'Version 3.0.0',
-      'about_description': 'Nexus QR offers enterprise-grade generation and scanning with on-device storage for your history.',
-      'time_just_now': 'Just now',
-      'time_minutes': '{value} minutes ago',
-      'time_hours': '{value} hours ago',
-      'time_days': '{value} days ago',
-      'time_date': 'On {value}',
-    },
-    'es': {
-      'splash_tagline': 'Crea, escanea y protege tus códigos en segundos.',
-      'generator': 'Crear',
-      'scanner': 'Escanear',
-      'history': 'Historial',
-      'settings': 'Ajustes',
-      'share_app': 'Compartir app',
-      'share_app_message': 'Prueba Nexus QR para crear y escanear códigos profesionales.',
-      'generator_title': 'Genera códigos profesionales',
-      'generator_subtitle': 'Selecciona el tipo de contenido, personalízalo y expórtalo con seguridad.',
-      'content_type': 'Tipo de contenido',
-      'type_text': 'Texto',
-      'type_url': 'Sitio web',
-      'type_wifi': 'Wi-Fi',
-      'type_email': 'Correo',
-      'type_phone': 'Teléfono',
-      'type_sms': 'SMS',
-      'enter_text': 'Introduce un mensaje',
-      'enter_url': 'Introduce una URL segura',
-      'wifi_name': 'Nombre de la red (SSID)',
-      'wifi_password': 'Contraseña (opcional)',
-      'email_address': 'Correo electrónico',
-      'email_message': 'Mensaje (opcional)',
-      'phone_number': 'Número de teléfono',
-      'sms_message': 'Mensaje',
-      'validation_required': 'Este campo es obligatorio.',
-      'validation_url': 'Introduce una URL válida (https://).',
-      'validation_email': 'Introduce un correo válido.',
-      'validation_phone': 'Introduce un teléfono válido.',
-      'output_type': 'Formato de salida',
-      'output_qr': 'Código QR',
-      'output_barcode': 'Código de barras',
-      'accent_color': 'Color de acento',
-      'random_color': 'Aleatorio',
-      'generate_code': 'Generar código',
-      'preview_title': 'Previsualizar y exportar',
-      'saving': 'Guardando…',
-      'save_image': 'Guardar imagen',
-      'copy': 'Copiar',
-      'share': 'Compartir',
-      'open': 'Abrir',
-      'generated_success': 'Código generado y almacenado.',
-      'copied': 'Copiado al portapapeles.',
-      'shared': 'Panel de compartir abierto.',
-      'saved': 'Guardado en la galería.',
-      'save_failed': 'No se pudo guardar la imagen.',
-      'permission_denied': 'Permiso denegado.',
-      'cannot_open': 'No se puede abrir el enlace.',
-      'scanner_tip': 'Alinea el código dentro del marco. Nexus QR detecta QR y códigos de barras automáticamente.',
-      'torch': 'Linterna',
-      'torch_unavailable': 'La linterna no está disponible en este dispositivo',
-      'switch_camera': 'Cambiar',
-      'scan_result': 'Resultado',
-      'scanned_success': 'Código guardado en el historial.',
-      'history_removed': 'Elemento eliminado.',
-      'search_history': 'Buscar en el historial…',
-      'history_empty_title': 'Tu espacio aún está vacío',
-      'history_empty_subtitle': 'Cada escaneo o creación aparecerá aquí para que lo reutilices al instante.',
-      'history_type_text': 'Fragmento de texto',
-      'history_type_url': 'Enlace web',
-      'history_type_wifi': 'Acceso Wi-Fi',
-      'history_type_email': 'Atajo de correo',
-      'history_type_phone': 'Número de teléfono',
-      'history_type_sms': 'Mensaje SMS',
-      'appearance': 'Apariencia',
-      'privacy': 'Privacidad',
-      'about': 'Acerca de',
-      'theme_system': 'Sistema',
-      'theme_light': 'Claro',
-      'theme_dark': 'Oscuro',
-      'privacy_description': 'Tus datos permanecen en el dispositivo. Puedes borrarlos cuando quieras.',
-      'clear_history': 'Borrar historial',
-      'clear_history_confirm': '¿Seguro que quieres eliminar todos los elementos? Esta acción no se puede deshacer.',
-      'cancel': 'Cancelar',
-      'confirm': 'Eliminar',
-      'history_cleared': 'Historial eliminado.',
-      'version': 'Versión 3.0.0',
-      'about_description': 'Nexus QR ofrece generación y escaneo de nivel profesional con almacenamiento local seguro.',
-      'time_just_now': 'Justo ahora',
-      'time_minutes': 'Hace {value} minutos',
-      'time_hours': 'Hace {value} horas',
-      'time_days': 'Hace {value} días',
-      'time_date': 'El {value}',
-    },
-    'fr': {
-      'splash_tagline': 'Créez, scannez et sécurisez vos codes en quelques secondes.',
-      'generator': 'Créer',
-      'scanner': 'Scanner',
-      'history': 'Historique',
-      'settings': 'Réglages',
-      'share_app': 'Partager',
-      'share_app_message': 'Découvrez Nexus QR pour générer et scanner des codes professionnels !',
-      'generator_title': 'Générez des codes professionnels',
-      'generator_subtitle': 'Choisissez le contenu, personnalisez-le et exportez-le en toute sécurité.',
-      'content_type': 'Type de contenu',
-      'type_text': 'Texte',
-      'type_url': 'Site web',
-      'type_wifi': 'Wi-Fi',
-      'type_email': 'E-mail',
-      'type_phone': 'Téléphone',
-      'type_sms': 'SMS',
-      'enter_text': 'Saisir un message',
-      'enter_url': 'Saisir une URL sécurisée',
-      'wifi_name': 'Nom du réseau (SSID)',
-      'wifi_password': 'Mot de passe (optionnel)',
-      'email_address': 'Adresse e-mail',
-      'email_message': 'Message (optionnel)',
-      'phone_number': 'Numéro de téléphone',
-      'sms_message': 'Message',
-      'validation_required': 'Ce champ est obligatoire.',
-      'validation_url': 'Entrez une URL valide (https://).',
-      'validation_email': 'Entrez une adresse e-mail valide.',
-      'validation_phone': 'Entrez un numéro valide.',
-      'output_type': 'Format de sortie',
-      'output_qr': 'Code QR',
-      'output_barcode': 'Code-barres',
-      'accent_color': 'Couleur d’accent',
-      'random_color': 'Aléatoire',
-      'generate_code': 'Générer le code',
-      'preview_title': 'Aperçu et export',
-      'saving': 'Enregistrement…',
-      'save_image': 'Enregistrer l’image',
-      'copy': 'Copier',
-      'share': 'Partager',
-      'open': 'Ouvrir',
-      'generated_success': 'Code généré et stocké.',
-      'copied': 'Copié dans le presse-papiers.',
-      'shared': 'Partage lancé.',
-      'saved': 'Enregistré dans la galerie.',
-      'save_failed': 'Impossible d’enregistrer l’image.',
-      'permission_denied': 'Permission refusée.',
-      'cannot_open': 'Impossible d’ouvrir le lien.',
-      'scanner_tip': 'Alignez le code dans le cadre. Nexus QR détecte automatiquement QR et codes-barres.',
-      'torch': 'Lampe',
-      'torch_unavailable': 'Lampe indisponible sur cet appareil',
-      'switch_camera': 'Inverser',
-      'scan_result': 'Résultat',
-      'scanned_success': 'Code ajouté à l’historique.',
-      'history_removed': 'Élément supprimé.',
-      'search_history': 'Rechercher dans l’historique…',
-      'history_empty_title': 'Votre espace est encore vide',
-      'history_empty_subtitle': 'Chaque scan ou création apparaîtra ici pour un partage instantané.',
-      'history_type_text': 'Extrait de texte',
-      'history_type_url': 'Lien web',
-      'history_type_wifi': 'Accès Wi-Fi',
-      'history_type_email': 'Raccourci e-mail',
-      'history_type_phone': 'Numéro de téléphone',
-      'history_type_sms': 'Message SMS',
-      'appearance': 'Apparence',
-      'privacy': 'Confidentialité',
-      'about': 'À propos',
-      'theme_system': 'Système',
-      'theme_light': 'Clair',
-      'theme_dark': 'Sombre',
-      'privacy_description': 'Vos données restent sur l’appareil. Effacez-les quand vous voulez.',
-      'clear_history': 'Effacer l’historique',
-      'clear_history_confirm': 'Voulez-vous supprimer tous les éléments enregistrés ? Action irréversible.',
-      'cancel': 'Annuler',
-      'confirm': 'Supprimer',
-      'history_cleared': 'Historique effacé.',
-      'version': 'Version 3.0.0',
-      'about_description': 'Nexus QR fournit une génération et un scan professionnels avec stockage local sécurisé.',
-      'time_just_now': 'À l’instant',
-      'time_minutes': 'Il y a {value} minutes',
-      'time_hours': 'Il y a {value} heures',
-      'time_days': 'Il y a {value} jours',
-      'time_date': 'Le {value}',
-    },
-    'pt': {
-      'splash_tagline': 'Crie, leia e proteja seus códigos em segundos.',
-      'generator': 'Criar',
-      'scanner': 'Ler',
-      'history': 'Histórico',
-      'settings': 'Configurações',
-      'share_app': 'Compartilhar',
-      'share_app_message': 'Experimente o Nexus QR para gerar e escanear códigos profissionais!',
-      'generator_title': 'Gere códigos profissionais',
-      'generator_subtitle': 'Escolha o conteúdo, personalize e exporte com segurança.',
-      'content_type': 'Tipo de conteúdo',
-      'type_text': 'Texto',
-      'type_url': 'Site',
-      'type_wifi': 'Wi-Fi',
-      'type_email': 'E-mail',
-      'type_phone': 'Telefone',
-      'type_sms': 'SMS',
-      'enter_text': 'Digite a mensagem',
-      'enter_url': 'Digite uma URL segura',
-      'wifi_name': 'Nome da rede (SSID)',
-      'wifi_password': 'Senha (opcional)',
-      'email_address': 'Endereço de e-mail',
-      'email_message': 'Mensagem (opcional)',
-      'phone_number': 'Número de telefone',
-      'sms_message': 'Mensagem',
-      'validation_required': 'Campo obrigatório.',
-      'validation_url': 'Informe uma URL válida (https://).',
-      'validation_email': 'Informe um e-mail válido.',
-      'validation_phone': 'Informe um telefone válido.',
-      'output_type': 'Formato de saída',
-      'output_qr': 'Código QR',
-      'output_barcode': 'Código de barras',
-      'accent_color': 'Cor de destaque',
-      'random_color': 'Aleatória',
-      'generate_code': 'Gerar código',
-      'preview_title': 'Pré-visualizar e exportar',
-      'saving': 'Salvando…',
-      'save_image': 'Salvar imagem',
-      'copy': 'Copiar',
-      'share': 'Compartilhar',
-      'open': 'Abrir',
-      'generated_success': 'Código gerado e salvo.',
-      'copied': 'Copiado para a área de transferência.',
-      'shared': 'Compartilhamento aberto.',
-      'saved': 'Salvo na galeria.',
-      'save_failed': 'Não foi possível salvar a imagem.',
-      'permission_denied': 'Permissão negada.',
-      'cannot_open': 'Não foi possível abrir o link.',
-      'scanner_tip': 'Alinhe o código ao quadro. O Nexus QR detecta automaticamente QR e códigos de barras.',
-      'torch': 'Lanterna',
-      'torch_unavailable': 'Lanterna indisponível neste dispositivo',
-      'switch_camera': 'Inverter',
-      'scan_result': 'Resultado',
-      'scanned_success': 'Código armazenado no histórico.',
-      'history_removed': 'Item removido.',
-      'search_history': 'Buscar no histórico…',
-      'history_empty_title': 'Seu espaço ainda está vazio',
-      'history_empty_subtitle': 'Cada leitura ou criação aparecerá aqui para uso imediato.',
-      'history_type_text': 'Trecho de texto',
-      'history_type_url': 'Link da web',
-      'history_type_wifi': 'Acesso Wi-Fi',
-      'history_type_email': 'Atalho de e-mail',
-      'history_type_phone': 'Número de telefone',
-      'history_type_sms': 'Mensagem SMS',
-      'appearance': 'Aparência',
-      'privacy': 'Privacidade',
-      'about': 'Sobre',
-      'theme_system': 'Sistema',
-      'theme_light': 'Claro',
-      'theme_dark': 'Escuro',
-      'privacy_description': 'Seus dados ficam no dispositivo. Apague quando quiser.',
-      'clear_history': 'Limpar histórico',
-      'clear_history_confirm': 'Deseja apagar todos os itens salvos? Essa ação não pode ser desfeita.',
-      'cancel': 'Cancelar',
-      'confirm': 'Excluir',
-      'history_cleared': 'Histórico limpo.',
-      'version': 'Versão 3.0.0',
-      'about_description': 'Nexus QR oferece geração e leitura profissionais com armazenamento local seguro.',
-      'time_just_now': 'Agora mesmo',
-      'time_minutes': 'Há {value} minutos',
-      'time_hours': 'Há {value} horas',
-      'time_days': 'Há {value} dias',
-      'time_date': 'Em {value}',
-    },
-    'de': {
-      'splash_tagline': 'Erstelle, scanne und sichere deine Codes in Sekunden.',
-      'generator': 'Erstellen',
-      'scanner': 'Scannen',
-      'history': 'Verlauf',
-      'settings': 'Einstellungen',
-      'share_app': 'App teilen',
-      'share_app_message': 'Teste Nexus QR, um professionelle QR-Codes zu erstellen und zu scannen!',
-      'generator_title': 'Erstelle professionelle Codes',
-      'generator_subtitle': 'Wähle den Inhalt, personalisiere ihn und exportiere sicher.',
-      'content_type': 'Inhaltstyp',
-      'type_text': 'Text',
-      'type_url': 'Website',
-      'type_wifi': 'WLAN',
-      'type_email': 'E-Mail',
-      'type_phone': 'Telefon',
-      'type_sms': 'SMS',
-      'enter_text': 'Nachricht eingeben',
-      'enter_url': 'Sichere URL eingeben',
-      'wifi_name': 'Netzwerkname (SSID)',
-      'wifi_password': 'Passwort (optional)',
-      'email_address': 'E-Mail-Adresse',
-      'email_message': 'Nachricht (optional)',
-      'phone_number': 'Telefonnummer',
-      'sms_message': 'Nachricht',
-      'validation_required': 'Dieses Feld ist erforderlich.',
-      'validation_url': 'Gib eine gültige URL (https://) ein.',
-      'validation_email': 'Gib eine gültige E-Mail-Adresse ein.',
-      'validation_phone': 'Gib eine gültige Telefonnummer ein.',
-      'output_type': 'Ausgabeformat',
-      'output_qr': 'QR-Code',
-      'output_barcode': 'Barcode',
-      'accent_color': 'Akzentfarbe',
-      'random_color': 'Zufällig',
-      'generate_code': 'Code generieren',
-      'preview_title': 'Vorschau & Export',
-      'saving': 'Speichern…',
-      'save_image': 'Bild speichern',
-      'copy': 'Kopieren',
-      'share': 'Teilen',
-      'open': 'Öffnen',
-      'generated_success': 'Code erstellt und gespeichert.',
-      'copied': 'In die Zwischenablage kopiert.',
-      'shared': 'Teilen geöffnet.',
-      'saved': 'In der Galerie gespeichert.',
-      'save_failed': 'Bild konnte nicht gespeichert werden.',
-      'permission_denied': 'Zugriff verweigert.',
-      'cannot_open': 'Link kann nicht geöffnet werden.',
-      'scanner_tip': 'Richte den Code im Rahmen aus. Nexus QR erkennt QR- und Barcodes automatisch.',
-      'torch': 'Lampe',
-      'torch_unavailable': 'Taschenlampe auf diesem Gerät nicht verfügbar',
-      'switch_camera': 'Wechseln',
-      'scan_result': 'Ergebnis',
-      'scanned_success': 'Code im Verlauf gespeichert.',
-      'history_removed': 'Eintrag entfernt.',
-      'search_history': 'Im Verlauf suchen…',
-      'history_empty_title': 'Dein Bereich ist noch leer',
-      'history_empty_subtitle': 'Jeder Scan oder jede Erstellung erscheint hier für den sofortigen Zugriff.',
-      'history_type_text': 'Textausschnitt',
-      'history_type_url': 'Weblink',
-      'history_type_wifi': 'WLAN-Zugang',
-      'history_type_email': 'E-Mail-Kürzel',
-      'history_type_phone': 'Telefonnummer',
-      'history_type_sms': 'SMS-Nachricht',
-      'appearance': 'Darstellung',
-      'privacy': 'Datenschutz',
-      'about': 'Info',
-      'theme_system': 'System',
-      'theme_light': 'Hell',
-      'theme_dark': 'Dunkel',
-      'privacy_description': 'Deine Daten bleiben auf dem Gerät. Du kannst sie jederzeit löschen.',
-      'clear_history': 'Verlauf löschen',
-      'clear_history_confirm': 'Möchtest du alle Einträge löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.',
-      'cancel': 'Abbrechen',
-      'confirm': 'Löschen',
-      'history_cleared': 'Verlauf gelöscht.',
-      'version': 'Version 3.0.0',
-      'about_description': 'Nexus QR bietet professionelle Erstellung und Erkennung mit sicherer lokaler Speicherung.',
-      'time_just_now': 'Gerade eben',
-      'time_minutes': 'Vor {value} Minuten',
-      'time_hours': 'Vor {value} Stunden',
-      'time_days': 'Vor {value} Tagen',
-      'time_date': 'Am {value}',
-    },
-  };
-
-  static Iterable<String> get supportedLanguages => _localizedValues.keys;
-
-  String t(String key) {
-    final values = _localizedValues[locale.languageCode] ?? _localizedValues['en']!;
-    return values[key] ?? _localizedValues['en']![key] ?? key;
-  }
-}
-
-class AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
-  const AppLocalizationsDelegate();
-
-  @override
-  bool isSupported(Locale locale) => AppLocalizations.supportedLanguages.contains(locale.languageCode);
-
-  @override
-  Future<AppLocalizations> load(Locale locale) async => AppLocalizations(locale);
-
-  @override
-  bool shouldReload(AppLocalizationsDelegate old) => false;
-}
-
-class _FallbackMaterialLocalizations extends LocalizationsDelegate<MaterialLocalizations> {
-  const _FallbackMaterialLocalizations();
-
-  static const LocalizationsDelegate<MaterialLocalizations> delegate = _FallbackMaterialLocalizations();
-
-  @override
-  bool isSupported(Locale locale) => true;
-
-  @override
-  Future<MaterialLocalizations> load(Locale locale) => DefaultMaterialLocalizations.delegate.load(locale);
-
-  @override
-  bool shouldReload(_FallbackMaterialLocalizations old) => false;
-}
-
-class _FallbackWidgetsLocalizations extends LocalizationsDelegate<WidgetsLocalizations> {
-  const _FallbackWidgetsLocalizations();
-
-  static const LocalizationsDelegate<WidgetsLocalizations> delegate = _FallbackWidgetsLocalizations();
-
-  @override
-  bool isSupported(Locale locale) => true;
-
-  @override
-  Future<WidgetsLocalizations> load(Locale locale) => DefaultWidgetsLocalizations.delegate.load(locale);
-
-  @override
-  bool shouldReload(_FallbackWidgetsLocalizations old) => false;
-}
-
-class _FallbackCupertinoLocalizations extends LocalizationsDelegate<CupertinoLocalizations> {
-  const _FallbackCupertinoLocalizations();
-
-  static const LocalizationsDelegate<CupertinoLocalizations> delegate = _FallbackCupertinoLocalizations();
-
-  @override
-  bool isSupported(Locale locale) => true;
-
-  @override
-  Future<CupertinoLocalizations> load(Locale locale) {
-    return DefaultCupertinoLocalizations.load(locale);
-  }
-
-  @override
-  bool shouldReload(_FallbackCupertinoLocalizations old) => false;
+  final IconData icon;
+  final String title;
+  final String description;
 }
