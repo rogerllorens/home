@@ -1284,10 +1284,12 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
                                         SwitchListTile.adaptive(
                                           contentPadding: EdgeInsets.zero,
                                           value: _showLogo,
-                                          onChanged: (value) {
+                                          onChanged: (value) async {
                                             setState(() => _showLogo = value);
-                                            if (value && _logoBytes == null) {
-                                              _loadLogo();
+                                            if (!value) {
+                                              setState(() => _logoBytes = null);
+                                            } else if (_logoBytes == null) {
+                                              await _promptLogoSource();
                                             }
                                             _schedulePreview(immediate: true);
                                           },
@@ -1712,7 +1714,10 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
     }
     setState(() => _isSharing = true);
     try {
-      await Share.share(payload, subject: _labelController.text.isEmpty ? 'Código generado' : _labelController.text);
+      await Share.share(
+        payload,
+        subject: _labelController.text.isEmpty ? 'Código generado' : _labelController.text,
+      );
     } finally {
       if (mounted) setState(() => _isSharing = false);
     }
@@ -1725,54 +1730,63 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
       await _copy(payload);
       return;
     }
-      if (!isAllowedScheme(uri.scheme)) {
-        _notify('Esquema no permitido');
-        return;
-      }
+    if (!isAllowedScheme(uri.scheme)) {
+      _notify('Esquema no permitido');
+      return;
+    }
+    if (_selectedType.isSensitive) {
+      final proceed = await _confirmSensitive();
+      if (proceed != true) return;
+    }
     if (!await canLaunchUrl(uri)) {
       _notify('No se pudo abrir');
       return;
     }
-      await launchUrl(uri, mode: LaunchMode.platformDefault);
-    }
+    await launchUrl(uri, mode: LaunchMode.platformDefault);
+  }
 
-    Future<void> _download() async {
-      setState(() => _isDownloading = true);
-      final boundary = _previewKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) {
-        _notify('No se pudo capturar');
+  Future<void> _download() async {
+    setState(() => _isDownloading = true);
+    final boundary = _previewKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null) {
+      _notify('No se pudo capturar');
+      setState(() => _isDownloading = false);
+      return;
+    }
+    final image = await boundary.toImage(pixelRatio: _exportScale.toDouble());
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (data == null) {
+      _notify('Error al exportar');
+      setState(() => _isDownloading = false);
+      return;
+    }
+    final bytes = data.buffer.asUint8List();
+    final filename = _composeFileName();
+    if (kIsWeb) {
+      final dataUrl = Uri.dataFromBytes(bytes, mimeType: 'image/png').toString();
+      await Clipboard.setData(ClipboardData(text: dataUrl));
+      _notify('Enlace de descarga copiado');
+    } else {
+      var status = await Permission.storage.request();
+      if (!status.isGranted) {
+        status = await Permission.photos.request();
+      }
+      if (!status.isGranted) {
+        _notify('Permiso denegado');
         setState(() => _isDownloading = false);
         return;
       }
-      final image = await boundary.toImage(pixelRatio: _exportScale.toDouble());
-      final data = await image.toByteData(format: ui.ImageByteFormat.png);
-      if (data == null) {
-        _notify('Error al exportar');
-        setState(() => _isDownloading = false);
-        return;
-      }
-      final bytes = data.buffer.asUint8List();
-      final filename = _composeFileName();
-      if (kIsWeb) {
-        await Share.shareXFiles(<XFile>[XFile.fromData(bytes, mimeType: 'image/png', name: filename)]);
+      final result = await ImageGallerySaver.saveImage(bytes, quality: 100, name: filename);
+      if (result is Map && result['isSuccess'] == true) {
+        _notify('Guardado en galería');
       } else {
-        final status = await Permission.storage.request();
-        if (!status.isGranted) {
-          _notify('Permiso denegado');
-          setState(() => _isDownloading = false);
-          return;
-        }
-        final result = await ImageGallerySaver.saveImage(bytes, quality: 100, name: filename);
-        if (result is Map && result['isSuccess'] == true) {
-          _notify('Guardado en galería');
-        } else {
-          _notify('Fallo al guardar');
-        }
-      }
-      if (mounted) {
-        setState(() => _isDownloading = false);
+        _notify('Fallo al guardar');
       }
     }
+    if (mounted) {
+      setState(() => _isDownloading = false);
+    }
+  }
 
     Future<void> _showCustomColorDialog() async {
       final fgController = TextEditingController(text: _formatColorHex(_foreground));
@@ -1851,7 +1865,10 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
           ],
         ),
       );
-      if (input == null || input.isEmpty) return;
+      if (input == null || input.isEmpty) {
+        if (mounted) setState(() => _showLogo = false);
+        return;
+      }
       try {
         Uint8List? bytes;
         if (input.startsWith('http')) {
@@ -1870,6 +1887,7 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
         _schedulePreview(immediate: true);
       } catch (_) {
         _notify('No se pudo cargar el logo');
+        if (mounted) setState(() => _showLogo = false);
       }
     }
 
@@ -1901,15 +1919,6 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
         .replaceAll('{slug}', slug.isEmpty ? 'codigo' : slug);
   }
 
-  Future<void> _loadLogo() async {
-    try {
-      final bytes = await rootBundle.load('assets/logo_placeholder.png');
-      setState(() => _logoBytes = bytes.buffer.asUint8List());
-    } catch (_) {
-      _notify('Logo no disponible en esta build');
-    }
-  }
-
   Future<void> _showBatchPreview() async {
     final payload = _batchController.text.trim();
     if (payload.isEmpty) {
@@ -1922,6 +1931,7 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) {
+        final previewItems = entries.take(3).toList();
         return Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: SizedBox(
@@ -1938,6 +1948,55 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
                     ],
                   ),
                 ),
+                if (previewItems.isNotEmpty)
+                  SizedBox(
+                    height: 260,
+                    child: PageView.builder(
+                      itemCount: previewItems.length,
+                      controller: PageController(viewportFraction: 0.8),
+                      itemBuilder: (context, index) {
+                        final item = previewItems[index];
+                        final payload = item.payload;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Hero(
+                            tag: 'batch_preview_$index',
+                            child: Material(
+                              elevation: 3,
+                              borderRadius: BorderRadius.circular(24),
+                              clipBehavior: Clip.antiAlias,
+                              child: Container(
+                                color: Theme.of(context).colorScheme.surface,
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: AspectRatio(
+                                        aspectRatio: 1,
+                                        child: _selectedType.isBarcode
+                                            ? _buildBarcode(payload)
+                                            : RepaintBoundary(
+                                                child: _buildQr(payload),
+                                              ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      item.label ?? 'Elemento ${index + 1}',
+                                      style: Theme.of(context).textTheme.titleSmall,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 Expanded(
                   child: ListView.builder(
                     itemCount: entries.length,
@@ -1980,6 +2039,10 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
   }
 
   Future<void> _processBatch(List<BatchEntry> entries) async {
+    if (entries.isEmpty) {
+      _notify('No hay elementos válidos');
+      return;
+    }
     final progress = ValueNotifier<int>(0);
     showDialog<void>(
       context: context,
@@ -2003,27 +2066,107 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
         );
       },
     );
+    final failures = <BatchEntry>[];
+    final successes = <HistoryEntry>[];
     for (var i = 0; i < entries.length; i++) {
-      final entry = entries[i];
-      final history = HistoryEntry(
-        id: UniqueKey().toString(),
-        type: _selectedType,
-        value: entry.payload,
-        displayLabel: entry.label ?? 'Lote ${i + 1}',
-        createdAt: DateTime.now(),
-        favorite: false,
-        tags: <String>['lote', ..._selectedType.autoTags],
-        note: '',
-        source: HistorySource.created,
-        paletteId: _palette.id,
-        quietZone: _quietZone,
-      );
-      await AppStateScope.of(context).addHistory(history, force: true);
+      final rawEntry = entries[i];
+      final payload = _sanitizeBatchPayload(rawEntry.payload);
+      if (payload == null) {
+        failures.add(rawEntry);
+      } else {
+        final history = HistoryEntry(
+          id: UniqueKey().toString(),
+          type: _selectedType,
+          value: payload,
+          displayLabel: rawEntry.label ?? 'Lote ${i + 1}',
+          createdAt: DateTime.now(),
+          favorite: false,
+          tags: <String>['lote', ..._selectedType.autoTags],
+          note: '',
+          source: HistorySource.created,
+          paletteId: _palette.id,
+          quietZone: _quietZone,
+        );
+        await AppStateScope.of(context).addHistory(history, force: true);
+        successes.add(history);
+      }
       progress.value = i + 1;
-      await Future<void>.delayed(const Duration(milliseconds: 120));
+      if ((i + 1) % 8 == 0) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
     }
-    Navigator.of(context).pop();
-    _notify('Lote generado (${entries.length})');
+    if (mounted) Navigator.of(context).pop();
+    progress.dispose();
+    if (!mounted) return;
+    final summary = 'Generados ${successes.length} · Omitidos ${failures.length}';
+    _notify(summary);
+    if (failures.isNotEmpty) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Algunos elementos fallaron'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView(
+                shrinkWrap: true,
+                children: failures
+                    .map(
+                      (entry) => ListTile(
+                        title: Text(entry.payload, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(entry.label ?? 'Sin etiqueta'),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cerrar')),
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _processBatch(failures);
+                },
+                child: const Text('Reintentar fallidos'),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+
+  String? _sanitizeBatchPayload(String payload) {
+    switch (_selectedType) {
+      case GeneratorContentType.barcodeEan13:
+        final digits = payload.replaceAll(RegExp('[^0-9]'), '');
+        if (_validateEan13(digits) != null) {
+          return null;
+        }
+        if (digits.length == 12) {
+          final checksum = _calculateEan13Checksum(digits);
+          return '$digits$checksum';
+        }
+        return digits;
+      case GeneratorContentType.url:
+        if (_validateUrl(payload) != null) return null;
+        return payload;
+      case GeneratorContentType.phone:
+      case GeneratorContentType.sms:
+        if (_validatePhone(payload) != null) return null;
+        return payload;
+      default:
+        return payload;
+    }
+  }
+
+  int _calculateEan13Checksum(String digits) {
+    final numbers = digits.split('').map(int.parse).toList();
+    var sum = 0;
+    for (var i = 0; i < numbers.length; i++) {
+      sum += numbers[i] * (i.isEven ? 1 : 3);
+    }
+    return (10 - (sum % 10)) % 10;
   }
 
   Future<bool?> _confirmSensitive() {
@@ -3761,10 +3904,15 @@ class ScannerActionSheet extends StatelessWidget {
                   CircleAvatar(child: Icon(result.type.icon)),
                   const SizedBox(width: 12),
                   Expanded(child: Text(result.title, style: Theme.of(context).textTheme.titleLarge)),
-                  IconButton(onPressed: onClose, icon: const Icon(Icons.close)),
+                  IconButton(
+                    onPressed: onClose,
+                    tooltip: 'Cerrar',
+                    icon: const Icon(Icons.close),
+                  ),
                 ],
               ),
             ),
+            if (result.warnings.isNotEmpty)
               Wrap(
                 spacing: 8,
                 children: result.warnings
@@ -3791,10 +3939,13 @@ class ScannerActionSheet extends StatelessWidget {
                       spacing: 12,
                       children: result.smartActions
                           .map(
-                            (action) => ActionChip(
-                              label: Text(action.label),
-                              avatar: Icon(action.icon),
-                              onPressed: () => _performAction(context, action, result),
+                            (action) => Tooltip(
+                              message: action.label,
+                              child: ActionChip(
+                                label: Text(action.label),
+                                avatar: Icon(action.icon),
+                                onPressed: () async => _performAction(context, action, result),
+                              ),
                             ),
                           )
                           .toList(),
@@ -3817,17 +3968,38 @@ class ScannerActionSheet extends StatelessWidget {
     );
   }
 
-  void _performAction(BuildContext context, SmartAction action, ScanResult result) {
+  Future<void> _performAction(BuildContext context, SmartAction action, ScanResult result) async {
     switch (action.action) {
       case SmartActionType.copy:
-        FlutterClipboard.copy(result.payload);
+        await FlutterClipboard.copy(result.payload);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copiado al portapapeles')));
         break;
       case SmartActionType.open:
         final uri = result.type.tryParseUri(result.payload);
-        if (uri != null) {
-          launchUrl(uri, mode: LaunchMode.platformDefault);
+        if (uri == null) return;
+        if (!isAllowedScheme(uri.scheme)) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Esquema no permitido')));
+          return;
         }
+        if (result.type.isSensitive) {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Contenido sensible'),
+              content: const Text('¿Quieres abrir este contenido sensible?'),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+                FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Abrir')),
+              ],
+            ),
+          );
+          if (confirm != true) return;
+        }
+        if (!await canLaunchUrl(uri)) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir')));
+          return;
+        }
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
         break;
     }
   }
@@ -4465,6 +4637,10 @@ class _HistoryTile extends StatelessWidget {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Destino no compatible')));
                         return;
                       }
+                      if (entry.isSensitive) {
+                        final proceed = await _confirmHistorySensitive(context);
+                        if (proceed != true) return;
+                      }
                       if (!await canLaunchUrl(uri)) {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir')));
                         return;
@@ -4592,6 +4768,7 @@ class _HistoryDetailSheetState extends State<HistoryDetailSheet> {
                   ),
                 ),
                 IconButton(
+                  tooltip: _favorite ? 'Quitar de favoritos' : 'Añadir a favoritos',
                   icon: Icon(_favorite ? Icons.star : Icons.star_border),
                   onPressed: () => setState(() => _favorite = !_favorite),
                 ),
