@@ -52,6 +52,17 @@ bool isAllowedScheme(String scheme) {
   return allowed.contains(scheme.toLowerCase());
 }
 
+extension IterableFirstWhereOrNull<T> on Iterable<T> {
+  T? firstWhereOrNull(bool Function(T element) test) {
+    for (final element in this) {
+      if (test(element)) {
+        return element;
+      }
+    }
+    return null;
+  }
+}
+
 class AppState extends ChangeNotifier {
   SharedPreferences? _prefs;
   ThemeMode _themeMode = ThemeMode.system;
@@ -4272,17 +4283,17 @@ class HistoryPage extends StatefulWidget {
   State<HistoryPage> createState() => _HistoryPageState();
 }
 
-  class _HistoryPageState extends State<HistoryPage> {
-    final TextEditingController _searchController = TextEditingController();
-    final FocusNode _searchFocus = FocusNode();
-    final Set<GeneratorContentType> _filters = <GeneratorContentType>{};
-    bool _selectionMode = false;
-    final Set<String> _selectedIds = <String>{};
-    String _sort = 'recent';
-    bool _onlyFavorites = false;
-    bool _onlyWithNotes = false;
-    bool _gridMode = false;
-    String? _activeViewId;
+class _HistoryPageState extends State<HistoryPage> {
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+  final Set<GeneratorContentType> _filters = <GeneratorContentType>{};
+  bool _selectionMode = false;
+  final Set<String> _selectedIds = <String>{};
+  String _sort = 'recent';
+  bool _onlyFavorites = false;
+  bool _onlyWithNotes = false;
+  bool _gridMode = false;
+  String? _activeViewId;
 
   @override
   void initState() {
@@ -4724,80 +4735,80 @@ class HistoryPage extends StatefulWidget {
     _toggleSelectionMode();
   }
 
-    Future<void> _shareSelected() async {
-      final appState = AppStateScope.of(context);
-      final selectedEntries = appState.history.where((entry) => _selectedIds.contains(entry.id)).toList();
-      if (selectedEntries.any((entry) => entry.isSensitive)) {
-        final proceed = await _confirmHistorySensitive(context);
-        if (proceed != true) return;
+  Future<void> _shareSelected() async {
+    final appState = AppStateScope.of(context);
+    final selectedEntries = appState.history.where((entry) => _selectedIds.contains(entry.id)).toList();
+    if (selectedEntries.any((entry) => entry.isSensitive)) {
+      final proceed = await _confirmHistorySensitive(context);
+      if (proceed != true) return;
+    }
+    final selected = selectedEntries.map((e) => e.value).join('\n');
+    await Share.share(selected, subject: 'Historial Nexus QR');
+    _toggleSelectionMode();
+  }
+
+  Future<void> _deleteSelected() async {
+    final appState = AppStateScope.of(context);
+    final removed = await appState.removeHistory(_selectedIds);
+    _toggleSelectionMode();
+    _showUndoSnack(removed);
+  }
+
+  Future<void> _exportSelected() async {
+    final appState = AppStateScope.of(context);
+    final entries = appState.history.where((entry) => _selectedIds.contains(entry.id)).toList();
+    if (entries.isEmpty) return;
+    final format = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => _ExportFormatSheet(),
+    );
+    if (format == null) return;
+    if (format == 'csv') {
+      final csv = StringBuffer('"id","type","label","value","createdAt","favorite","note"\n');
+      for (final entry in entries) {
+        csv.writeln('"${entry.id}","${entry.type.name}","${_escapeCsv(entry.displayLabel)}","${_escapeCsv(entry.value)}","${entry.createdAt.toIso8601String()}","${entry.favorite}","${_escapeCsv(entry.note)}"');
       }
-      final selected = selectedEntries.map((e) => e.value).join('\n');
-      await Share.share(selected, subject: 'Historial Nexus QR');
-      _toggleSelectionMode();
+      await Share.share(csv.toString(), subject: 'Historial CSV');
+    } else {
+      final payload = jsonEncode(entries.map((e) => e.toJson()).toList());
+      await Share.share(payload, subject: 'Historial JSON');
     }
+    _toggleSelectionMode();
+  }
 
-    Future<void> _deleteSelected() async {
-      final appState = AppStateScope.of(context);
-      final removed = await appState.removeHistory(_selectedIds);
-      _toggleSelectionMode();
-      _showUndoSnack(removed);
-    }
+  Future<void> _updateEntry(HistoryEntry entry) async {
+    await AppStateScope.of(context).updateHistory(entry);
+  }
 
-    Future<void> _exportSelected() async {
-      final appState = AppStateScope.of(context);
-      final entries = appState.history.where((entry) => _selectedIds.contains(entry.id)).toList();
-      if (entries.isEmpty) return;
-      final format = await showModalBottomSheet<String>(
-        context: context,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        builder: (context) => _ExportFormatSheet(),
-      );
-      if (format == null) return;
-      if (format == 'csv') {
-        final csv = StringBuffer('"id","type","label","value","createdAt","favorite","note"\n');
-        for (final entry in entries) {
-          csv.writeln('"${entry.id}","${entry.type.name}","${_escapeCsv(entry.displayLabel)}","${_escapeCsv(entry.value)}","${entry.createdAt.toIso8601String()}","${entry.favorite}","${_escapeCsv(entry.note)}"');
-        }
-        await Share.share(csv.toString(), subject: 'Historial CSV');
-      } else {
-        final payload = jsonEncode(entries.map((e) => e.toJson()).toList());
-        await Share.share(payload, subject: 'Historial JSON');
-      }
-      _toggleSelectionMode();
-    }
+  Future<void> _deleteEntry(HistoryEntry entry) async {
+    final removed = await AppStateScope.of(context).removeHistory(<String>{entry.id});
+    _showUndoSnack(removed);
+  }
 
-    Future<void> _updateEntry(HistoryEntry entry) async {
-      await AppStateScope.of(context).updateHistory(entry);
-    }
-
-    Future<void> _deleteEntry(HistoryEntry entry) async {
-      final removed = await AppStateScope.of(context).removeHistory(<String>{entry.id});
-      _showUndoSnack(removed);
-    }
-
-    void _showUndoSnack(List<HistoryEntry> removed) {
-      if (removed.isEmpty) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: const [
-              Icon(Icons.delete_outline),
-              SizedBox(width: 12),
-              Expanded(child: Text('Elementos eliminados')),
-            ],
-          ),
-          action: SnackBarAction(
-            label: 'Deshacer',
-            onPressed: () {
-              final appState = AppStateScope.of(context);
-              for (final entry in removed.reversed) {
-                appState.addHistory(entry, force: true);
-              }
-            },
-          ),
+  void _showUndoSnack(List<HistoryEntry> removed) {
+    if (removed.isEmpty) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: const [
+            Icon(Icons.delete_outline),
+            SizedBox(width: 12),
+            Expanded(child: Text('Elementos eliminados')),
+          ],
         ),
-      );
-    }
+        action: SnackBarAction(
+          label: 'Deshacer',
+          onPressed: () {
+            final appState = AppStateScope.of(context);
+            for (final entry in removed.reversed) {
+              appState.addHistory(entry, force: true);
+            }
+          },
+        ),
+      ),
+    );
+  }
 
     String _escapeCsv(String value) => value.replaceAll('"', '""');
   }
