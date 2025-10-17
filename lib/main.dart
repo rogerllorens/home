@@ -12,6 +12,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart' as ms;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -44,6 +45,11 @@ const String kHistoryKey = 'nexus_history_v4';
 const String kTemplatesKey = 'nexus_templates_v2';
 const String kSettingsKey = 'nexus_settings_v1';
 const String kOnboardingKey = 'nexus_onboarding_seen';
+
+bool isAllowedScheme(String scheme) {
+  const allowed = <String>['http', 'https', 'mailto', 'tel', 'sms', 'geo'];
+  return allowed.contains(scheme.toLowerCase());
+}
 
 class AppState extends ChangeNotifier {
   SharedPreferences? _prefs;
@@ -178,10 +184,15 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> removeHistory(Iterable<String> ids) async {
+  Future<List<HistoryEntry>> removeHistory(Iterable<String> ids) async {
+    final removed = _history.where((element) => ids.contains(element.id)).toList();
+    if (removed.isEmpty) {
+      return removed;
+    }
     _history.removeWhere((element) => ids.contains(element.id));
     await _persistHistory();
     notifyListeners();
+    return removed;
   }
 
   Future<void> clearHistory() async {
@@ -232,8 +243,9 @@ class AppState extends ChangeNotifier {
   void _autoPurge() {
     if (_autoCleanDays <= 0) return;
     final cutoff = DateTime.now().subtract(Duration(days: _autoCleanDays));
-    final removed = _history.removeWhere((element) => element.createdAt.isBefore(cutoff));
-    if (removed > 0) {
+    final previousLength = _history.length;
+    _history.removeWhere((element) => element.createdAt.isBefore(cutoff));
+    if (_history.length != previousLength) {
       _persistHistory();
       notifyListeners();
     }
@@ -305,7 +317,7 @@ class _NexusQrAppState extends State<NexusQrApp> {
       fontFamily: 'Roboto',
     );
     return base.copyWith(
-      scaffoldBackgroundColor: dark ? const Color(0xFF101417) : const Color(0xFFF1F5F7),
+      scaffoldBackgroundColor: dark ? const Color(0xFF101417) : const Color(0xFFE7EDF2),
       appBarTheme: AppBarTheme(
         elevation: 0,
         centerTitle: true,
@@ -320,8 +332,9 @@ class _NexusQrAppState extends State<NexusQrApp> {
       ),
       cardTheme: CardTheme(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 2,
-        shadowColor: scheme.shadow.withOpacity(0.12),
+        elevation: dark ? 2 : 3,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shadowColor: scheme.shadow.withOpacity(0.16),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
@@ -330,6 +343,7 @@ class _NexusQrAppState extends State<NexusQrApp> {
         contentTextStyle: base.textTheme.bodyMedium?.copyWith(color: scheme.onPrimaryContainer),
       ),
       tooltipTheme: const TooltipThemeData(waitDuration: Duration(milliseconds: 400)),
+      listTileTheme: const ListTileThemeData(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: scheme.surfaceVariant.withOpacity(dark ? 0.3 : 0.8),
@@ -617,10 +631,13 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
   GeneratorPalette _palette = GeneratorPalette.duotone;
   Color _foreground = GeneratorPalette.duotone.foreground;
   Color _background = GeneratorPalette.duotone.background;
-  double _quietZone = 4;
-  bool _showLogo = false;
-  Uint8List? _logoBytes;
-  bool _skeleton = true;
+    double _quietZone = 4;
+    bool _showLogo = false;
+    Uint8List? _logoBytes;
+    bool _skeleton = true;
+    bool _isSharing = false;
+    bool _isDownloading = false;
+    GeneratorPalette? _customPalette;
 
   @override
   void initState() {
@@ -763,52 +780,93 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
                       decoration: const InputDecoration(labelText: 'Etiqueta opcional'),
                     ),
                     const SizedBox(height: 12),
-                    _PreviewActions(
-                      payload: payload,
-                      onCopy: () => _copy(payload),
-                      onShare: () => _share(payload),
-                      onOpen: () => _open(payload),
-                      onDownload: hasData ? _download : null,
-                    ),
+                      _PreviewActions(
+                        payload: payload,
+                        onCopy: () => _copy(payload),
+                        onShare: () => _share(payload),
+                        onOpen: () => _open(payload),
+                        onDownload: hasData ? _download : null,
+                        shareLoading: _isSharing,
+                        downloadLoading: _isDownloading,
+                      ),
                     const SizedBox(height: 12),
-                    _PaletteSelector(
-                      palettes: GeneratorPalette.values,
-                      selected: _palette,
-                      onChanged: (value) {
-                        setState(() {
-                          _palette = value;
-                          _foreground = value.foreground;
-                          _background = value.background;
-                        });
-                        AppStateScope.of(context).setDefaultPalette(value.id);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Slider(
-                            value: _quietZone,
-                            min: 0,
-                            max: 32,
-                            divisions: 16,
-                            label: 'Margen ${_quietZone.toStringAsFixed(0)}',
-                            onChanged: (value) => setState(() => _quietZone = value),
+                      ExpansionTile(
+                        initiallyExpanded: true,
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: EdgeInsets.zero,
+                        title: Text('Apariencia', style: Theme.of(context).textTheme.titleMedium),
+                        subtitle: const Text('Paleta, etiqueta y margen'),
+                        children: [
+                          _PaletteSelector(
+                            palettes: [
+                              ...GeneratorPalette.values,
+                              if (_customPalette != null) _customPalette!,
+                            ],
+                            selected: _palette,
+                            onChanged: (value) {
+                              setState(() {
+                                _palette = value;
+                                _foreground = value.foreground;
+                                _background = value.background;
+                                if (value.id != 'custom') {
+                                  _customPalette = null;
+                                }
+                              });
+                              if (value.id != 'custom') {
+                                AppStateScope.of(context).setDefaultPalette(value.id);
+                              }
+                            },
                           ),
-                        ),
-                        Switch(
-                          value: _showLogo,
-                          onChanged: (value) {
-                            setState(() => _showLogo = value);
-                            if (value && _logoBytes == null) {
-                              _loadLogo();
-                            }
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        const Text('Logo'),
-                      ],
-                    ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Slider(
+                                  value: _quietZone,
+                                  min: 0,
+                                  max: 32,
+                                  divisions: 16,
+                                  label: 'Margen ${_quietZone.toStringAsFixed(0)}',
+                                  onChanged: (value) => setState(() => _quietZone = value),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Switch(
+                                    value: _showLogo,
+                                    onChanged: (value) {
+                                      setState(() => _showLogo = value);
+                                      if (value && _logoBytes == null) {
+                                        _loadLogo();
+                                      }
+                                    },
+                                  ),
+                                  const Text('Logo'),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: [
+                              FilledButton.icon(
+                                onPressed: _showCustomColorDialog,
+                                icon: const Icon(Icons.palette),
+                                label: const Text('Personalizar colores'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: _promptLogoSource,
+                                icon: const Icon(Icons.image_outlined),
+                                label: const Text('Logo desde URL/Base64'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -1081,6 +1139,7 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
       _palette = GeneratorPalette.fromId(template.paletteId ?? GeneratorPalette.duotone.id);
       _foreground = _palette.foreground;
       _background = _palette.background;
+      _customPalette = null;
     });
     _notify('Plantilla aplicada');
   }
@@ -1095,7 +1154,12 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
       final proceed = await _confirmSensitive();
       if (proceed != true) return;
     }
-    await Share.share(payload, subject: _labelController.text.isEmpty ? 'Código generado' : _labelController.text);
+    setState(() => _isSharing = true);
+    try {
+      await Share.share(payload, subject: _labelController.text.isEmpty ? 'Código generado' : _labelController.text);
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
+    }
   }
 
   Future<void> _open(String payload) async {
@@ -1105,53 +1169,168 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
       await _copy(payload);
       return;
     }
-    if (!_isAllowedScheme(uri.scheme)) {
-      _notify('Esquema no permitido');
-      return;
-    }
+      if (!isAllowedScheme(uri.scheme)) {
+        _notify('Esquema no permitido');
+        return;
+      }
     if (!await canLaunchUrl(uri)) {
       _notify('No se pudo abrir');
       return;
     }
-    await launchUrl(uri, mode: LaunchMode.platformDefault);
-  }
-
-  bool _isAllowedScheme(String scheme) {
-    const allowed = <String>['http', 'https', 'mailto', 'tel', 'sms', 'geo'];
-    return allowed.contains(scheme.toLowerCase());
-  }
-
-  Future<void> _download() async {
-    final boundary = _previewKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-    if (boundary == null) {
-      _notify('No se pudo capturar');
-      return;
+      await launchUrl(uri, mode: LaunchMode.platformDefault);
     }
-    final appState = AppStateScope.of(context);
-    final image = await boundary.toImage(pixelRatio: appState.defaultScale.toDouble());
-    final data = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (data == null) {
-      _notify('Error al exportar');
-      return;
-    }
-    final bytes = data.buffer.asUint8List();
-    final filename = _composeFileName();
-    if (kIsWeb) {
-      await Share.shareXFiles(<XFile>[XFile.fromData(bytes, mimeType: 'image/png', name: filename)]);
-    } else {
-      final status = await Permission.storage.request();
-      if (!status.isGranted) {
-        _notify('Permiso denegado');
+
+    Future<void> _download() async {
+      setState(() => _isDownloading = true);
+      final boundary = _previewKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) {
+        _notify('No se pudo capturar');
+        setState(() => _isDownloading = false);
         return;
       }
-      final result = await ImageGallerySaver.saveImage(bytes, quality: 100, name: filename);
-      if (result is Map && result['isSuccess'] == true) {
-        _notify('Guardado en galería');
+      final appState = AppStateScope.of(context);
+      final image = await boundary.toImage(pixelRatio: appState.defaultScale.toDouble());
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (data == null) {
+        _notify('Error al exportar');
+        setState(() => _isDownloading = false);
+        return;
+      }
+      final bytes = data.buffer.asUint8List();
+      final filename = _composeFileName();
+      if (kIsWeb) {
+        await Share.shareXFiles(<XFile>[XFile.fromData(bytes, mimeType: 'image/png', name: filename)]);
       } else {
-        _notify('Fallo al guardar');
+        final status = await Permission.storage.request();
+        if (!status.isGranted) {
+          _notify('Permiso denegado');
+          setState(() => _isDownloading = false);
+          return;
+        }
+        final result = await ImageGallerySaver.saveImage(bytes, quality: 100, name: filename);
+        if (result is Map && result['isSuccess'] == true) {
+          _notify('Guardado en galería');
+        } else {
+          _notify('Fallo al guardar');
+        }
+      }
+      if (mounted) {
+        setState(() => _isDownloading = false);
       }
     }
-  }
+
+    Future<void> _showCustomColorDialog() async {
+      final fgController = TextEditingController(text: _formatColorHex(_foreground));
+      final bgController = TextEditingController(text: _formatColorHex(_background));
+      final formKey = GlobalKey<FormState>();
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Paleta personalizada'),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: fgController,
+                    decoration: const InputDecoration(labelText: 'Color primer plano (HEX)'),
+                    textCapitalization: TextCapitalization.characters,
+                    validator: _validateHex,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: bgController,
+                    decoration: const InputDecoration(labelText: 'Color fondo (HEX)'),
+                    textCapitalization: TextCapitalization.characters,
+                    validator: _validateHex,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+              FilledButton(
+                onPressed: () {
+                  if (formKey.currentState?.validate() ?? false) {
+                    Navigator.of(context).pop(true);
+                  }
+                },
+                child: const Text('Aplicar'),
+              ),
+            ],
+          );
+        },
+      );
+      if (confirmed != true) return;
+      final fg = _parseHexColor(fgController.text.trim());
+      final bg = _parseHexColor(bgController.text.trim());
+      if (fg == null || bg == null) {
+        _notify('Colores no válidos');
+        return;
+      }
+      setState(() {
+        _foreground = fg;
+        _background = bg;
+        _customPalette = GeneratorPalette.custom(fg, bg);
+        _palette = _customPalette!;
+      });
+    }
+
+    Future<void> _promptLogoSource() async {
+      final controller = TextEditingController();
+      final input = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Logo personalizado'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(hintText: 'URL https:// o cadena Base64'),
+            maxLines: 3,
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.of(context).pop(controller.text.trim()), child: const Text('Cargar')),
+          ],
+        ),
+      );
+      if (input == null || input.isEmpty) return;
+      try {
+        Uint8List? bytes;
+        if (input.startsWith('http')) {
+          final uri = Uri.parse(input);
+          final bundle = NetworkAssetBundle(uri);
+          final key = (uri.path.isEmpty ? '/' : uri.path) + (uri.hasQuery ? '?${uri.query}' : '');
+          final data = await bundle.load(key);
+          bytes = data.buffer.asUint8List();
+        } else {
+          bytes = base64Decode(input);
+        }
+        setState(() {
+          _logoBytes = bytes;
+          _showLogo = true;
+        });
+      } catch (_) {
+        _notify('No se pudo cargar el logo');
+      }
+    }
+
+    String _formatColorHex(Color color) => color.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
+
+    String? _validateHex(String? value) {
+      final input = value?.trim() ?? '';
+      if (input.isEmpty) return 'Ingresa un color válido';
+      return _parseHexColor(input) == null ? 'Formato inválido' : null;
+    }
+
+    Color? _parseHexColor(String input) {
+      final sanitized = input.replaceAll('#', '');
+      if (sanitized.length != 6) return null;
+      final value = int.tryParse(sanitized, radix: 16);
+      if (value == null) return null;
+      return Color(0xFF000000 | value);
+    }
 
   String _composeFileName() {
     final now = DateTime.now();
@@ -1632,6 +1811,8 @@ class _PreviewActions extends StatelessWidget {
     required this.onShare,
     required this.onOpen,
     required this.onDownload,
+    required this.shareLoading,
+    required this.downloadLoading,
   });
 
   final String payload;
@@ -1639,14 +1820,16 @@ class _PreviewActions extends StatelessWidget {
   final VoidCallback onShare;
   final VoidCallback onOpen;
   final VoidCallback? onDownload;
+  final bool shareLoading;
+  final bool downloadLoading;
 
   @override
   Widget build(BuildContext context) {
     final actions = <_PreviewActionItem>[
       _PreviewActionItem(icon: Icons.copy_all, label: 'Copiar', tooltip: 'Copiar contenido', onTap: onCopy),
-      _PreviewActionItem(icon: Icons.ios_share, label: 'Compartir', tooltip: 'Compartir código', onTap: onShare),
+      _PreviewActionItem(icon: Icons.ios_share, label: 'Compartir', tooltip: 'Compartir código', onTap: onShare, loading: shareLoading),
       _PreviewActionItem(icon: Icons.open_in_new, label: 'Abrir', tooltip: 'Abrir destino seguro', onTap: onOpen),
-      _PreviewActionItem(icon: Icons.download, label: 'Descargar', tooltip: 'Guardar PNG', onTap: onDownload),
+      _PreviewActionItem(icon: Icons.download, label: 'Descargar', tooltip: 'Guardar PNG', onTap: onDownload, loading: downloadLoading),
     ];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1656,12 +1839,13 @@ class _PreviewActions extends StatelessWidget {
 }
 
 class _PreviewActionItem {
-  _PreviewActionItem({required this.icon, required this.label, required this.tooltip, required this.onTap});
+  _PreviewActionItem({required this.icon, required this.label, required this.tooltip, required this.onTap, this.loading = false});
 
   final IconData icon;
   final String label;
   final String tooltip;
   final VoidCallback? onTap;
+  final bool loading;
 }
 
 class _PreviewActionButton extends StatelessWidget {
@@ -1671,28 +1855,41 @@ class _PreviewActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = item.onTap != null;
+    final enabled = item.onTap != null && !item.loading;
     return Tooltip(
       message: item.tooltip,
-      child: InkWell(
-        onTap: enabled ? item.onTap : null,
-        borderRadius: BorderRadius.circular(16),
-        child: AnimatedContainer(
-          duration: kShortAnim,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: enabled
-                ? Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.4)
-                : Theme.of(context).disabledColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(item.icon, color: enabled ? Theme.of(context).colorScheme.primary : Theme.of(context).disabledColor),
-              const SizedBox(height: 4),
-              Text(item.label, style: Theme.of(context).textTheme.labelMedium),
-            ],
+      child: Semantics(
+        button: true,
+        label: item.tooltip,
+        child: InkWell(
+          onTap: enabled ? item.onTap : null,
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: kShortAnim,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: enabled
+                  ? Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.4)
+                  : Theme.of(context).disabledColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                item.loading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+                        ),
+                      )
+                    : Icon(item.icon, color: enabled ? Theme.of(context).colorScheme.primary : Theme.of(context).disabledColor),
+                const SizedBox(height: 4),
+                Text(item.label, style: Theme.of(context).textTheme.labelMedium),
+              ],
+            ),
           ),
         ),
       ),
@@ -2303,7 +2500,7 @@ class GeneratorFormState {
   }
 }
 
-class GeneratorPalette {
+  class GeneratorPalette {
   const GeneratorPalette._(this.id, this.title, this.foreground, this.background);
 
   final String id;
@@ -2317,12 +2514,16 @@ class GeneratorPalette {
   static const GeneratorPalette wasabi = GeneratorPalette._('wasabi', 'Wasabi', Color(0xFF163300), Color(0xFFDDFFD7));
   static const GeneratorPalette graphite = GeneratorPalette._('graphite', 'Grafito', Color(0xFF0F0F0F), Color(0xFFEFEFEF));
 
-  static List<GeneratorPalette> get values => const [duotone, midnight, coral, wasabi, graphite];
+    static List<GeneratorPalette> get values => const [duotone, midnight, coral, wasabi, graphite];
 
-  static GeneratorPalette fromId(String id) {
-    return values.firstWhere((palette) => palette.id == id, orElse: () => duotone);
+    static GeneratorPalette fromId(String id) {
+      return values.firstWhere((palette) => palette.id == id, orElse: () => duotone);
+    }
+
+    static GeneratorPalette custom(Color foreground, Color background) {
+      return GeneratorPalette._('custom', 'Personalizado', foreground, background);
+    }
   }
-}
 
 class BatchEntry {
   BatchEntry({required this.payload, this.label});
@@ -2510,6 +2711,7 @@ class _ScannerPageState extends State<ScannerPage> with SingleTickerProviderStat
   void _togglePause() {
     setState(() {
       _paused = !_paused;
+      HapticFeedback.selectionClick();
       if (_paused) {
         _controller.stop();
         _laserController.stop();
@@ -2522,11 +2724,13 @@ class _ScannerPageState extends State<ScannerPage> with SingleTickerProviderStat
 
   void _toggleTorch() {
     _torchEnabled = !_torchEnabled;
+    HapticFeedback.selectionClick();
     _controller.toggleTorch();
     setState(() {});
   }
 
   void _switchCamera() {
+    HapticFeedback.selectionClick();
     _controller.switchCamera();
   }
 
@@ -2671,16 +2875,21 @@ class _ScannerActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: label,
-      child: Material(
-        color: Theme.of(context).colorScheme.surface.withOpacity(0.9),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 2,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
+      child: Semantics(
+        button: true,
+        label: label,
+        child: Material(
+          color: Theme.of(context).colorScheme.surface.withOpacity(0.9),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 2,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: SizedBox(
+              width: 56,
+              height: 56,
+              child: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
+            ),
           ),
         ),
       ),
@@ -2834,17 +3043,18 @@ class ScanResult {
         warnings: const <String>['Verifica el número antes de llamar.'],
       );
     }
-    if (rawValue.startsWith('http://') || rawValue.startsWith('https://')) {
-      final uri = Uri.tryParse(rawValue);
-      final warnings = <String>[];
-      if (uri != null && uri.scheme != 'https') warnings.add('Este enlace no usa HTTPS. Revísalo antes de abrir.');
-      if (uri != null && uri.host.contains('xn--')) warnings.add('El dominio contiene caracteres inusuales.');
-      if (uri != null && uri.scheme == 'http' && uri.port != 80) warnings.add('Puerto no estándar: ${uri.port}.');
-      return ScanResult(
-        payload: rawValue,
-        type: GeneratorContentType.url,
-        title: uri?.host ?? rawValue,
-        subtitle: uri?.path ?? '',
+      if (rawValue.startsWith('http://') || rawValue.startsWith('https://')) {
+        final uri = Uri.tryParse(rawValue);
+        final warnings = <String>[];
+        final host = uri?.host ?? '';
+        if (uri != null && uri.scheme != 'https') warnings.add('Enlace sin HTTPS');
+        if (host.contains('xn--') || RegExp(r'[^\x00-\x7F]').hasMatch(host)) warnings.add('Dominio inusual');
+        if (uri != null && uri.scheme == 'http' && uri.port != 80) warnings.add('Puerto no estándar: ${uri.port}');
+        return ScanResult(
+          payload: rawValue,
+          type: GeneratorContentType.url,
+          title: uri?.host ?? rawValue,
+          subtitle: uri?.path ?? '',
         smartActions: [
           SmartAction(icon: Icons.open_in_new, label: 'Abrir', action: SmartActionType.open),
           SmartAction(icon: Icons.copy, label: 'Copiar', action: SmartActionType.copy),
@@ -2954,10 +3164,19 @@ class ScannerActionSheet extends StatelessWidget {
                 ],
               ),
             ),
-            Wrap(
-              spacing: 8,
-              children: result.warnings.map((warning) => Chip(label: Text(warning), avatar: const Icon(Icons.warning, size: 18))).toList(),
-            ),
+              Wrap(
+                spacing: 8,
+                children: result.warnings
+                    .map(
+                      (warning) => Chip(
+                        avatar: const Icon(Icons.warning, size: 18),
+                        label: Text(warning),
+                        backgroundColor: Theme.of(context).colorScheme.tertiaryContainer,
+                        labelStyle: Theme.of(context).textTheme.labelMedium,
+                      ),
+                    )
+                    .toList(),
+              ),
             const SizedBox(height: 12),
             Expanded(
               child: SingleChildScrollView(
@@ -3034,12 +3253,14 @@ class HistoryPage extends StatefulWidget {
   State<HistoryPage> createState() => _HistoryPageState();
 }
 
-class _HistoryPageState extends State<HistoryPage> {
-  final TextEditingController _searchController = TextEditingController();
-  final Set<GeneratorContentType> _filters = <GeneratorContentType>{};
-  bool _selectionMode = false;
-  final Set<String> _selectedIds = <String>{};
-  String _sort = 'recent';
+  class _HistoryPageState extends State<HistoryPage> {
+    final TextEditingController _searchController = TextEditingController();
+    final Set<GeneratorContentType> _filters = <GeneratorContentType>{};
+    bool _selectionMode = false;
+    final Set<String> _selectedIds = <String>{};
+    String _sort = 'recent';
+    bool _onlyFavorites = false;
+    bool _onlyWithNotes = false;
 
   @override
   void initState() {
@@ -3057,7 +3278,8 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   Widget build(BuildContext context) {
     final appState = AppStateScope.of(context);
-    final entries = _applyFilters(appState.history);
+      final entries = _applyFilters(appState.history);
+      final grouped = _groupEntries(entries);
     final stats = _computeStats(appState.history);
     return HistoryDispatcher(
       toggleSelection: _toggleSelectionMode,
@@ -3067,54 +3289,73 @@ class _HistoryPageState extends State<HistoryPage> {
           _buildFilters(),
           _HistoryStatsRow(stats: stats),
           Expanded(
-            child: entries.isEmpty
-                ? _HistoryEmptyState(onCreate: () => HomeShell.of(context)?.switchTab(0))
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 120),
-                    itemCount: entries.length,
-                    itemBuilder: (context, index) => _HistoryTile(
-                      entry: entries[index],
-                      selected: _selectedIds.contains(entries[index].id),
-                      selectionMode: _selectionMode,
-                      onTap: () => _onEntryTap(entries[index]),
-                      onLongPress: () => _onEntryLongPress(entries[index]),
+              child: grouped.isEmpty
+                  ? _HistoryEmptyState(onCreate: () => HomeShell.of(context)?.switchTab(0))
+                  : ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 120),
+                      itemCount: grouped.length,
+                      itemBuilder: (context, index) {
+                        final item = grouped[index];
+                        return item.when(
+                          header: (label) => _HistoryGroupHeader(label: label),
+                          entry: (entry) => _HistoryTile(
+                            entry: entry,
+                            selected: _selectedIds.contains(entry.id),
+                            selectionMode: _selectionMode,
+                            onTap: () => _onEntryTap(entry),
+                            onLongPress: () => _onEntryLongPress(entry),
+                          ),
+                        );
+                      },
                     ),
-                  ),
-          ),
-          if (_selectionMode) _HistorySelectionBar(onCopy: _copySelected, onShare: _shareSelected, onDelete: _deleteSelected, count: _selectedIds.length),
-        ],
-      ),
+            ),
+            if (_selectionMode)
+              _HistorySelectionBar(
+                onCopy: _copySelected,
+                onShare: _shareSelected,
+                onExport: _exportSelected,
+                onDelete: _deleteSelected,
+                count: _selectedIds.length,
+              ),
+          ],
+        ),
     );
   }
 
-  List<HistoryEntry> _applyFilters(List<HistoryEntry> entries) {
-    Iterable<HistoryEntry> filtered = entries;
-    if (_filters.isNotEmpty) {
-      filtered = filtered.where((entry) => _filters.contains(entry.type));
+    List<HistoryEntry> _applyFilters(List<HistoryEntry> entries) {
+      Iterable<HistoryEntry> filtered = entries;
+      if (_filters.isNotEmpty) {
+        filtered = filtered.where((entry) => _filters.contains(entry.type));
+      }
+      if (_onlyFavorites) {
+        filtered = filtered.where((entry) => entry.favorite);
+      }
+      if (_onlyWithNotes) {
+        filtered = filtered.where((entry) => entry.note.trim().isNotEmpty);
+      }
+      final query = _searchController.text.trim().toLowerCase();
+      if (query.isNotEmpty) {
+        filtered = filtered.where((entry) => entry.value.toLowerCase().contains(query) || entry.displayLabel.toLowerCase().contains(query));
+      }
+      List<HistoryEntry> sorted = filtered.toList();
+      switch (_sort) {
+        case 'recent':
+          sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          break;
+        case 'old':
+          sorted.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          break;
+        case 'az':
+          sorted.sort((a, b) => a.displayLabel.compareTo(b.displayLabel));
+          break;
+        case 'za':
+          sorted.sort((a, b) => b.displayLabel.compareTo(a.displayLabel));
+          break;
+      }
+      return sorted;
     }
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isNotEmpty) {
-      filtered = filtered.where((entry) => entry.value.toLowerCase().contains(query) || entry.displayLabel.toLowerCase().contains(query));
-    }
-    List<HistoryEntry> sorted = filtered.toList();
-    switch (_sort) {
-      case 'recent':
-        sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        break;
-      case 'old':
-        sorted.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-        break;
-      case 'az':
-        sorted.sort((a, b) => a.displayLabel.compareTo(b.displayLabel));
-        break;
-      case 'za':
-        sorted.sort((a, b) => b.displayLabel.compareTo(a.displayLabel));
-        break;
-    }
-    return sorted;
-  }
 
-  HistoryStats _computeStats(List<HistoryEntry> entries) {
+    HistoryStats _computeStats(List<HistoryEntry> entries) {
     final now = DateTime.now();
     final thisWeek = entries.where((e) => now.difference(e.createdAt).inDays < 7).length;
     final qrCount = entries.where((e) => !e.type.isBarcode).length;
@@ -3138,29 +3379,49 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  Widget _buildFilters() {
-    final chips = GeneratorContentType.values
-        .map((type) => FilterChip(
-              label: Text(type.label),
-              avatar: Icon(type.icon, size: 18),
-              selected: _filters.contains(type),
-              onSelected: (_) {
-                setState(() {
-                  if (_filters.contains(type)) {
-                    _filters.remove(type);
-                  } else {
-                    _filters.add(type);
-                  }
-                });
-              },
-            ))
-        .toList();
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(children: chips + [_buildSortMenu()]),
-    );
-  }
+    Widget _buildFilters() {
+      final List<Widget> chips = GeneratorContentType.values
+          .map((type) => FilterChip(
+                label: Text(type.label),
+                avatar: Icon(type.icon, size: 18),
+                selected: _filters.contains(type),
+                onSelected: (_) {
+                  setState(() {
+                    if (_filters.contains(type)) {
+                      _filters.remove(type);
+                    } else {
+                      _filters.add(type);
+                    }
+                  });
+                },
+              ))
+          .toList();
+      chips.addAll([
+        FilterChip(
+          label: const Text('Solo favoritos'),
+          avatar: const Icon(Icons.star, size: 18),
+          selected: _onlyFavorites,
+          onSelected: (value) => setState(() => _onlyFavorites = value),
+        ),
+        FilterChip(
+          label: const Text('Con notas'),
+          avatar: const Icon(Icons.sticky_note_2, size: 18),
+          selected: _onlyWithNotes,
+          onSelected: (value) => setState(() => _onlyWithNotes = value),
+        ),
+      ]);
+      chips.add(_buildSortMenu());
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: chips,
+        ),
+      );
+    }
 
   Widget _buildSortMenu() {
     return PopupMenuButton<String>(
@@ -3219,25 +3480,82 @@ class _HistoryPageState extends State<HistoryPage> {
     _toggleSelectionMode();
   }
 
-  Future<void> _shareSelected() async {
-    final appState = AppStateScope.of(context);
-    final selected = appState.history.where((entry) => _selectedIds.contains(entry.id)).map((e) => e.value).join('\n');
-    await Share.share(selected, subject: 'Historial Nexus QR');
-    _toggleSelectionMode();
-  }
+    Future<void> _shareSelected() async {
+      final appState = AppStateScope.of(context);
+      final selectedEntries = appState.history.where((entry) => _selectedIds.contains(entry.id)).toList();
+      if (selectedEntries.any((entry) => entry.isSensitive)) {
+        final proceed = await _confirmHistorySensitive(context);
+        if (proceed != true) return;
+      }
+      final selected = selectedEntries.map((e) => e.value).join('\n');
+      await Share.share(selected, subject: 'Historial Nexus QR');
+      _toggleSelectionMode();
+    }
 
-  Future<void> _deleteSelected() async {
-    final appState = AppStateScope.of(context);
-    await appState.removeHistory(_selectedIds);
-    _toggleSelectionMode();
-  }
+    Future<void> _deleteSelected() async {
+      final appState = AppStateScope.of(context);
+      final removed = await appState.removeHistory(_selectedIds);
+      _toggleSelectionMode();
+      _showUndoSnack(removed);
+    }
 
-  Future<void> _updateEntry(HistoryEntry entry) async {
-    await AppStateScope.of(context).updateHistory(entry);
-  }
+    Future<void> _exportSelected() async {
+      final appState = AppStateScope.of(context);
+      final entries = appState.history.where((entry) => _selectedIds.contains(entry.id)).toList();
+      if (entries.isEmpty) return;
+      final format = await showModalBottomSheet<String>(
+        context: context,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        builder: (context) => _ExportFormatSheet(),
+      );
+      if (format == null) return;
+      if (format == 'csv') {
+        final csv = StringBuffer('"id","type","label","value","createdAt","favorite","note"\n');
+        for (final entry in entries) {
+          csv.writeln('"${entry.id}","${entry.type.name}","${_escapeCsv(entry.displayLabel)}","${_escapeCsv(entry.value)}","${entry.createdAt.toIso8601String()}","${entry.favorite}","${_escapeCsv(entry.note)}"');
+        }
+        await Share.share(csv.toString(), subject: 'Historial CSV');
+      } else {
+        final payload = jsonEncode(entries.map((e) => e.toJson()).toList());
+        await Share.share(payload, subject: 'Historial JSON');
+      }
+      _toggleSelectionMode();
+    }
 
-  Future<void> _deleteEntry(HistoryEntry entry) async {
-    await AppStateScope.of(context).removeHistory(<String>{entry.id});
+    Future<void> _updateEntry(HistoryEntry entry) async {
+      await AppStateScope.of(context).updateHistory(entry);
+    }
+
+    Future<void> _deleteEntry(HistoryEntry entry) async {
+      final removed = await AppStateScope.of(context).removeHistory(<String>{entry.id});
+      _showUndoSnack(removed);
+    }
+
+    void _showUndoSnack(List<HistoryEntry> removed) {
+      if (removed.isEmpty) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(Icons.delete_outline),
+              SizedBox(width: 12),
+              Expanded(child: Text('Elementos eliminados')),
+            ],
+          ),
+          action: SnackBarAction(
+            label: 'Deshacer',
+            onPressed: () {
+              final appState = AppStateScope.of(context);
+              for (final entry in removed.reversed) {
+                appState.addHistory(entry, force: true);
+              }
+            },
+          ),
+        ),
+      );
+    }
+
+    String _escapeCsv(String value) => value.replaceAll('"', '""');
   }
 }
 
@@ -3327,10 +3645,11 @@ class _HistoryEmptyState extends StatelessWidget {
 }
 
 class _HistorySelectionBar extends StatelessWidget {
-  const _HistorySelectionBar({required this.onCopy, required this.onShare, required this.onDelete, required this.count});
+  const _HistorySelectionBar({required this.onCopy, required this.onShare, required this.onExport, required this.onDelete, required this.count});
 
   final Future<void> Function() onCopy;
   final Future<void> Function() onShare;
+  final Future<void> Function() onExport;
   final Future<void> Function() onDelete;
   final int count;
 
@@ -3346,10 +3665,107 @@ class _HistorySelectionBar extends StatelessWidget {
         children: [
           Text('$count seleccionados'),
           const Spacer(),
-          IconButton(onPressed: () => onCopy(), icon: const Icon(Icons.copy_all)),
-          IconButton(onPressed: () => onShare(), icon: const Icon(Icons.ios_share)),
-          IconButton(onPressed: () => onDelete(), icon: const Icon(Icons.delete_outline)),
+          _SelectionActionButton(icon: Icons.copy_all, tooltip: 'Copiar', onPressed: onCopy),
+          _SelectionActionButton(icon: Icons.ios_share, tooltip: 'Compartir', onPressed: onShare),
+          _SelectionActionButton(icon: Icons.file_download, tooltip: 'Exportar', onPressed: onExport),
+          _SelectionActionButton(icon: Icons.delete_outline, tooltip: 'Eliminar', onPressed: onDelete),
         ],
+      ),
+    );
+  }
+}
+
+class _SelectionActionButton extends StatelessWidget {
+  const _SelectionActionButton({required this.icon, required this.tooltip, required this.onPressed});
+
+  final IconData icon;
+  final String tooltip;
+  final Future<void> Function() onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: IconButton(
+            onPressed: () => onPressed(),
+            icon: Icon(icon),
+            splashRadius: 24,
+            padding: EdgeInsets.zero,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExportFormatSheet extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Exportar historial', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.table_chart),
+              title: const Text('CSV'),
+              subtitle: const Text('Ideal para hojas de cálculo y análisis rápidos'),
+              onTap: () => Navigator.of(context).pop('csv'),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.data_object),
+              title: const Text('JSON'),
+              subtitle: const Text('Incluye todos los metadatos de cada elemento'),
+              onTap: () => Navigator.of(context).pop('json'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryListItem {
+  const _HistoryListItem._({this.label, this.entry});
+
+  final String? label;
+  final HistoryEntry? entry;
+
+  factory _HistoryListItem.header(String label) => _HistoryListItem._(label: label);
+  factory _HistoryListItem.entry(HistoryEntry entry) => _HistoryListItem._(entry: entry);
+
+  T when<T>({required T Function(String label) header, required T Function(HistoryEntry entry) entry}) {
+    if (label != null) {
+      return header(label!);
+    }
+    return entry(this.entry!);
+  }
+}
+
+class _HistoryGroupHeader extends StatelessWidget {
+  const _HistoryGroupHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -3366,31 +3782,72 @@ class _HistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      color: selected ? Theme.of(context).colorScheme.secondaryContainer : null,
+      color: selected ? colorScheme.secondaryContainer : null,
+      elevation: 2,
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         onTap: onTap,
         onLongPress: onLongPress,
-        leading: CircleAvatar(child: Icon(entry.type.icon)),
+        leading: Hero(
+          tag: entry.id,
+          child: CircleAvatar(
+            backgroundColor: colorScheme.primaryContainer,
+            child: Icon(entry.type.icon, color: colorScheme.primary),
+          ),
+        ),
         title: Text(entry.displayLabel.isEmpty ? entry.value : entry.displayLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text('${entry.type.label} · ${_formatDate(entry.createdAt)}'),
+        subtitle: Text('${entry.type.label} · ${_formatDate(entry.createdAt)}${entry.note.isNotEmpty ? ' · Nota' : ''}'),
         trailing: selectionMode
             ? Icon(selected ? Icons.check_circle : Icons.circle_outlined)
-            : PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'copy') {
-                    FlutterClipboard.copy(entry.value);
-                  } else if (value == 'share') {
-                    Share.share(entry.value, subject: entry.displayLabel);
-                  } else if (value == 'delete') {
-                    AppStateScope.of(context).removeHistory(<String>{entry.id});
-                  }
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(value: 'copy', child: Text('Copiar')),
-                  PopupMenuItem(value: 'share', child: Text('Compartir')),
-                  PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+            : Wrap(
+                spacing: 4,
+                children: [
+                  _HistoryActionButton(
+                    icon: Icons.copy_all,
+                    tooltip: 'Copiar',
+                    onPressed: () async {
+                      await FlutterClipboard.copy(entry.value);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copiado al portapapeles')));
+                    },
+                  ),
+                  _HistoryActionButton(
+                    icon: Icons.ios_share,
+                    tooltip: 'Compartir',
+                    onPressed: () async {
+                      if (entry.isSensitive) {
+                        final proceed = await _confirmHistorySensitive(context);
+                        if (proceed != true) return;
+                      }
+                      await Share.share(entry.value, subject: entry.displayLabel);
+                    },
+                  ),
+                  _HistoryActionButton(
+                    icon: Icons.open_in_new,
+                    tooltip: 'Abrir',
+                    onPressed: () async {
+                      final uri = entry.type.tryParseUri(entry.value);
+                      if (uri == null || !isAllowedScheme(uri.scheme)) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Destino no compatible')));
+                        return;
+                      }
+                      if (!await canLaunchUrl(uri)) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir')));
+                        return;
+                      }
+                      await launchUrl(uri, mode: LaunchMode.platformDefault);
+                    },
+                  ),
+                  _HistoryActionButton(
+                    icon: entry.favorite ? Icons.star : Icons.star_border,
+                    tooltip: entry.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos',
+                    onPressed: () async {
+                      final updated = entry.copyWith(favorite: !entry.favorite);
+                      await AppStateScope.of(context).updateHistory(updated);
+                    },
+                  ),
                 ],
               ),
       ),
@@ -3399,11 +3856,54 @@ class _HistoryTile extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
-    final difference = now.difference(date);
-    if (difference.inMinutes < 60) return '${difference.inMinutes} min';
-    if (difference.inHours < 24) return '${difference.inHours} h';
-    return '${date.day}/${date.month}/${date.year}';
+    if (now.difference(date).inHours < 24) {
+      return DateFormat.Hm().format(date);
+    }
+    return DateFormat.yMd().format(date);
   }
+}
+
+class _HistoryActionButton extends StatelessWidget {
+  const _HistoryActionButton({required this.icon, required this.tooltip, required this.onPressed});
+
+  final IconData icon;
+  final String tooltip;
+  final Future<void> Function() onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: IconButton(
+            onPressed: () => onPressed(),
+            icon: Icon(icon, size: 22),
+            splashRadius: 24,
+            padding: EdgeInsets.zero,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<bool?> _confirmHistorySensitive(BuildContext context) {
+  return showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Contenido sensible'),
+      content: const Text('Este elemento contiene datos sensibles. ¿Seguro que deseas compartirlo?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+        FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Continuar')),
+      ],
+    ),
+  );
 }
 
 
@@ -3477,19 +3977,25 @@ class _HistoryDetailSheetState extends State<HistoryDetailSheet> {
             Wrap(
               spacing: 12,
               children: [
-                FilledButton.icon(
-                  onPressed: () {
-                    FlutterClipboard.copy(entry.value);
-                    Navigator.of(context).pop();
-                  },
-                  icon: const Icon(Icons.copy_all),
-                  label: const Text('Copiar'),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: () => Share.share(entry.value, subject: entry.displayLabel),
-                  icon: const Icon(Icons.share),
-                  label: const Text('Compartir'),
-                ),
+                  FilledButton.icon(
+                    onPressed: () async {
+                      await FlutterClipboard.copy(entry.value);
+                      if (mounted) Navigator.of(context).pop();
+                    },
+                    icon: const Icon(Icons.copy_all),
+                    label: const Text('Copiar'),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: () async {
+                      if (entry.isSensitive) {
+                        final proceed = await _confirmHistorySensitive(context);
+                        if (proceed != true) return;
+                      }
+                      await Share.share(entry.value, subject: entry.displayLabel);
+                    },
+                    icon: const Icon(Icons.share),
+                    label: const Text('Compartir'),
+                  ),
                 TextButton.icon(
                   onPressed: () async {
                     await widget.onDelete(entry);
@@ -3795,3 +4301,28 @@ class _OnboardingSlide {
   final String title;
   final String description;
 }
+    List<_HistoryListItem> _groupEntries(List<HistoryEntry> entries) {
+      final items = <_HistoryListItem>[];
+      String? currentLabel;
+      for (final entry in entries) {
+        final label = _groupLabel(entry.createdAt);
+        if (label != currentLabel) {
+          items.add(_HistoryListItem.header(label));
+          currentLabel = label;
+        }
+        items.add(_HistoryListItem.entry(entry));
+      }
+      return items;
+    }
+
+    String _groupLabel(DateTime date) {
+      final now = DateTime.now();
+      final difference = DateUtils.dateOnly(now).difference(DateUtils.dateOnly(date)).inDays;
+      if (difference == 0) return 'Hoy';
+      if (difference == 1) return 'Ayer';
+      if (difference < 7) return 'Últimos 7 días';
+      if (difference < 30) return 'Este mes';
+      final locale = Localizations.localeOf(context).languageCode;
+      return DateFormat.yMMMM(locale).format(date);
+    }
+
