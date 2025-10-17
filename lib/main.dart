@@ -58,7 +58,7 @@ class AppState extends ChangeNotifier {
   bool _autoSaveSensitive = false;
   bool _seenOnboarding = false;
   Color _seed = kSeedColor;
-  String _defaultPalette = GeneratorPalette.duotone.id;
+  String _defaultPalette = GeneratorPalette.midnight.id;
   double _defaultQuietZone = 4;
   int _defaultScale = 2;
   int _autoCleanDays = 30;
@@ -86,7 +86,7 @@ class AppState extends ChangeNotifier {
     _autoSaveSensitive = _prefs?.getBool('auto_save_sensitive') ?? false;
     _seenOnboarding = _prefs?.getBool(kOnboardingKey) ?? false;
     _seed = Color(_prefs?.getInt('seed_color') ?? kSeedColor.value);
-    _defaultPalette = _prefs?.getString('default_palette') ?? GeneratorPalette.duotone.id;
+    _defaultPalette = _prefs?.getString('default_palette') ?? GeneratorPalette.midnight.id;
     _defaultQuietZone = (_prefs?.getDouble('quiet_zone') ?? 4).clamp(0, 32);
     _defaultScale = (_prefs?.getInt('default_scale') ?? 2).clamp(1, 4);
     _autoCleanDays = _prefs?.getInt('auto_clean_days') ?? 30;
@@ -133,14 +133,14 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> setDefaultQuietZone(double value) async {
-    _defaultQuietZone = value;
-    await _prefs?.setDouble('quiet_zone', value);
+    _defaultQuietZone = value.clamp(0, 32);
+    await _prefs?.setDouble('quiet_zone', _defaultQuietZone);
     notifyListeners();
   }
 
   Future<void> setDefaultScale(int value) async {
-    _defaultScale = value;
-    await _prefs?.setInt('default_scale', value);
+    _defaultScale = value.clamp(1, 4);
+    await _prefs?.setInt('default_scale', _defaultScale);
     notifyListeners();
   }
 
@@ -384,6 +384,9 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   final PageController _pageController = PageController();
   final ValueNotifier<FabIntent> _fabIntent = ValueNotifier<FabIntent>(FabIntent.generate);
+  final GlobalKey<_GeneratorPageState> _generatorKey = GlobalKey<_GeneratorPageState>();
+  final GlobalKey<_HistoryPageState> _historyKey = GlobalKey<_HistoryPageState>();
+  final GlobalKey<_ScannerPageState> _scannerKey = GlobalKey<_ScannerPageState>();
   int _index = 0;
   bool _showOnboarding = false;
 
@@ -423,93 +426,410 @@ class _HomeShellState extends State<HomeShell> {
       const NavigationDestination(icon: Icon(Icons.tune_outlined), selectedIcon: Icon(Icons.tune), label: 'Ajustes'),
     ];
     final pages = <Widget>[
-      GeneratorPage(onFabIntentChanged: _fabIntent),
-      ScannerPage(onFabIntentChanged: _fabIntent),
-      HistoryPage(onFabIntentChanged: _fabIntent),
+      GeneratorPage(key: _generatorKey, onFabIntentChanged: _fabIntent),
+      ScannerPage(key: _scannerKey, onFabIntentChanged: _fabIntent),
+      HistoryPage(key: _historyKey, onFabIntentChanged: _fabIntent),
       SettingsPage(onFabIntentChanged: _fabIntent),
     ];
-    return Scaffold(
-      extendBody: true,
-      body: SafeArea(
-        child: Row(
-          children: [
-            if (wide)
-              NavigationRail(
-                selectedIndex: _index,
-                extended: media.size.width >= 1200,
-                destinations: const [
-                  NavigationRailDestination(icon: Icon(Icons.qr_code_2_outlined), selectedIcon: Icon(Icons.qr_code_2), label: Text('Crear')),
-                  NavigationRailDestination(icon: Icon(Icons.center_focus_strong_outlined), selectedIcon: Icon(Icons.center_focus_strong), label: Text('Escanear')),
-                  NavigationRailDestination(icon: Icon(Icons.history_toggle_off), selectedIcon: Icon(Icons.history), label: Text('Historial')),
-                  NavigationRailDestination(icon: Icon(Icons.tune_outlined), selectedIcon: Icon(Icons.tune), label: Text('Ajustes')),
-                ],
-                backgroundColor: Theme.of(context).colorScheme.surface,
-                indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
-                onDestinationSelected: _onDestinationSelected,
-                leading: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text('Nexus QR', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-                ),
-              ),
-            Expanded(
-              child: Stack(
+    final shortcuts = <ShortcutActivator, Intent>{
+      LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyK): const OpenCommandPaletteIntent(),
+      LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyK): const OpenCommandPaletteIntent(),
+      LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyC): const CopyPayloadIntent(),
+      LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyC): const CopyPayloadIntent(),
+      LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS): const DownloadPayloadIntent(),
+      LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyS): const DownloadPayloadIntent(),
+      LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyF): const SearchHistoryIntent(),
+      LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyF): const SearchHistoryIntent(),
+      LogicalKeySet(LogicalKeyboardKey.delete): const DeleteHistorySelectionIntent(),
+      LogicalKeySet(LogicalKeyboardKey.space): const PauseScannerIntent(),
+      LogicalKeySet(LogicalKeyboardKey.keyF): const ToggleTorchIntent(),
+      LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.equal): const IncreaseScaleIntent(),
+      LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.equal): const IncreaseScaleIntent(),
+      LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.minus): const DecreaseScaleIntent(),
+      LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.minus): const DecreaseScaleIntent(),
+    };
+
+    final actions = <Type, Action<Intent>>{
+      OpenCommandPaletteIntent: CallbackAction<OpenCommandPaletteIntent>(onInvoke: (_) {
+        _showCommandPalette();
+        return null;
+      }),
+      CopyPayloadIntent: CallbackAction<CopyPayloadIntent>(onInvoke: (_) {
+        if (_generatorKey.currentState != null) {
+          _onDestinationSelected(0);
+          _generatorKey.currentState!.copyCurrent();
+        }
+        return null;
+      }),
+      DownloadPayloadIntent: CallbackAction<DownloadPayloadIntent>(onInvoke: (_) {
+        if (_generatorKey.currentState != null) {
+          _onDestinationSelected(0);
+          _generatorKey.currentState!.downloadCurrent();
+        }
+        return null;
+      }),
+      SearchHistoryIntent: CallbackAction<SearchHistoryIntent>(onInvoke: (_) {
+        _onDestinationSelected(2);
+        WidgetsBinding.instance.addPostFrameCallback((_) => _historyKey.currentState?.focusSearchField());
+        return null;
+      }),
+      DeleteHistorySelectionIntent: CallbackAction<DeleteHistorySelectionIntent>(onInvoke: (_) {
+        _historyKey.currentState?.deleteSelection();
+        return null;
+      }),
+      PauseScannerIntent: CallbackAction<PauseScannerIntent>(onInvoke: (_) {
+        if (_index == 1) {
+          _scannerKey.currentState?.togglePauseExternally();
+        }
+        return null;
+      }),
+      ToggleTorchIntent: CallbackAction<ToggleTorchIntent>(onInvoke: (_) {
+        if (_index == 1) {
+          _scannerKey.currentState?.toggleTorchExternally();
+        }
+        return null;
+      }),
+      IncreaseScaleIntent: CallbackAction<IncreaseScaleIntent>(onInvoke: (_) {
+        _generatorKey.currentState?.increaseExportScale();
+        return null;
+      }),
+      DecreaseScaleIntent: CallbackAction<DecreaseScaleIntent>(onInvoke: (_) {
+        _generatorKey.currentState?.decreaseExportScale();
+        return null;
+      }),
+    };
+
+    return Shortcuts(
+      shortcuts: shortcuts,
+      child: Actions(
+        actions: actions,
+        child: FocusTraversalGroup(
+          policy: WidgetOrderTraversalPolicy(),
+          child: Scaffold(
+            extendBody: true,
+            body: SafeArea(
+              child: Row(
                 children: [
-                  PageView(
-                    controller: _pageController,
-                    physics: const ClampingScrollPhysics(),
-                    onPageChanged: (index) => setState(() => _index = index),
-                    children: pages,
-                  ),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        left: wide ? 96 : 16,
-                        right: wide ? 96 : 16,
-                        bottom: media.padding.bottom + (wide ? 32 : 100),
-                      ),
-                      child: ValueListenableBuilder<FabIntent>(
-                        valueListenable: _fabIntent,
-                        builder: (context, intent, _) {
-                          if (intent == FabIntent.none) return const SizedBox.shrink();
-                          return AnimatedSwitcher(
-                            duration: kShortAnim,
-                            transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
-                            child: _FabSwitcher(intent: intent),
-                          );
-                        },
+                  if (wide)
+                    NavigationRail(
+                      selectedIndex: _index,
+                      extended: media.size.width >= 1200,
+                      destinations: const [
+                        NavigationRailDestination(icon: Icon(Icons.qr_code_2_outlined), selectedIcon: Icon(Icons.qr_code_2), label: Text('Crear')),
+                        NavigationRailDestination(icon: Icon(Icons.center_focus_strong_outlined), selectedIcon: Icon(Icons.center_focus_strong), label: Text('Escanear')),
+                        NavigationRailDestination(icon: Icon(Icons.history_toggle_off), selectedIcon: Icon(Icons.history), label: Text('Historial')),
+                        NavigationRailDestination(icon: Icon(Icons.tune_outlined), selectedIcon: Icon(Icons.tune), label: Text('Ajustes')),
+                      ],
+                      backgroundColor: Theme.of(context).colorScheme.surface,
+                      indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
+                      onDestinationSelected: _onDestinationSelected,
+                      leading: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text('Nexus QR', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                       ),
                     ),
-                  ),
-                  if (_showOnboarding)
-                    Positioned.fill(
-                      child: OnboardingOverlay(
-                        onClose: () {
-                          AppStateScope.of(context).markOnboardingSeen();
-                          setState(() => _showOnboarding = false);
-                        },
-                      ),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        PageView(
+                          controller: _pageController,
+                          physics: const ClampingScrollPhysics(),
+                          onPageChanged: (index) => setState(() => _index = index),
+                          children: pages,
+                        ),
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              left: wide ? 96 : 16,
+                              right: wide ? 96 : 16,
+                              bottom: media.padding.bottom + (wide ? 32 : 100),
+                            ),
+                            child: ValueListenableBuilder<FabIntent>(
+                              valueListenable: _fabIntent,
+                              builder: (context, intent, _) {
+                                if (intent == FabIntent.none) return const SizedBox.shrink();
+                                return AnimatedSwitcher(
+                                  duration: kShortAnim,
+                                  transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+                                  child: _FabSwitcher(intent: intent),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        if (_showOnboarding)
+                          Positioned.fill(
+                            child: OnboardingOverlay(
+                              onClose: () {
+                                AppStateScope.of(context).markOnboardingSeen();
+                                setState(() => _showOnboarding = false);
+                              },
+                            ),
+                          ),
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),
-          ],
+            bottomNavigationBar: wide
+                ? null
+                : NavigationBar(
+                    selectedIndex: _index,
+                    destinations: destinations,
+                    onDestinationSelected: _onDestinationSelected,
+                  ),
+          ),
         ),
       ),
-      bottomNavigationBar: wide
-          ? null
-          : NavigationBar(
-              selectedIndex: _index,
-              destinations: destinations,
-              onDestinationSelected: _onDestinationSelected,
-            ),
     );
+  }
+
+  void _showCommandPalette() {
+    final controller = TextEditingController();
+    final commands = _buildCommandEntries();
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        String query = '';
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final filtered = commands.where((command) => command.matches(query)).toList();
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                      child: TextField(
+                        controller: controller,
+                        autofocus: true,
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.search),
+                          hintText: 'Acción rápida…',
+                        ),
+                        onChanged: (value) => setState(() => query = value),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    SizedBox(
+                      height: min(360, 72.0 * max(1, filtered.length)),
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Text('Sin resultados, prueba otra búsqueda', style: Theme.of(context).textTheme.bodyMedium),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final entry = filtered[index];
+                                return ListTile(
+                                  leading: Icon(entry.icon),
+                                  title: Text(entry.title),
+                                  subtitle: Text(entry.subtitle),
+                                  onTap: () {
+                                    Navigator.of(dialogContext).pop();
+                                    entry.onSelected();
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() => controller.dispose());
+  }
+
+  List<CommandEntry> _buildCommandEntries() {
+    return [
+      CommandEntry(
+        title: 'Crear QR Wi-Fi',
+        subtitle: 'Plantilla de invitados segura',
+        icon: Icons.wifi,
+        keywords: const ['wifi', 'crear', 'qr'],
+        onSelected: () {
+          _onDestinationSelected(0);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _generatorKey.currentState?.selectType(GeneratorContentType.wifi);
+          });
+        },
+      ),
+      CommandEntry(
+        title: 'Crear QR URL',
+        subtitle: 'Analiza y genera enlaces',
+        icon: Icons.link,
+        keywords: const ['url', 'enlace'],
+        onSelected: () {
+          _onDestinationSelected(0);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _generatorKey.currentState?.selectType(GeneratorContentType.url);
+          });
+        },
+      ),
+      CommandEntry(
+        title: 'Crear QR vCard',
+        subtitle: 'Tarjeta profesional',
+        icon: Icons.badge,
+        keywords: const ['vcard', 'contacto'],
+        onSelected: () {
+          _onDestinationSelected(0);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _generatorKey.currentState?.selectType(GeneratorContentType.vcard);
+          });
+        },
+      ),
+      CommandEntry(
+        title: 'Activar modo lote',
+        subtitle: 'Procesa múltiples códigos',
+        icon: Icons.playlist_add_check,
+        keywords: const ['lote', 'batch'],
+        onSelected: () {
+          _onDestinationSelected(0);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _generatorKey.currentState?.openBatchMode();
+          });
+        },
+      ),
+      CommandEntry(
+        title: 'Copiar código actual',
+        subtitle: 'Envía el contenido al portapapeles',
+        icon: Icons.copy_all,
+        keywords: const ['copiar'],
+        onSelected: () => _generatorKey.currentState?.copyCurrent(),
+      ),
+      CommandEntry(
+        title: 'Descargar PNG',
+        subtitle: 'Exporta la vista previa',
+        icon: Icons.download,
+        keywords: const ['descargar', 'png'],
+        onSelected: () => _generatorKey.currentState?.downloadCurrent(),
+      ),
+      CommandEntry(
+        title: 'Ir al escáner',
+        subtitle: 'Activa la cámara y el láser',
+        icon: Icons.center_focus_strong,
+        keywords: const ['scanner', 'scan'],
+        onSelected: () => _onDestinationSelected(1),
+      ),
+      CommandEntry(
+        title: 'Linterna del escáner',
+        subtitle: 'Alterna el flash',
+        icon: Icons.flashlight_on,
+        keywords: const ['linterna', 'flash'],
+        onSelected: () {
+          _onDestinationSelected(1);
+          WidgetsBinding.instance.addPostFrameCallback((_) => _scannerKey.currentState?.toggleTorchExternally());
+        },
+      ),
+      CommandEntry(
+        title: 'Buscar en historial',
+        subtitle: 'Filtra códigos anteriores',
+        icon: Icons.search,
+        keywords: const ['historial', 'buscar'],
+        onSelected: () {
+          _onDestinationSelected(2);
+          WidgetsBinding.instance.addPostFrameCallback((_) => _historyKey.currentState?.focusSearchField());
+        },
+      ),
+      CommandEntry(
+        title: 'Historial favoritos',
+        subtitle: 'Muestra solo los destacados',
+        icon: Icons.star,
+        keywords: const ['favoritos'],
+        onSelected: () {
+          _onDestinationSelected(2);
+          WidgetsBinding.instance.addPostFrameCallback((_) => _historyKey.currentState?.enableFavoritesView());
+        },
+      ),
+      CommandEntry(
+        title: 'Historial con notas',
+        subtitle: 'Entradas con anotaciones',
+        icon: Icons.sticky_note_2,
+        keywords: const ['notas'],
+        onSelected: () {
+          _onDestinationSelected(2);
+          WidgetsBinding.instance.addPostFrameCallback((_) => _historyKey.currentState?.enableNotesView());
+        },
+      ),
+    ];
+  }
+}
+
+class CommandEntry {
+  CommandEntry({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onSelected,
+    this.keywords = const <String>[],
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onSelected;
+  final List<String> keywords;
+
+  bool matches(String query) {
+    if (query.isEmpty) return true;
+    final lower = query.toLowerCase();
+    return title.toLowerCase().contains(lower) ||
+        subtitle.toLowerCase().contains(lower) ||
+        keywords.any((word) => word.toLowerCase().contains(lower));
   }
 }
 
 enum FabIntent { none, generate, refresh, flashlight, batch, historyActions }
 
 typedef FabIntentNotifier = ValueNotifier<FabIntent>;
+
+class OpenCommandPaletteIntent extends Intent {
+  const OpenCommandPaletteIntent();
+}
+
+class CopyPayloadIntent extends Intent {
+  const CopyPayloadIntent();
+}
+
+class DownloadPayloadIntent extends Intent {
+  const DownloadPayloadIntent();
+}
+
+class SearchHistoryIntent extends Intent {
+  const SearchHistoryIntent();
+}
+
+class DeleteHistorySelectionIntent extends Intent {
+  const DeleteHistorySelectionIntent();
+}
+
+class PauseScannerIntent extends Intent {
+  const PauseScannerIntent();
+}
+
+class ToggleTorchIntent extends Intent {
+  const ToggleTorchIntent();
+}
+
+class IncreaseScaleIntent extends Intent {
+  const IncreaseScaleIntent();
+}
+
+class DecreaseScaleIntent extends Intent {
+  const DecreaseScaleIntent();
+}
 
 class _FabSwitcher extends StatelessWidget {
   const _FabSwitcher({required this.intent});
@@ -567,11 +887,25 @@ class _FabSwitcher extends StatelessWidget {
 }
 
 class GeneratorDispatcher extends InheritedWidget {
-  const GeneratorDispatcher({super.key, required super.child, required this.generate, required this.refresh, required this.batch});
+  const GeneratorDispatcher({
+    super.key,
+    required super.child,
+    required this.generate,
+    required this.refresh,
+    required this.batch,
+    required this.copy,
+    required this.share,
+    required this.download,
+    required this.open,
+  });
 
   final VoidCallback generate;
   final VoidCallback refresh;
   final VoidCallback batch;
+  final VoidCallback copy;
+  final VoidCallback share;
+  final VoidCallback download;
+  final VoidCallback open;
 
   static GeneratorDispatcher of(BuildContext context) {
     final dispatcher = context.dependOnInheritedWidgetOfExactType<GeneratorDispatcher>();
@@ -628,17 +962,23 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
   final Map<GeneratorContentType, GeneratorFormState> _states = <GeneratorContentType, GeneratorFormState>{};
   final ValueNotifier<bool> _batchEnabled = ValueNotifier<bool>(false);
   GeneratorContentType _selectedType = GeneratorContentType.url;
-  GeneratorPalette _palette = GeneratorPalette.duotone;
-  Color _foreground = GeneratorPalette.duotone.foreground;
-  Color _background = GeneratorPalette.duotone.background;
+  GeneratorPalette _palette = GeneratorPalette.midnight;
+  Color _foreground = GeneratorPalette.midnight.foreground;
+  Color _background = GeneratorPalette.midnight.background;
   double _quietZone = 4;
+  int _exportScale = 2;
   bool _showLogo = false;
+  double _logoScale = 0.18;
   Uint8List? _logoBytes;
   bool _skeleton = true;
   bool _isSharing = false;
   bool _isDownloading = false;
   GeneratorPalette? _customPalette;
   bool _defaultsResolved = false;
+  bool _autoLivePreview = true;
+  bool _previewDirty = false;
+  String _previewPayload = '';
+  Timer? _previewDebounce;
 
   @override
   void initState() {
@@ -660,7 +1000,9 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
     _foreground = _palette.foreground;
     _background = _palette.background;
     _quietZone = state.defaultQuietZone;
+    _exportScale = state.defaultScale;
     _defaultsResolved = true;
+    _schedulePreview(immediate: true);
   }
 
   @override
@@ -668,6 +1010,7 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
     _labelController.dispose();
     _batchController.dispose();
     _batchEnabled.dispose();
+    _previewDebounce?.cancel();
     super.dispose();
   }
 
@@ -677,6 +1020,46 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
 
   String _payloadFor(GeneratorContentType type) {
     return _formState(type).buildPayload();
+  }
+
+  void _schedulePreview({bool immediate = false}) {
+    _previewDebounce?.cancel();
+    void apply() {
+      final payload = _payloadFor(_selectedType);
+      if (!mounted) return;
+      setState(() {
+        _previewPayload = payload;
+        _previewDirty = false;
+      });
+    }
+
+    if (!_autoLivePreview && !immediate) {
+      setState(() => _previewDirty = true);
+      return;
+    }
+
+    if (immediate) {
+      apply();
+    } else {
+      _previewDebounce = Timer(const Duration(milliseconds: 300), apply);
+    }
+  }
+
+  void _toggleAutoPreview(bool value) {
+    setState(() {
+      _autoLivePreview = value;
+      _previewDirty = false;
+    });
+    widget.onFabIntentChanged.value = value ? FabIntent.generate : FabIntent.refresh;
+    if (value) {
+      _schedulePreview(immediate: true);
+    }
+  }
+
+  void _applyQuietZone(double value) {
+    setState(() => _quietZone = value);
+    AppStateScope.of(context).setDefaultQuietZone(value);
+    _schedulePreview(immediate: true);
   }
 
   @override
@@ -701,6 +1084,10 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
       generate: () => _handleGenerate(save: true),
       refresh: () => _handleGenerate(save: false),
       batch: _showBatchPreview,
+      copy: _copyCurrent,
+      share: _shareCurrent,
+      download: _downloadCurrent,
+      open: _openCurrent,
       child: Stack(
         children: [
           content,
@@ -718,7 +1105,7 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
   }
 
   Widget _buildPreviewCard() {
-    final payload = _payloadFor(_selectedType);
+    final payload = _previewPayload;
     final hasData = payload.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -745,6 +1132,15 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
                           Text('Vista previa', style: Theme.of(context).textTheme.titleLarge),
                           const SizedBox(height: 4),
                           Text(_selectedType.description, style: Theme.of(context).textTheme.bodyMedium),
+                          if (_previewDirty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Chip(
+                                label: const Text('Actualiza para ver cambios'),
+                                avatar: const Icon(Icons.refresh, size: 16),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -787,6 +1183,14 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
                       textAlign: TextAlign.center,
                       decoration: const InputDecoration(labelText: 'Etiqueta opcional'),
                     ),
+                    const SizedBox(height: 8),
+                    SwitchListTile.adaptive(
+                      value: _autoLivePreview,
+                      onChanged: _toggleAutoPreview,
+                      title: const Text('Auto-actualizar QR al escribir'),
+                      subtitle: const Text('Aplica cambios tras 300 ms'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
                     const SizedBox(height: 12),
                       _PreviewActions(
                         payload: payload,
@@ -823,53 +1227,116 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
                               if (value.id != 'custom') {
                                 AppStateScope.of(context).setDefaultPalette(value.id);
                               }
+                              _schedulePreview(immediate: true);
                             },
                           ),
                           const SizedBox(height: 12),
-                          Row(
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: Slider(
-                                  value: _quietZone,
-                                  min: 0,
-                                  max: 32,
-                                  divisions: 16,
-                                  label: 'Margen ${_quietZone.toStringAsFixed(0)}',
-                                  onChanged: (value) => setState(() => _quietZone = value),
-                                ),
+                              Text('Quiet zone', style: Theme.of(context).textTheme.labelLarge),
+                              Slider(
+                                value: _quietZone,
+                                min: 0,
+                                max: 16,
+                                divisions: 16,
+                                label: _quietZone <= 0 ? 'Auto' : '${_quietZone.toStringAsFixed(0)} px',
+                                onChanged: (value) {
+                                  setState(() => _quietZone = value);
+                                  AppStateScope.of(context).setDefaultQuietZone(value);
+                                  _schedulePreview(immediate: true);
+                                },
                               ),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
                                 children: [
-                                  Switch(
-                                    value: _showLogo,
-                                    onChanged: (value) {
-                                      setState(() => _showLogo = value);
-                                      if (value && _logoBytes == null) {
-                                        _loadLogo();
-                                      }
-                                    },
-                                  ),
-                                  const Text('Logo'),
+                                  _QuietZoneChip(label: 'Auto', value: 0, groupValue: _quietZone, onSelected: _applyQuietZone),
+                                  _QuietZoneChip(label: '2', value: 2, groupValue: _quietZone, onSelected: _applyQuietZone),
+                                  _QuietZoneChip(label: '4', value: 4, groupValue: _quietZone, onSelected: _applyQuietZone),
+                                  _QuietZoneChip(label: '8', value: 8, groupValue: _quietZone, onSelected: _applyQuietZone),
                                 ],
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            children: [
-                              FilledButton.icon(
-                                onPressed: _showCustomColorDialog,
-                                icon: const Icon(Icons.palette),
-                                label: const Text('Personalizar colores'),
+                              const SizedBox(height: 8),
+                              Text('Resolución exportación', style: Theme.of(context).textTheme.labelLarge),
+                              Wrap(
+                                spacing: 8,
+                                children: [
+                                  for (final scale in [2, 3])
+                                    ChoiceChip(
+                                      label: Text('${scale}x'),
+                                      selected: _exportScale == scale,
+                                      onSelected: (_) {
+                                        setState(() => _exportScale = scale);
+                                        AppStateScope.of(context).setDefaultScale(scale);
+                                      },
+                                    ),
+                                ],
                               ),
-                              OutlinedButton.icon(
-                                onPressed: _promptLogoSource,
-                                icon: const Icon(Icons.image_outlined),
-                                label: const Text('Logo desde URL/Base64'),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Logo', style: Theme.of(context).textTheme.labelLarge),
+                                        SwitchListTile.adaptive(
+                                          contentPadding: EdgeInsets.zero,
+                                          value: _showLogo,
+                                          onChanged: (value) {
+                                            setState(() => _showLogo = value);
+                                            if (value && _logoBytes == null) {
+                                              _loadLogo();
+                                            }
+                                            _schedulePreview(immediate: true);
+                                          },
+                                          title: const Text('Mostrar logo'),
+                                          subtitle: const Text('Centro del código (0–20%)'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 160,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Tamaño', style: Theme.of(context).textTheme.labelSmall),
+                                        Slider(
+                                          value: _logoScale,
+                                          min: 0.0,
+                                          max: 0.2,
+                                          divisions: 20,
+                                          label: '${(_logoScale * 100).round()}%',
+                                          onChanged: _showLogo
+                                              ? (value) {
+                                                  setState(() => _logoScale = value);
+                                                  _schedulePreview();
+                                                }
+                                              : null,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: [
+                                  FilledButton.icon(
+                                    onPressed: _showCustomColorDialog,
+                                    icon: const Icon(Icons.palette),
+                                    label: const Text('Personalizar colores'),
+                                  ),
+                                  OutlinedButton.icon(
+                                    onPressed: _promptLogoSource,
+                                    icon: const Icon(Icons.image_outlined),
+                                    label: const Text('Logo desde URL/Base64'),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -886,24 +1353,34 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
   }
 
   Widget _buildQr(String payload) {
-    return CustomPaint(
-      painter: QrPainter(
-        data: payload,
-        version: QrVersions.auto,
-        gapless: true,
-        color: _foreground,
-        emptyColor: _background,
-        errorCorrectionLevel: QrErrorCorrectLevel.Q,
-        eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square),
-        dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square),
-      ),
-      child: Center(
-        child: _showLogo && _logoBytes != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.memory(_logoBytes!, width: 56, height: 56, fit: BoxFit.cover),
-              )
-            : null,
+    final quiet = _quietZone <= 0 ? 12.0 : _quietZone;
+    final logoSize = kPreviewSize * _logoScale;
+    return Padding(
+      padding: EdgeInsets.all(quiet),
+      child: CustomPaint(
+        painter: QrPainter(
+          data: payload,
+          version: QrVersions.auto,
+          gapless: true,
+          color: _foreground,
+          emptyColor: _background,
+          errorCorrectionLevel: QrErrorCorrectLevel.Q,
+          eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square),
+          dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square),
+        ),
+        child: Center(
+          child: _showLogo && _logoBytes != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(
+                    _logoBytes!,
+                    width: max(24, logoSize),
+                    height: max(24, logoSize),
+                    fit: BoxFit.cover,
+                  ),
+                )
+              : null,
+        ),
       ),
     );
   }
@@ -930,8 +1407,7 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
           value: _selectedType,
           items: GeneratorContentType.values,
           onChanged: (value) {
-            setState(() => _selectedType = value);
-            widget.onFabIntentChanged.value = value.supportsBatch ? FabIntent.batch : FabIntent.generate;
+            selectType(value);
           },
         ),
       ),
@@ -1006,7 +1482,10 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
           _FormSection(
             section: section,
             state: formState,
-            onChanged: () => setState(() {}),
+            onChanged: () {
+              setState(() {});
+              _schedulePreview();
+            },
           ),
         ValueListenableBuilder<bool>(
           valueListenable: _batchEnabled,
@@ -1062,6 +1541,12 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
       _notify('Completa los campos');
       return;
     }
+    if (!save) {
+      _schedulePreview(immediate: true);
+      HapticFeedback.selectionClick();
+      _notify('Vista previa actualizada');
+      return;
+    }
     if (save) {
       final entry = HistoryEntry(
         id: UniqueKey().toString(),
@@ -1081,6 +1566,67 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
     }
     HapticFeedback.mediumImpact();
   }
+
+  void _copyCurrent() {
+    final payload = _previewPayload;
+    if (payload.isEmpty) {
+      _notify('Genera contenido para copiar');
+      return;
+    }
+    _copy(payload);
+  }
+
+  void _shareCurrent() {
+    final payload = _previewPayload;
+    if (payload.isEmpty) {
+      _notify('Genera contenido para compartir');
+      return;
+    }
+    _share(payload);
+  }
+
+  void _openCurrent() {
+    final payload = _previewPayload;
+    if (payload.isEmpty) {
+      _notify('Genera contenido para abrir');
+      return;
+    }
+    _open(payload);
+  }
+
+  void _downloadCurrent() {
+    final payload = _previewPayload;
+    if (payload.isEmpty) {
+      _notify('Genera contenido para exportar');
+      return;
+    }
+    _download();
+  }
+
+  void copyCurrent() => _copyCurrent();
+  void shareCurrent() => _shareCurrent();
+  void openCurrent() => _openCurrent();
+  void downloadCurrent() => _downloadCurrent();
+  void refreshPreview() => _schedulePreview(immediate: true);
+  void setAutoPreview(bool value) => _toggleAutoPreview(value);
+  void selectType(GeneratorContentType type) {
+    setState(() => _selectedType = type);
+    widget.onFabIntentChanged.value = type.supportsBatch ? FabIntent.batch : FabIntent.generate;
+    _schedulePreview(immediate: true);
+  }
+  void increaseExportScale() {
+    if (_exportScale >= 3) return;
+    setState(() => _exportScale = (_exportScale + 1).clamp(1, 3));
+    AppStateScope.of(context).setDefaultScale(_exportScale);
+  }
+
+  void decreaseExportScale() {
+    if (_exportScale <= 1) return;
+    setState(() => _exportScale = (_exportScale - 1).clamp(1, 3));
+    AppStateScope.of(context).setDefaultScale(_exportScale);
+  }
+
+  void openBatchMode() => _batchEnabled.value = true;
 
   Future<void> _saveTemplate() async {
     final payload = _payloadFor(_selectedType);
@@ -1144,12 +1690,14 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
       _labelController.text = template.label ?? 'Escanéame';
       _quietZone = template.quietZone ?? _quietZone;
       _showLogo = template.includeLogo ?? false;
-      _palette = GeneratorPalette.fromId(template.paletteId ?? GeneratorPalette.duotone.id);
+      _palette = GeneratorPalette.fromId(template.paletteId ?? GeneratorPalette.midnight.id);
       _foreground = _palette.foreground;
       _background = _palette.background;
       _customPalette = null;
+      _exportScale = AppStateScope.of(context).defaultScale;
     });
     _notify('Plantilla aplicada');
+    _schedulePreview(immediate: true);
   }
 
   Future<void> _copy(String payload) async {
@@ -1196,8 +1744,7 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
         setState(() => _isDownloading = false);
         return;
       }
-      final appState = AppStateScope.of(context);
-      final image = await boundary.toImage(pixelRatio: appState.defaultScale.toDouble());
+      final image = await boundary.toImage(pixelRatio: _exportScale.toDouble());
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
       if (data == null) {
         _notify('Error al exportar');
@@ -1284,6 +1831,7 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
         _customPalette = GeneratorPalette.custom(fg, bg);
         _palette = _customPalette!;
       });
+      _schedulePreview(immediate: true);
     }
 
     Future<void> _promptLogoSource() async {
@@ -1319,6 +1867,7 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
           _logoBytes = bytes;
           _showLogo = true;
         });
+        _schedulePreview(immediate: true);
       } catch (_) {
         _notify('No se pudo cargar el logo');
       }
@@ -1901,6 +2450,25 @@ class _PreviewActionButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _QuietZoneChip extends StatelessWidget {
+  const _QuietZoneChip({required this.label, required this.value, required this.groupValue, required this.onSelected});
+
+  final String label;
+  final double value;
+  final double groupValue;
+  final ValueChanged<double> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = (groupValue - value).abs() < 0.01;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onSelected(value),
     );
   }
 }
@@ -2516,16 +3084,33 @@ class GeneratorFormState {
   final Color foreground;
   final Color background;
 
-  static const GeneratorPalette duotone = GeneratorPalette._('duotone', 'Duotono', Color(0xFF0B3D91), Color(0xFFEDF2FF));
   static const GeneratorPalette midnight = GeneratorPalette._('midnight', 'Midnight', Color(0xFFF8FBFF), Color(0xFF0F172A));
-  static const GeneratorPalette coral = GeneratorPalette._('coral', 'Coral', Color(0xFF31111D), Color(0xFFFFD9E3));
   static const GeneratorPalette wasabi = GeneratorPalette._('wasabi', 'Wasabi', Color(0xFF163300), Color(0xFFDDFFD7));
-  static const GeneratorPalette graphite = GeneratorPalette._('graphite', 'Grafito', Color(0xFF0F0F0F), Color(0xFFEFEFEF));
+  static const GeneratorPalette coral = GeneratorPalette._('coral', 'Coral', Color(0xFF31111D), Color(0xFFFFD9E3));
+  static const GeneratorPalette slate = GeneratorPalette._('slate', 'Slate', Color(0xFF1D1B20), Color(0xFFE8DEF8));
+  static const GeneratorPalette orchid = GeneratorPalette._('orchid', 'Orchid', Color(0xFF3B2A57), Color(0xFFF4EAFF));
 
-    static List<GeneratorPalette> get values => const [duotone, midnight, coral, wasabi, graphite];
+    static List<GeneratorPalette> get values => const [midnight, wasabi, coral, slate, orchid];
 
     static GeneratorPalette fromId(String id) {
-      return values.firstWhere((palette) => palette.id == id, orElse: () => duotone);
+      switch (id) {
+        case 'midnight':
+          return midnight;
+        case 'coral':
+          return coral;
+        case 'wasabi':
+          return wasabi;
+        case 'slate':
+          return slate;
+        case 'orchid':
+          return orchid;
+        case 'duotone':
+          return midnight;
+        case 'graphite':
+          return slate;
+        default:
+          return midnight;
+      }
     }
 
     static GeneratorPalette custom(Color foreground, Color background) {
@@ -2740,6 +3325,10 @@ class _ScannerPageState extends State<ScannerPage> with SingleTickerProviderStat
     _controller.toggleTorch();
     setState(() {});
   }
+
+  void toggleTorchExternally() => _toggleTorch();
+
+  void togglePauseExternally() => _togglePause();
 
   void _switchCamera() {
     HapticFeedback.selectionClick();
@@ -3267,6 +3856,7 @@ class HistoryPage extends StatefulWidget {
 
   class _HistoryPageState extends State<HistoryPage> {
     final TextEditingController _searchController = TextEditingController();
+    final FocusNode _searchFocus = FocusNode();
     final Set<GeneratorContentType> _filters = <GeneratorContentType>{};
     bool _selectionMode = false;
     final Set<String> _selectedIds = <String>{};
@@ -3284,6 +3874,7 @@ class HistoryPage extends StatefulWidget {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -3381,6 +3972,7 @@ class HistoryPage extends StatefulWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: TextField(
         controller: _searchController,
+        focusNode: _searchFocus,
         decoration: InputDecoration(
           prefixIcon: const Icon(Icons.search),
           labelText: 'Buscar en historial',
@@ -3390,6 +3982,32 @@ class HistoryPage extends StatefulWidget {
         ),
       ),
     );
+  }
+
+  void focusSearchField() => FocusScope.of(context).requestFocus(_searchFocus);
+
+  void enableFavoritesView() {
+    setState(() {
+      _onlyFavorites = true;
+      _onlyWithNotes = false;
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void enableNotesView() {
+    setState(() {
+      _onlyWithNotes = true;
+      _onlyFavorites = false;
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  Future<void> deleteSelection() async {
+    if (_selectionMode && _selectedIds.isNotEmpty) {
+      await _deleteSelected();
+    }
   }
 
   Widget _buildFilters() {
