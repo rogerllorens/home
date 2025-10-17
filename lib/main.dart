@@ -631,28 +631,36 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
   GeneratorPalette _palette = GeneratorPalette.duotone;
   Color _foreground = GeneratorPalette.duotone.foreground;
   Color _background = GeneratorPalette.duotone.background;
-    double _quietZone = 4;
-    bool _showLogo = false;
-    Uint8List? _logoBytes;
-    bool _skeleton = true;
-    bool _isSharing = false;
-    bool _isDownloading = false;
-    GeneratorPalette? _customPalette;
+  double _quietZone = 4;
+  bool _showLogo = false;
+  Uint8List? _logoBytes;
+  bool _skeleton = true;
+  bool _isSharing = false;
+  bool _isDownloading = false;
+  GeneratorPalette? _customPalette;
+  bool _defaultsResolved = false;
 
   @override
   void initState() {
     super.initState();
-    final state = AppStateScope.of(context);
-    _palette = GeneratorPalette.fromId(state.defaultPalette);
-    _foreground = _palette.foreground;
-    _background = _palette.background;
-    _quietZone = state.defaultQuietZone;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onFabIntentChanged.value = FabIntent.generate;
       Future<void>.delayed(const Duration(milliseconds: 600), () {
         if (mounted) setState(() => _skeleton = false);
       });
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_defaultsResolved) return;
+    final state = AppStateScope.of(context);
+    _palette = GeneratorPalette.fromId(state.defaultPalette);
+    _foreground = _palette.foreground;
+    _background = _palette.background;
+    _quietZone = state.defaultQuietZone;
+    _defaultsResolved = true;
   }
 
   @override
