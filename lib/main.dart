@@ -4956,7 +4956,9 @@ class _SelectionActionButton extends StatelessWidget {
           width: 48,
           height: 48,
           child: IconButton(
-            onPressed: () => onPressed(),
+            onPressed: () {
+              onPressed();
+            },
             icon: Icon(icon),
             splashRadius: 24,
             padding: EdgeInsets.zero,
@@ -5262,7 +5264,9 @@ class _HistoryActionButton extends StatelessWidget {
           width: 48,
           height: 48,
           child: IconButton(
-            onPressed: () => onPressed(),
+            onPressed: () {
+              onPressed();
+            },
             icon: Icon(icon, size: 22),
             splashRadius: 24,
             padding: EdgeInsets.zero,
