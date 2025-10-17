@@ -2599,6 +2599,7 @@ class HistoryEntry {
 
   static HistoryEntry? fromJson(Map<String, dynamic> json) {
     try {
+      final sourceName = json['source'] as String?;
       return HistoryEntry(
         id: json['id'] as String,
         type: GeneratorContentType.values.firstWhere((element) => element.name == json['type'] as String),
@@ -2608,7 +2609,10 @@ class HistoryEntry {
         favorite: json['favorite'] as bool? ?? false,
         tags: (json['tags'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
         note: json['note'] as String? ?? '',
-        source: HistorySource.values.firstWhere((element) => element.name == json['source'] as String? ?? 'created'),
+        source: HistorySource.values.firstWhere(
+          (element) => element.name == (sourceName ?? 'created'),
+          orElse: () => HistorySource.created,
+        ),
         paletteId: json['paletteId'] as String?,
         quietZone: (json['quietZone'] as num?)?.toDouble(),
       );
@@ -3278,8 +3282,9 @@ class HistoryPage extends StatefulWidget {
   @override
   Widget build(BuildContext context) {
     final appState = AppStateScope.of(context);
-      final entries = _applyFilters(appState.history);
-      final grouped = _groupEntries(entries);
+    final entries = _applyFilters(appState.history);
+    final locale = Localizations.localeOf(context);
+    final grouped = groupHistoryEntries(entries, locale);
     final stats = _computeStats(appState.history);
     return HistoryDispatcher(
       toggleSelection: _toggleSelectionMode,
@@ -3379,49 +3384,51 @@ class HistoryPage extends StatefulWidget {
     );
   }
 
-    Widget _buildFilters() {
-      final List<Widget> chips = GeneratorContentType.values
-          .map((type) => FilterChip(
-                label: Text(type.label),
-                avatar: Icon(type.icon, size: 18),
-                selected: _filters.contains(type),
-                onSelected: (_) {
-                  setState(() {
-                    if (_filters.contains(type)) {
-                      _filters.remove(type);
-                    } else {
-                      _filters.add(type);
-                    }
-                  });
-                },
-              ))
-          .toList();
-      chips.addAll([
-        FilterChip(
-          label: const Text('Solo favoritos'),
-          avatar: const Icon(Icons.star, size: 18),
-          selected: _onlyFavorites,
-          onSelected: (value) => setState(() => _onlyFavorites = value),
-        ),
-        FilterChip(
-          label: const Text('Con notas'),
-          avatar: const Icon(Icons.sticky_note_2, size: 18),
-          selected: _onlyWithNotes,
-          onSelected: (value) => setState(() => _onlyWithNotes = value),
-        ),
-      ]);
-      chips.add(_buildSortMenu());
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: chips,
-        ),
-      );
-    }
+  Widget _buildFilters() {
+    final List<Widget> chips = GeneratorContentType.values
+        .map<Widget>(
+          (type) => FilterChip(
+            label: Text(type.label),
+            avatar: Icon(type.icon, size: 18),
+            selected: _filters.contains(type),
+            onSelected: (_) {
+              setState(() {
+                if (_filters.contains(type)) {
+                  _filters.remove(type);
+                } else {
+                  _filters.add(type);
+                }
+              });
+            },
+          ),
+        )
+        .toList();
+    chips.addAll([
+      FilterChip(
+        label: const Text('Solo favoritos'),
+        avatar: const Icon(Icons.star, size: 18),
+        selected: _onlyFavorites,
+        onSelected: (value) => setState(() => _onlyFavorites = value),
+      ),
+      FilterChip(
+        label: const Text('Con notas'),
+        avatar: const Icon(Icons.sticky_note_2, size: 18),
+        selected: _onlyWithNotes,
+        onSelected: (value) => setState(() => _onlyWithNotes = value),
+      ),
+    ]);
+    chips.add(_buildSortMenu());
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: chips,
+      ),
+    );
+  }
 
   Widget _buildSortMenu() {
     return PopupMenuButton<String>(
@@ -3557,7 +3564,6 @@ class HistoryPage extends StatefulWidget {
 
     String _escapeCsv(String value) => value.replaceAll('"', '""');
   }
-}
 
 class HistoryStats {
   HistoryStats({required this.total, required this.thisWeek, required this.qrShare, required this.barcodeShare});
@@ -4301,28 +4307,29 @@ class _OnboardingSlide {
   final String title;
   final String description;
 }
-    List<_HistoryListItem> _groupEntries(List<HistoryEntry> entries) {
-      final items = <_HistoryListItem>[];
-      String? currentLabel;
-      for (final entry in entries) {
-        final label = _groupLabel(entry.createdAt);
-        if (label != currentLabel) {
-          items.add(_HistoryListItem.header(label));
-          currentLabel = label;
-        }
-        items.add(_HistoryListItem.entry(entry));
-      }
-      return items;
-    }
 
-    String _groupLabel(DateTime date) {
-      final now = DateTime.now();
-      final difference = DateUtils.dateOnly(now).difference(DateUtils.dateOnly(date)).inDays;
-      if (difference == 0) return 'Hoy';
-      if (difference == 1) return 'Ayer';
-      if (difference < 7) return 'Últimos 7 días';
-      if (difference < 30) return 'Este mes';
-      final locale = Localizations.localeOf(context).languageCode;
-      return DateFormat.yMMMM(locale).format(date);
+List<_HistoryListItem> groupHistoryEntries(List<HistoryEntry> entries, Locale locale) {
+  final items = <_HistoryListItem>[];
+  String? currentLabel;
+  for (final entry in entries) {
+    final label = _historyGroupLabel(entry.createdAt, locale);
+    if (label != currentLabel) {
+      items.add(_HistoryListItem.header(label));
+      currentLabel = label;
     }
+    items.add(_HistoryListItem.entry(entry));
+  }
+  return items;
+}
+
+String _historyGroupLabel(DateTime date, Locale locale) {
+  final now = DateTime.now();
+  final difference = DateUtils.dateOnly(now).difference(DateUtils.dateOnly(date)).inDays;
+  if (difference == 0) return 'Hoy';
+  if (difference == 1) return 'Ayer';
+  if (difference < 7) return 'Últimos 7 días';
+  if (difference < 30) return 'Este mes';
+  final localeName = locale.toString();
+  return DateFormat.yMMMM(localeName).format(date);
+}
 
