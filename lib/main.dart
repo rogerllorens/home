@@ -45,6 +45,7 @@ const String kHistoryKey = 'nexus_history_v4';
 const String kTemplatesKey = 'nexus_templates_v2';
 const String kSettingsKey = 'nexus_settings_v1';
 const String kOnboardingKey = 'nexus_onboarding_seen';
+const String kSavedViewsKey = 'nexus_saved_views_v1';
 
 bool isAllowedScheme(String scheme) {
   const allowed = <String>['http', 'https', 'mailto', 'tel', 'sms', 'geo'];
@@ -65,6 +66,7 @@ class AppState extends ChangeNotifier {
   String _defaultFileName = '{type}_{date}_{slug}';
   final List<HistoryEntry> _history = <HistoryEntry>[];
   final List<SavedTemplate> _templates = <SavedTemplate>[];
+  final List<SavedHistoryView> _savedViews = <SavedHistoryView>[];
 
   ThemeMode get themeMode => _themeMode;
   bool get highContrast => _highContrast;
@@ -78,6 +80,7 @@ class AppState extends ChangeNotifier {
   String get defaultFileName => _defaultFileName;
   List<HistoryEntry> get history => List<HistoryEntry>.unmodifiable(_history);
   List<SavedTemplate> get templates => List<SavedTemplate>.unmodifiable(_templates);
+  List<SavedHistoryView> get historyViews => List<SavedHistoryView>.unmodifiable(_savedViews);
 
   Future<void> initialize() async {
     _prefs = await SharedPreferences.getInstance();
@@ -99,6 +102,10 @@ class AppState extends ChangeNotifier {
     _templates
       ..clear()
       ..addAll(rawTemplates.map((e) => SavedTemplate.fromJson(jsonDecode(e) as Map<String, dynamic>)).whereType<SavedTemplate>());
+    final rawViews = _prefs?.getStringList(kSavedViewsKey) ?? <String>[];
+    _savedViews
+      ..clear()
+      ..addAll(rawViews.map((e) => SavedHistoryView.fromJson(jsonDecode(e) as Map<String, dynamic>)).whereType<SavedHistoryView>());
     _autoPurge();
   }
 
@@ -226,6 +233,31 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> addHistoryView(SavedHistoryView view) async {
+    final index = _savedViews.indexWhere((element) => element.id == view.id);
+    if (index >= 0) {
+      _savedViews[index] = view;
+    } else {
+      _savedViews.add(view);
+    }
+    await _persistViews();
+    notifyListeners();
+  }
+
+  Future<void> removeHistoryView(String id) async {
+    _savedViews.removeWhere((element) => element.id == id);
+    await _persistViews();
+    notifyListeners();
+  }
+
+  Future<void> reorderHistoryViews(int oldIndex, int newIndex) async {
+    if (newIndex > oldIndex) newIndex--;
+    final item = _savedViews.removeAt(oldIndex);
+    _savedViews.insert(newIndex, item);
+    await _persistViews();
+    notifyListeners();
+  }
+
   Future<void> _persistHistory() async {
     await _prefs?.setStringList(
       kHistoryKey,
@@ -237,6 +269,13 @@ class AppState extends ChangeNotifier {
     await _prefs?.setStringList(
       kTemplatesKey,
       _templates.map((e) => jsonEncode(e.toJson())).toList(),
+    );
+  }
+
+  Future<void> _persistViews() async {
+    await _prefs?.setStringList(
+      kSavedViewsKey,
+      _savedViews.map((e) => jsonEncode(e.toJson())).toList(),
     );
   }
 
@@ -653,7 +692,8 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   List<CommandEntry> _buildCommandEntries() {
-    return [
+    final appState = AppStateScope.of(context);
+    final commands = <CommandEntry>[
       CommandEntry(
         title: 'Crear QR Wi-Fi',
         subtitle: 'Plantilla de invitados segura',
@@ -764,6 +804,35 @@ class _HomeShellState extends State<HomeShell> {
         },
       ),
     ];
+    for (final template in appState.templates.take(6)) {
+      commands.add(
+        CommandEntry(
+          title: 'Aplicar plantilla: ${template.title}',
+          subtitle: template.description.isEmpty ? template.type.label : template.description,
+          icon: Icons.bookmark,
+          keywords: ['plantilla', template.title.toLowerCase(), template.type.label.toLowerCase()],
+          onSelected: () {
+            _onDestinationSelected(0);
+            WidgetsBinding.instance.addPostFrameCallback((_) => _generatorKey.currentState?.applyTemplateExternally(template));
+          },
+        ),
+      );
+    }
+    for (final entry in appState.history.take(6)) {
+      commands.add(
+        CommandEntry(
+          title: 'Historial: ${entry.displayLabel.isEmpty ? entry.value : entry.displayLabel}',
+          subtitle: DateFormat.yMd().add_Hm().format(entry.createdAt),
+          icon: entry.type.isBarcode ? Icons.view_week : Icons.qr_code_2,
+          keywords: ['historial', entry.type.label.toLowerCase(), entry.displayLabel.toLowerCase()],
+          onSelected: () {
+            _onDestinationSelected(2);
+            WidgetsBinding.instance.addPostFrameCallback((_) => _historyKey.currentState?.openEntryById(entry.id));
+          },
+        ),
+      );
+    }
+    return commands;
   }
 }
 
@@ -1615,6 +1684,9 @@ class _GeneratorPageState extends State<GeneratorPage> with SingleTickerProvider
     setState(() => _selectedType = type);
     widget.onFabIntentChanged.value = type.supportsBatch ? FabIntent.batch : FabIntent.generate;
     _schedulePreview(immediate: true);
+  }
+  void applyTemplateExternally(SavedTemplate template) {
+    _applyTemplate(template);
   }
   void increaseExportScale() {
     if (_exportScale >= 3) return;
@@ -3412,6 +3484,73 @@ class SavedTemplate {
   }
 }
 
+class SavedHistoryView {
+  SavedHistoryView({
+    required this.id,
+    required this.name,
+    required this.filters,
+    required this.onlyFavorites,
+    required this.onlyWithNotes,
+    required this.sort,
+    required this.gridMode,
+  });
+
+  final String id;
+  final String name;
+  final List<String> filters;
+  final bool onlyFavorites;
+  final bool onlyWithNotes;
+  final String sort;
+  final bool gridMode;
+
+  SavedHistoryView copyWith({
+    String? name,
+    List<String>? filters,
+    bool? onlyFavorites,
+    bool? onlyWithNotes,
+    String? sort,
+    bool? gridMode,
+  }) {
+    return SavedHistoryView(
+      id: id,
+      name: name ?? this.name,
+      filters: filters ?? this.filters,
+      onlyFavorites: onlyFavorites ?? this.onlyFavorites,
+      onlyWithNotes: onlyWithNotes ?? this.onlyWithNotes,
+      sort: sort ?? this.sort,
+      gridMode: gridMode ?? this.gridMode,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'filters': filters,
+      'onlyFavorites': onlyFavorites,
+      'onlyWithNotes': onlyWithNotes,
+      'sort': sort,
+      'gridMode': gridMode,
+    };
+  }
+
+  static SavedHistoryView? fromJson(Map<String, dynamic> json) {
+    try {
+      return SavedHistoryView(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        filters: (json['filters'] as List<dynamic>? ?? const <dynamic>[]).map((e) => e.toString()).toList(),
+        onlyFavorites: json['onlyFavorites'] as bool? ?? false,
+        onlyWithNotes: json['onlyWithNotes'] as bool? ?? false,
+        sort: json['sort'] as String? ?? 'recent',
+        gridMode: json['gridMode'] as bool? ?? false,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
 
 class ScannerPage extends StatefulWidget {
   const ScannerPage({super.key, required this.onFabIntentChanged});
@@ -3429,6 +3568,7 @@ class _ScannerPageState extends State<ScannerPage> with SingleTickerProviderStat
   DateTime _lastDetection = DateTime.fromMillisecondsSinceEpoch(0);
   ScanResult? _result;
   late final AnimationController _laserController;
+  Timer? _noteDebounce;
 
   @override
   void initState() {
@@ -3445,6 +3585,7 @@ class _ScannerPageState extends State<ScannerPage> with SingleTickerProviderStat
   void dispose() {
     _controller.dispose();
     _laserController.dispose();
+    _noteDebounce?.cancel();
     super.dispose();
   }
 
@@ -3489,7 +3630,15 @@ class _ScannerPageState extends State<ScannerPage> with SingleTickerProviderStat
     final rawValue = barcode?.rawValue ?? '';
     if (rawValue.isEmpty) return;
     final analysis = ScanResult.fromRaw(rawValue);
-    setState(() => _result = analysis);
+    final appState = AppStateScope.of(context);
+    final existing = appState.history.firstWhereOrNull((entry) => entry.value == rawValue);
+    final enriched = analysis.copyWith(
+      note: existing?.note ?? '',
+      favorite: existing?.favorite ?? false,
+      existingId: existing?.id,
+    );
+    _noteDebounce?.cancel();
+    setState(() => _result = enriched);
     widget.onFabIntentChanged.value = FabIntent.flashlight;
     await HapticFeedback.lightImpact();
     if (analysis.smartActions.isNotEmpty) {
@@ -3505,19 +3654,51 @@ class _ScannerPageState extends State<ScannerPage> with SingleTickerProviderStat
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) {
-        return ScannerActionSheet(result: result, onFavorite: _toggleFavorite, onSave: _saveToHistory, onClose: () => Navigator.of(context).pop());
+        return ScannerActionSheet(
+          result: result,
+          onFavorite: _toggleFavorite,
+          onSave: _saveToHistory,
+          onClose: () => Navigator.of(context).pop(),
+          onNoteChanged: _handleNoteChanged,
+        );
       },
     );
+  }
+
+  void _handleNoteChanged(String note) {
+    final current = _result;
+    if (current == null) return;
+    _noteDebounce?.cancel();
+    _noteDebounce = Timer(const Duration(milliseconds: 400), () async {
+      final updated = current.copyWith(note: note);
+      if (mounted) {
+        setState(() => _result = updated);
+      }
+      final existingId = updated.existingId;
+      if (existingId != null) {
+        final appState = AppStateScope.of(context);
+        final existing = appState.history.firstWhereOrNull((entry) => entry.id == existingId);
+        if (existing != null) {
+          await appState.updateHistory(existing.copyWith(note: note));
+        }
+      }
+    });
   }
 
   Future<void> _toggleFavorite() async {
     final result = _result;
     if (result == null) return;
     final appState = AppStateScope.of(context);
-    final existing = appState.history.firstWhereOrNull((entry) => entry.value == result.payload);
+    final existing = result.existingId != null
+        ? appState.history.firstWhereOrNull((entry) => entry.id == result.existingId)
+        : appState.history.firstWhereOrNull((entry) => entry.value == result.payload);
     if (existing != null) {
-      await appState.updateHistory(existing.copyWith(favorite: !existing.favorite));
+      final updatedEntry = existing.copyWith(favorite: !existing.favorite);
+      await appState.updateHistory(updatedEntry);
+      setState(() => _result = result.copyWith(favorite: updatedEntry.favorite, existingId: updatedEntry.id));
       _showSnack('Favorito actualizado');
+    } else {
+      setState(() => _result = result.copyWith(favorite: !result.favorite));
     }
   }
 
@@ -3530,7 +3711,7 @@ class _ScannerPageState extends State<ScannerPage> with SingleTickerProviderStat
       value: result.payload,
       displayLabel: result.title,
       createdAt: DateTime.now(),
-      favorite: false,
+      favorite: result.favorite,
       tags: <String>[result.type.label, if (result.isHttps) 'https'],
       note: note,
       source: HistorySource.scanned,
@@ -3538,6 +3719,9 @@ class _ScannerPageState extends State<ScannerPage> with SingleTickerProviderStat
       quietZone: null,
     );
     await AppStateScope.of(context).addHistory(entry, force: true);
+    if (mounted) {
+      setState(() => _result = result.copyWith(note: note, existingId: entry.id));
+    }
     _showSnack('Guardado en historial');
   }
 
@@ -3691,6 +3875,9 @@ class ScanResult {
     required this.subtitle,
     required this.smartActions,
     required this.warnings,
+    this.note = '',
+    this.favorite = false,
+    this.existingId,
   });
 
   final String payload;
@@ -3699,8 +3886,27 @@ class ScanResult {
   final String subtitle;
   final List<SmartAction> smartActions;
   final List<String> warnings;
+  final String note;
+  final bool favorite;
+  final String? existingId;
 
   bool get isHttps => type == GeneratorContentType.url && payload.startsWith('https://');
+
+  bool get hasExisting => existingId != null;
+
+  ScanResult copyWith({String? note, bool? favorite, String? existingId}) {
+    return ScanResult(
+      payload: payload,
+      type: type,
+      title: title,
+      subtitle: subtitle,
+      smartActions: smartActions,
+      warnings: warnings,
+      note: note ?? this.note,
+      favorite: favorite ?? this.favorite,
+      existingId: existingId ?? this.existingId,
+    );
+  }
 
   static ScanResult fromRaw(String rawValue) {
     rawValue = rawValue.trim();
@@ -3732,7 +3938,7 @@ class ScanResult {
         title: _extractLine(rawValue, 'FN') ?? 'Contacto',
         subtitle: 'Tarjeta de contacto',
         smartActions: [
-          SmartAction(icon: Icons.copy_all, label: 'Copiar', action: SmartActionType.copy),
+          SmartAction(icon: Icons.copy_all, label: 'Copiar vCard', action: SmartActionType.copy),
         ],
         warnings: const <String>['Añade manualmente a tus contactos.'],
       );
@@ -3743,7 +3949,7 @@ class ScanResult {
         type: GeneratorContentType.event,
         title: _extractLine(rawValue, 'SUMMARY') ?? 'Evento',
         subtitle: 'Evento escaneado',
-        smartActions: [SmartAction(icon: Icons.copy_all, label: 'Copiar', action: SmartActionType.copy)],
+        smartActions: [SmartAction(icon: Icons.copy_all, label: 'Copiar .ics', action: SmartActionType.copy)],
         warnings: const <String>['Añade el evento manualmente a tu calendario.'],
       );
     }
@@ -3881,16 +4087,54 @@ class _ScanPeekCard extends StatelessWidget {
   }
 }
 
-class ScannerActionSheet extends StatelessWidget {
-  const ScannerActionSheet({super.key, required this.result, required this.onFavorite, required this.onSave, required this.onClose});
+class ScannerActionSheet extends StatefulWidget {
+  const ScannerActionSheet({super.key, required this.result, required this.onFavorite, required this.onSave, required this.onClose, required this.onNoteChanged});
 
   final ScanResult result;
   final VoidCallback onFavorite;
   final Future<void> Function({String note}) onSave;
   final VoidCallback onClose;
+  final ValueChanged<String> onNoteChanged;
+
+  @override
+  State<ScannerActionSheet> createState() => _ScannerActionSheetState();
+}
+
+class _ScannerActionSheetState extends State<ScannerActionSheet> {
+  late TextEditingController _noteController;
+  late bool _favorite;
+
+  @override
+  void initState() {
+    super.initState();
+    _favorite = widget.result.favorite;
+    _noteController = TextEditingController(text: widget.result.note);
+    _noteController.addListener(() => widget.onNoteChanged(_noteController.text));
+  }
+
+  @override
+  void didUpdateWidget(covariant ScannerActionSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.result.note != widget.result.note && _noteController.text != widget.result.note) {
+      _noteController.value = TextEditingValue(
+        text: widget.result.note,
+        selection: TextSelection.collapsed(offset: widget.result.note.length),
+      );
+    }
+    if (oldWidget.result.favorite != widget.result.favorite) {
+      _favorite = widget.result.favorite;
+    }
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final saveLabel = widget.result.hasExisting ? 'Actualizar historial' : 'Guardar en historial';
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SizedBox(
@@ -3901,30 +4145,31 @@ class ScannerActionSheet extends StatelessWidget {
               padding: const EdgeInsets.all(24),
               child: Row(
                 children: [
-                  CircleAvatar(child: Icon(result.type.icon)),
+                  CircleAvatar(child: Icon(widget.result.type.icon)),
                   const SizedBox(width: 12),
-                  Expanded(child: Text(result.title, style: Theme.of(context).textTheme.titleLarge)),
+                  Expanded(child: Text(widget.result.title, style: Theme.of(context).textTheme.titleLarge)),
                   IconButton(
-                    onPressed: onClose,
+                    onPressed: widget.onClose,
                     tooltip: 'Cerrar',
                     icon: const Icon(Icons.close),
                   ),
                 ],
               ),
             ),
-            if (result.warnings.isNotEmpty)
-              Wrap(
-                spacing: 8,
-                children: result.warnings
-                    .map(
-                      (warning) => Chip(
-                        avatar: const Icon(Icons.warning, size: 18),
-                        label: Text(warning),
-                        backgroundColor: Theme.of(context).colorScheme.tertiaryContainer,
-                        labelStyle: Theme.of(context).textTheme.labelMedium,
-                      ),
-                    )
-                    .toList(),
+            if (widget.result.warnings.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Wrap(
+                  spacing: 8,
+                  children: widget.result.warnings
+                      .map((warning) => Chip(
+                            avatar: const Icon(Icons.warning, size: 18),
+                            label: Text(warning),
+                            backgroundColor: Theme.of(context).colorScheme.tertiaryContainer,
+                            labelStyle: Theme.of(context).textTheme.labelMedium,
+                          ))
+                      .toList(),
+                ),
               ),
             const SizedBox(height: 12),
             Expanded(
@@ -3933,31 +4178,44 @@ class ScannerActionSheet extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(result.subtitle, style: Theme.of(context).textTheme.bodyLarge),
+                    Text(widget.result.subtitle, style: Theme.of(context).textTheme.bodyLarge),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _noteController,
+                      maxLines: 2,
+                      decoration: const InputDecoration(labelText: 'Notas (auto-guardado)'),
+                    ),
                     const SizedBox(height: 16),
                     Wrap(
                       spacing: 12,
-                      children: result.smartActions
-                          .map(
-                            (action) => Tooltip(
-                              message: action.label,
-                              child: ActionChip(
-                                label: Text(action.label),
-                                avatar: Icon(action.icon),
-                                onPressed: () async => _performAction(context, action, result),
-                              ),
-                            ),
-                          )
+                      children: widget.result.smartActions
+                          .map((action) => Tooltip(
+                                message: action.label,
+                                child: ActionChip(
+                                  label: Text(action.label),
+                                  avatar: Icon(action.icon),
+                                  onPressed: () async => _performAction(context, action, widget.result),
+                                ),
+                              ))
                           .toList(),
                     ),
                     const SizedBox(height: 24),
                     FilledButton.tonalIcon(
-                      onPressed: () => onSave(note: ''),
+                      onPressed: () async {
+                        await widget.onSave(note: _noteController.text);
+                      },
                       icon: const Icon(Icons.save),
-                      label: const Text('Guardar en historial'),
+                      label: Text(saveLabel),
                     ),
                     const SizedBox(height: 16),
-                    TextButton.icon(onPressed: onFavorite, icon: const Icon(Icons.star_rate), label: const Text('Marcar como favorito')),
+                    TextButton.icon(
+                      onPressed: () async {
+                        await widget.onFavorite();
+                        setState(() => _favorite = !_favorite);
+                      },
+                      icon: Icon(_favorite ? Icons.star : Icons.star_border),
+                      label: Text(_favorite ? 'Favorito' : 'Marcar como favorito'),
+                    ),
                   ],
                 ),
               ),
@@ -4005,18 +4263,6 @@ class ScannerActionSheet extends StatelessWidget {
   }
 }
 
-extension IterableExtras<E> on Iterable<E> {
-  E? get firstOrNull => isEmpty ? null : first;
-
-  E? firstWhereOrNull(bool Function(E element) test) {
-    for (final element in this) {
-      if (test(element)) return element;
-    }
-    return null;
-  }
-}
-
-
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key, required this.onFabIntentChanged});
 
@@ -4035,6 +4281,8 @@ class HistoryPage extends StatefulWidget {
     String _sort = 'recent';
     bool _onlyFavorites = false;
     bool _onlyWithNotes = false;
+    bool _gridMode = false;
+    String? _activeViewId;
 
   @override
   void initState() {
@@ -4062,43 +4310,46 @@ class HistoryPage extends StatefulWidget {
       child: Column(
         children: [
           _buildSearchBar(),
+          _buildSavedViews(appState),
           _buildFilters(),
-          _HistoryStatsRow(stats: stats),
+          _HistoryStatsRow(stats: stats, autoCleanDays: appState.autoCleanDays),
           Expanded(
-              child: grouped.isEmpty
-                  ? _HistoryEmptyState(onCreate: () => HomeShell.of(context)?.switchTab(0))
-                  : ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 120),
-                      itemCount: grouped.length,
-                      itemBuilder: (context, index) {
-                        final item = grouped[index];
-                        return item.when(
-                          header: (label) => _HistoryGroupHeader(label: label),
-                          entry: (entry) => _HistoryTile(
-                            entry: entry,
-                            selected: _selectedIds.contains(entry.id),
-                            selectionMode: _selectionMode,
-                            onTap: () => _onEntryTap(entry),
-                            onLongPress: () => _onEntryLongPress(entry),
-                          ),
-                        );
-                      },
-                    ),
+            child: grouped.isEmpty
+                ? _HistoryEmptyState(onCreate: () => HomeShell.of(context)?.switchTab(0))
+                : _gridMode
+                    ? _buildGrid(entries)
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 120),
+                        itemCount: grouped.length,
+                        itemBuilder: (context, index) {
+                          final item = grouped[index];
+                          return item.when(
+                            header: (label) => _HistoryGroupHeader(label: label),
+                            entry: (entry) => _HistoryTile(
+                              entry: entry,
+                              selected: _selectedIds.contains(entry.id),
+                              selectionMode: _selectionMode,
+                              onTap: () => _onEntryTap(entry),
+                              onLongPress: () => _onEntryLongPress(entry),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+          if (_selectionMode)
+            _HistorySelectionBar(
+              onCopy: _copySelected,
+              onShare: _shareSelected,
+              onExport: _exportSelected,
+              onDelete: _deleteSelected,
+              count: _selectedIds.length,
             ),
-            if (_selectionMode)
-              _HistorySelectionBar(
-                onCopy: _copySelected,
-                onShare: _shareSelected,
-                onExport: _exportSelected,
-                onDelete: _deleteSelected,
-                count: _selectedIds.length,
-              ),
-          ],
-        ),
+        ],
+      ),
     );
   }
 
-    List<HistoryEntry> _applyFilters(List<HistoryEntry> entries) {
+  List<HistoryEntry> _applyFilters(List<HistoryEntry> entries) {
       Iterable<HistoryEntry> filtered = entries;
       if (_filters.isNotEmpty) {
         filtered = filtered.where((entry) => _filters.contains(entry.type));
@@ -4156,6 +4407,37 @@ class HistoryPage extends StatefulWidget {
     );
   }
 
+  Widget _buildSavedViews(AppState appState) {
+    final views = appState.historyViews;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          ActionChip(
+            avatar: const Icon(Icons.bookmark_add_outlined, size: 18),
+            label: const Text('Guardar vista actual'),
+            onPressed: _saveCurrentView,
+          ),
+          for (final view in views)
+            Tooltip(
+              message: 'Vista guardada: ${view.name}',
+              child: InputChip(
+                label: Text(view.name),
+                selected: _activeViewId == view.id,
+                onPressed: () => _applySavedView(view),
+                onDeleted: () => _showViewMenu(view),
+                deleteIcon: const Icon(Icons.more_vert),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   void focusSearchField() => FocusScope.of(context).requestFocus(_searchFocus);
 
   void enableFavoritesView() {
@@ -4164,6 +4446,7 @@ class HistoryPage extends StatefulWidget {
       _onlyWithNotes = false;
       _selectionMode = false;
       _selectedIds.clear();
+      _activeViewId = null;
     });
   }
 
@@ -4173,12 +4456,21 @@ class HistoryPage extends StatefulWidget {
       _onlyFavorites = false;
       _selectionMode = false;
       _selectedIds.clear();
+      _activeViewId = null;
     });
   }
 
   Future<void> deleteSelection() async {
     if (_selectionMode && _selectedIds.isNotEmpty) {
       await _deleteSelected();
+    }
+  }
+
+  void openEntryById(String id) {
+    final appState = AppStateScope.of(context);
+    final entry = appState.history.firstWhereOrNull((element) => element.id == id);
+    if (entry != null) {
+      _onEntryTap(entry);
     }
   }
 
@@ -4196,6 +4488,7 @@ class HistoryPage extends StatefulWidget {
                 } else {
                   _filters.add(type);
                 }
+                _activeViewId = null;
               });
             },
           ),
@@ -4206,15 +4499,32 @@ class HistoryPage extends StatefulWidget {
         label: const Text('Solo favoritos'),
         avatar: const Icon(Icons.star, size: 18),
         selected: _onlyFavorites,
-        onSelected: (value) => setState(() => _onlyFavorites = value),
+        onSelected: (value) => setState(() {
+          _onlyFavorites = value;
+          _activeViewId = null;
+        }),
       ),
       FilterChip(
         label: const Text('Con notas'),
         avatar: const Icon(Icons.sticky_note_2, size: 18),
         selected: _onlyWithNotes,
-        onSelected: (value) => setState(() => _onlyWithNotes = value),
+        onSelected: (value) => setState(() {
+          _onlyWithNotes = value;
+          _activeViewId = null;
+        }),
       ),
     ]);
+    chips.add(
+      FilterChip(
+        label: Text(_gridMode ? 'Vista tablero' : 'Vista lista'),
+        avatar: Icon(_gridMode ? Icons.grid_view : Icons.view_agenda, size: 18),
+        selected: _gridMode,
+        onSelected: (value) => setState(() {
+          _gridMode = value;
+          _activeViewId = null;
+        }),
+      ),
+    );
     chips.add(_buildSortMenu());
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -4228,10 +4538,139 @@ class HistoryPage extends StatefulWidget {
     );
   }
 
+  Widget _buildGrid(List<HistoryEntry> entries) {
+    final width = MediaQuery.of(context).size.width;
+    final crossAxisCount = width >= 1200 ? 3 : 2;
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 0.95,
+      ),
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        return _HistoryGridTile(
+          entry: entry,
+          selected: _selectedIds.contains(entry.id),
+          selectionMode: _selectionMode,
+          onTap: () => _onEntryTap(entry),
+          onLongPress: () => _onEntryLongPress(entry),
+        );
+      },
+    );
+  }
+
+  Future<void> _saveCurrentView() async {
+    final appState = AppStateScope.of(context);
+    final controller = TextEditingController(text: 'Vista ${appState.historyViews.length + 1}');
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Guardar vista'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'Nombre de la vista'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(controller.text.trim()), child: const Text('Guardar')),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty) return;
+    final view = SavedHistoryView(
+      id: UniqueKey().toString(),
+      name: name,
+      filters: _filters.map((e) => e.name).toList(),
+      onlyFavorites: _onlyFavorites,
+      onlyWithNotes: _onlyWithNotes,
+      sort: _sort,
+      gridMode: _gridMode,
+    );
+    await appState.addHistoryView(view);
+    setState(() => _activeViewId = view.id);
+  }
+
+  void _applySavedView(SavedHistoryView view) {
+    setState(() {
+      _activeViewId = view.id;
+      _filters
+        ..clear()
+        ..addAll(view.filters
+            .map((value) => GeneratorContentType.values.firstWhereOrNull((type) => type.name == value))
+            .whereType<GeneratorContentType>());
+      _onlyFavorites = view.onlyFavorites;
+      _onlyWithNotes = view.onlyWithNotes;
+      _sort = view.sort;
+      _gridMode = view.gridMode;
+    });
+  }
+
+  Future<void> _showViewMenu(SavedHistoryView view) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Renombrar'),
+              onTap: () => Navigator.of(context).pop('rename'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Eliminar'),
+              onTap: () => Navigator.of(context).pop('delete'),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+    if (action == null) return;
+    final appState = AppStateScope.of(context);
+    if (action == 'rename') {
+      final controller = TextEditingController(text: view.name);
+      final newName = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Renombrar vista'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(labelText: 'Nombre'),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.of(context).pop(controller.text.trim()), child: const Text('Guardar')),
+          ],
+        ),
+      );
+      if (newName != null && newName.isNotEmpty) {
+        await appState.addHistoryView(view.copyWith(name: newName));
+        if (!mounted) return;
+        setState(() => _activeViewId = view.id);
+      }
+    } else if (action == 'delete') {
+      await appState.removeHistoryView(view.id);
+      if (!mounted) return;
+      if (_activeViewId == view.id) {
+        setState(() => _activeViewId = null);
+      }
+    }
+  }
+
   Widget _buildSortMenu() {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.sort),
-      onSelected: (value) => setState(() => _sort = value),
+      onSelected: (value) => setState(() {
+        _sort = value;
+        _activeViewId = null;
+      }),
       itemBuilder: (context) => const [
         PopupMenuItem(value: 'recent', child: Text('Más recientes')),
         PopupMenuItem(value: 'old', child: Text('Más antiguos')),
@@ -4373,9 +4812,10 @@ class HistoryStats {
 }
 
 class _HistoryStatsRow extends StatelessWidget {
-  const _HistoryStatsRow({required this.stats});
+  const _HistoryStatsRow({required this.stats, required this.autoCleanDays});
 
   final HistoryStats stats;
+  final int autoCleanDays;
 
   @override
   Widget build(BuildContext context) {
@@ -4384,6 +4824,14 @@ class _HistoryStatsRow extends StatelessWidget {
       _HistoryStatCard(label: '% QR', value: stats.total == 0 ? '0%' : '${((stats.qrShare / stats.total) * 100).round()}%'),
       _HistoryStatCard(label: '% Barras', value: stats.total == 0 ? '0%' : '${((stats.barcodeShare / stats.total) * 100).round()}%'),
     ];
+    final maintenance = autoCleanDays <= 0 ? 'Manual' : 'Cada ${autoCleanDays}d';
+    final needsCleanup = stats.total > 200;
+    cards.add(
+      _HistoryStatCard(
+        label: 'Mantenimiento',
+        value: needsCleanup ? '$maintenance · Revisar' : maintenance,
+      ),
+    );
     return SizedBox(
       height: 120,
       child: ListView.separated(
@@ -4658,6 +5106,120 @@ class _HistoryTile extends StatelessWidget {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    if (now.difference(date).inHours < 24) {
+      return DateFormat.Hm().format(date);
+    }
+    return DateFormat.yMd().format(date);
+  }
+}
+
+class _HistoryGridTile extends StatelessWidget {
+  const _HistoryGridTile({required this.entry, required this.selected, required this.selectionMode, required this.onTap, required this.onLongPress});
+
+  final HistoryEntry entry;
+  final bool selected;
+  final bool selectionMode;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final cardColor = selected ? colorScheme.secondaryContainer : colorScheme.surface;
+    return Semantics(
+      selected: selected,
+      button: !selectionMode,
+      label: '${entry.type.label} ${entry.displayLabel.isEmpty ? entry.value : entry.displayLabel}',
+      child: Material(
+        color: cardColor,
+        elevation: 3,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Hero(
+                      tag: 'grid_${entry.id}',
+                      child: CircleAvatar(
+                        backgroundColor: colorScheme.primaryContainer,
+                        child: Icon(entry.type.icon, color: colorScheme.primary),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        entry.displayLabel.isEmpty ? entry.value : entry.displayLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    if (selectionMode)
+                      Icon(selected ? Icons.check_circle : Icons.circle_outlined, color: colorScheme.primary),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Text(
+                    entry.value,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text('${entry.type.label} · ${_formatDate(entry.createdAt)}${entry.note.isNotEmpty ? ' · Nota' : ''}', style: Theme.of(context).textTheme.labelMedium),
+                const SizedBox(height: 12),
+                if (!selectionMode)
+                  Wrap(
+                    spacing: 4,
+                    children: [
+                      _HistoryActionButton(
+                        icon: Icons.copy_all,
+                        tooltip: 'Copiar',
+                        onPressed: () async {
+                          await FlutterClipboard.copy(entry.value);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copiado al portapapeles')));
+                        },
+                      ),
+                      _HistoryActionButton(
+                        icon: Icons.ios_share,
+                        tooltip: 'Compartir',
+                        onPressed: () async {
+                          if (entry.isSensitive) {
+                            final proceed = await _confirmHistorySensitive(context);
+                            if (proceed != true) return;
+                          }
+                          await Share.share(entry.value, subject: entry.displayLabel);
+                        },
+                      ),
+                      _HistoryActionButton(
+                        icon: entry.favorite ? Icons.star : Icons.star_border,
+                        tooltip: entry.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos',
+                        onPressed: () async {
+                          final updated = entry.copyWith(favorite: !entry.favorite);
+                          await AppStateScope.of(context).updateHistory(updated);
+                        },
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
