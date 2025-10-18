@@ -1,0 +1,28 @@
+{
+  "app_name": "A+ Read",
+  "tagline": "Lectura inteligente, productividad sin límites",
+  "onboarding": [
+    {
+      "title": "Lee y organiza",
+      "subtitle": "Encuentra y gestiona todos tus documentos PDF, Word, Excel y PPT en segundos."
+    },
+    {
+      "title": "Convierte y escanea",
+      "subtitle": "Escanea documentos, digitaliza imágenes y conviértelas a PDF de forma segura."
+    },
+    {
+      "title": "Anota y firma",
+      "subtitle": "Resalta, comenta y firma documentos con herramientas profesionales."
+    },
+    {
+      "title": "Tu asistente IA",
+      "subtitle": "Resume, traduce y genera insights con un copiloto de lectura inteligente."
+    }
+  ],
+  "home_sections": {
+    "quick_actions": "Acciones rápidas",
+    "recent_files": "Recientes",
+    "smart_spaces": "Colecciones inteligentes",
+    "ai_workspace": "Asistente IA"
+  }
+}

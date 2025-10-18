@@ -1,0 +1,28 @@
+{
+  "app_name": "A+ Read",
+  "tagline": "Smart reading, limitless productivity",
+  "onboarding": [
+    {
+      "title": "Read and organize",
+      "subtitle": "Find and manage all your PDF, Word, Excel and PPT files in seconds."
+    },
+    {
+      "title": "Convert and scan",
+      "subtitle": "Scan documents, digitize images and turn them into PDFs securely."
+    },
+    {
+      "title": "Annotate and sign",
+      "subtitle": "Highlight, comment and sign documents with professional tools."
+    },
+    {
+      "title": "Your AI copilot",
+      "subtitle": "Summarize, translate and get insights with an intelligent reading copilot."
+    }
+  ],
+  "home_sections": {
+    "quick_actions": "Quick actions",
+    "recent": "Recent",
+    "smart_spaces": "Smart spaces",
+    "ai_workspace": "AI Assistant"
+  }
+}
