@@ -1,0 +1,53 @@
+name: aplus_read
+description: "A+ Read - Premium PDF and Office document manager with AI assistant"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.19.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.5
+  flutter_hooks: ^0.20.4
+  hooks_riverpod: ^2.4.5
+  go_router: ^13.2.0
+  flex_color_scheme: ^7.3.1
+  google_fonts: ^6.1.0
+  intl: ^0.18.1
+  shared_preferences: ^2.2.2
+  file_picker: ^6.1.1
+  open_filex: ^4.3.4
+  path_provider: ^2.1.2
+  syncfusion_flutter_pdfviewer: ^24.1.41
+  syncfusion_flutter_pdf: ^24.1.41
+  pdfx: ^3.3.0
+  printing: ^5.12.0
+  pdf: ^3.10.6
+  image_picker: ^1.0.7
+  camera: ^0.10.5+9
+  google_mlkit_text_recognition: ^0.9.0
+  share_plus: ^10.0.2
+  device_info_plus: ^9.1.0
+  permission_handler: ^11.1.0
+  file_saver: ^0.2.11
+  uuid: ^4.3.3
+  flutter_svg: ^2.0.9
+  animations: ^2.0.8
+  lottie: ^3.0.0
+  smooth_page_indicator: ^1.1.0
+  collection: ^1.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+default_language: es
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/branding/
+    - assets/translations/
