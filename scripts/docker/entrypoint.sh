@@ -11,4 +11,8 @@ fi
 
 php artisan migrate --force
 
+if [ "${APP_ENV:-}" != "local" ] && [ ! -f public/build/manifest.json ]; then
+  echo "WARNING: public/build/manifest.json is missing. Build assets before production deploy."
+fi
+
 php artisan serve --host=0.0.0.0 --port=8080

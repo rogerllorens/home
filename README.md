@@ -65,8 +65,18 @@ Healthchecks y estado:
 Notas:
 
 - El contenedor `app` ejecuta `composer install` si falta `vendor/`, corre migraciones y arranca `php artisan serve` en `0.0.0.0:8080`.
-- Si `APP_ENV=local` y existe `package-lock.json`, se ejecuta `npm ci` y `npm run build` dentro del contenedor.
 - Los healthchecks están configurados para `db`, `redis`, `meili` y `ollama`.
+
+## Build assets
+
+En producción el contenedor es solo PHP, por lo que debes generar `public/build` fuera del contenedor:
+
+```bash
+npm ci
+npm run build
+```
+
+Asegura que `public/build/manifest.json` exista antes de desplegar.
 
 ## Pipeline end-to-end
 
@@ -122,6 +132,52 @@ Ejemplo de settings para un feed JSON:
 }
 ```
 
+## Ejemplos sources.settings
+
+**FEED_JSON**
+
+```json
+{
+  "items_path": "items",
+  "mappings": {
+    "external_id": "id",
+    "embed_url": "embedUrl",
+    "thumbnail_url": "thumb",
+    "raw_title": "title",
+    "raw_description": "description",
+    "raw_tags": "tags",
+    "duration_seconds": "duration",
+    "source_url": "url"
+  },
+  "allow_iframe_domains": ["player.example.com", "*.cdn.example.com"],
+  "deny_keywords": ["illegal", "underage"],
+  "iframe_sandbox": "allow-scripts allow-same-origin allow-forms",
+  "iframe_allow": "autoplay; fullscreen; picture-in-picture"
+}
+```
+
+**FEED_XML**
+
+```json
+{
+  "items_path": "//item",
+  "mappings": {
+    "external_id": "guid",
+    "embed_url": "embedUrl",
+    "thumbnail_url": "thumbnail",
+    "raw_title": "title",
+    "raw_description": "description",
+    "raw_tags": "tags",
+    "duration_seconds": "duration",
+    "source_url": "link"
+  },
+  "allow_iframe_domains": ["player.example.com", "*.cdn.example.com"],
+  "deny_keywords": ["illegal", "underage"],
+  "iframe_sandbox": "allow-scripts allow-same-origin allow-forms",
+  "iframe_allow": "autoplay; fullscreen; picture-in-picture"
+}
+```
+
 ## Monetización
 
 Configura las CTAs en `config/candidboys.php` o vía variables de entorno:
@@ -135,6 +191,13 @@ Configura las CTAs en `config/candidboys.php` o vía variables de entorno:
 - Define `APP_DEBUG=false`.
 - Usa claves seguras y rotación de secrets.
 - Recomienda un reverse proxy con HTTPS (Nginx/Traefik) delante de la app.
+
+## Checklist de lanzamiento
+
+- Configurar variables `PARTNER_*` para CTAs.
+- Crear sources con allowlist correcto.
+- Ejecutar pipeline: import -> ai -> quality -> publish -> sitemaps -> check-embeds.
+- Reindex Meilisearch: `php artisan scout:import "App\\Models\\Video"`.
 
 ## Diseño UI
 
@@ -187,6 +250,3 @@ php artisan scout:import "App\\Models\\Video"
 
 - El admin de sources muestra un diagnóstico de allow_iframe_domains con los últimos 10 videos y su estado.
 - Ejemplos de allow_iframe_domains válidos: `example.com`, `*.example.com`, `https://player.example.com`.
-- Categorías controladas normalizadas para evitar slugs inválidos.
-- Variables de entorno para CTAs y Redis por defecto en `.env.example`.
-- Contadores de import consistentes con resumen y errores limitados.

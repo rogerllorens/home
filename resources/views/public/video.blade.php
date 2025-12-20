@@ -44,6 +44,10 @@
                     </div>
                 @endif
                 <div class="overflow-hidden rounded-2xl border border-white/10 bg-slate-900">
+                    @php
+                        $iframeSandbox = $video->source?->settings['iframe_sandbox'] ?? 'allow-scripts allow-same-origin allow-presentation';
+                        $iframeAllow = $video->source?->settings['iframe_allow'] ?? 'fullscreen';
+                    @endphp
                     @if (!$isUnavailable && $video->embed_url)
                         <div class="relative aspect-video" id="embed-container" data-embed-container>
                             <img src="{{ $thumbnail }}" alt="{{ $video->title }}" class="h-full w-full object-cover" loading="lazy">
@@ -52,6 +56,8 @@
                                 type="button"
                                 data-embed-url="{{ $video->embed_url }}"
                                 data-embed-container="#embed-container"
+                                data-iframe-sandbox="{{ $iframeSandbox }}"
+                                data-iframe-allow="{{ $iframeAllow }}"
                             >
                                 <span class="rounded-full bg-indigo-500 px-6 py-3 text-sm font-semibold">Play</span>
                             </button>

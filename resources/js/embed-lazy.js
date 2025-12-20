@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', () => {
             const url = button.getAttribute('data-embed-url');
             const targetSelector = button.getAttribute('data-embed-container');
+            const sandbox = button.getAttribute('data-iframe-sandbox');
+            const allow = button.getAttribute('data-iframe-allow');
             const container = targetSelector ? document.querySelector(targetSelector) : button.closest('[data-embed-container]');
 
             if (!url || !container) {
@@ -16,7 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
             iframe.loading = 'lazy';
             iframe.referrerPolicy = 'no-referrer';
             iframe.allowFullscreen = true;
-            iframe.sandbox = 'allow-scripts allow-same-origin allow-presentation';
+            if (sandbox) {
+                iframe.setAttribute('sandbox', sandbox);
+            }
+            if (allow) {
+                iframe.setAttribute('allow', allow);
+            }
             iframe.className = 'h-full w-full';
 
             container.innerHTML = '';
