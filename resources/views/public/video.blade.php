@@ -18,7 +18,7 @@
         <meta name="twitter:title" content="{{ $video->seo_title ?: $video->title }}">
         <meta name="twitter:description" content="{{ $video->seo_description ?: \Illuminate\Support\Str::limit(strip_tags($video->description ?? ''), 160) }}">
         <meta name="twitter:image" content="{{ $thumbnail }}">
-        <script type="application/ld+json">
+        <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
             {!! json_encode([
                 '@context' => 'https://schema.org',
                 '@type' => 'VideoObject',
@@ -39,12 +39,13 @@
 
             <div class="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-slate-900">
                 @if ($video->embed_url)
-                    <div class="relative aspect-video" data-embed="{{ $video->embed_url }}">
+                    <div class="relative aspect-video" id="embed-container" data-embed-container>
                         <img src="{{ $thumbnail }}" alt="{{ $video->title }}" class="h-full w-full object-cover" loading="lazy">
                         <button
                             class="absolute inset-0 flex items-center justify-center bg-slate-950/60 text-white"
                             type="button"
-                            onclick="const container=this.parentElement;const iframe=document.createElement('iframe');iframe.src=container.dataset.embed;iframe.setAttribute('allow','autoplay; fullscreen');iframe.setAttribute('allowfullscreen','');iframe.className='h-full w-full';container.innerHTML='';container.appendChild(iframe);"
+                            data-embed-url="{{ $video->embed_url }}"
+                            data-embed-container="#embed-container"
                         >
                             <span class="rounded-full bg-indigo-500 px-6 py-3 text-sm font-semibold">Play</span>
                         </button>
@@ -56,16 +57,18 @@
                 @endif
             </div>
 
-            <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                @foreach ($ctas as $cta)
-                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <p class="text-xs uppercase text-slate-400">{{ $cta['subtitle'] }}</p>
-                        <h3 class="mt-2 text-base font-semibold">{{ $cta['title'] }}</h3>
-                        <p class="mt-2 text-sm text-slate-400">{{ $cta['description'] }}</p>
-                        <a class="mt-4 inline-flex text-sm text-indigo-300 hover:text-indigo-200" href="{{ $cta['url'] }}" target="_blank" rel="noopener">Ver oferta</a>
-                    </div>
-                @endforeach
-            </div>
+            @if ($ctas)
+                <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    @foreach ($ctas as $cta)
+                        <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                            <p class="text-xs uppercase text-slate-400">{{ $cta['label'] }}</p>
+                            <h3 class="mt-2 text-base font-semibold">{{ $cta['title'] }}</h3>
+                            <p class="mt-2 text-sm text-slate-400">{{ $cta['description'] }}</p>
+                            <a class="mt-4 inline-flex text-sm text-indigo-300 hover:text-indigo-200" href="{{ $cta['url'] }}" target="_blank" rel="noopener">Ver oferta</a>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
         </div>
 
         <aside class="space-y-4">

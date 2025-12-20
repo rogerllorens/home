@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Enums\VideoStatus;
 use App\Models\Video;
 use App\Services\AI\OllamaClient;
+use App\Services\CategorySlugNormalizer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -24,7 +25,7 @@ class GenerateVideoSeoJob implements ShouldQueue
     {
     }
 
-    public function handle(OllamaClient $client): void
+    public function handle(OllamaClient $client, CategorySlugNormalizer $normalizer): void
     {
         $video = Video::with('source')->find($this->videoId);
         if (!$video) {
@@ -47,7 +48,7 @@ class GenerateVideoSeoJob implements ShouldQueue
             return;
         }
 
-        $validated = $this->validatePayload($payload);
+        $validated = $this->validatePayload($payload, $normalizer);
         if (!$validated) {
             $video->update([
                 'status' => VideoStatus::Quarantine,
@@ -68,7 +69,7 @@ class GenerateVideoSeoJob implements ShouldQueue
         $video->save();
     }
 
-    private function validatePayload(array $payload): ?array
+    private function validatePayload(array $payload, CategorySlugNormalizer $normalizer): ?array
     {
         $title = trim((string) ($payload['seo_title'] ?? ''));
         $description = trim((string) ($payload['seo_description'] ?? ''));
@@ -99,10 +100,7 @@ class GenerateVideoSeoJob implements ShouldQueue
             return null;
         }
 
-        $categories = config('candidboys.categories_controlled', []);
-        if (!in_array($category, $categories, true)) {
-            $category = 'real-amateur';
-        }
+        $category = $normalizer->normalize($category);
 
         if ($quality < 0 || $quality > 100) {
             return null;

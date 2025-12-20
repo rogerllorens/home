@@ -165,3 +165,10 @@ php artisan scout:import "App\\Models\\Video"
 
 - `config/candidboys.php` centraliza parámetros de seguridad, SEO, IA y monetización.
 - Completa `categories_controlled` con la lista exacta de categorías definida en `SPEC.md`.
+
+## Hotfixes
+
+- Click-to-load del player sin JS inline (CSP compatible).
+- Categorías controladas normalizadas para evitar slugs inválidos.
+- Variables de entorno para CTAs y Redis por defecto en `.env.example`.
+- Contadores de import consistentes con resumen y errores limitados.

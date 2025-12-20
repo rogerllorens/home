@@ -2,7 +2,14 @@
 
 return [
     'categories_controlled' => [
-        // TODO: Populate with the exact list from SPEC.md.
+        'real-amateur',
+        'couples',
+        'first-time',
+        'mature-young',
+        'romantic',
+        'playful',
+        'massage',
+        'kink-soft',
     ],
     'default_language' => 'es',
     'embed_check' => [
@@ -33,14 +40,17 @@ return [
         'partner_links' => [
             'cams' => [
                 'url' => env('PARTNER_CAMS_URL'),
+                'label' => env('PARTNER_CTA_CAM_LABEL', 'Watch live'),
                 'template' => env('PARTNER_CAMS_TEMPLATE'),
             ],
             'membership' => [
                 'url' => env('PARTNER_MEMBERSHIP_URL'),
+                'label' => env('PARTNER_CTA_MEMBERSHIP_LABEL', 'Watch full scene'),
                 'template' => env('PARTNER_MEMBERSHIP_TEMPLATE'),
             ],
             'dating' => [
                 'url' => env('PARTNER_DATING_URL'),
+                'label' => env('PARTNER_CTA_DATING_LABEL', 'Meet guys'),
                 'template' => env('PARTNER_DATING_TEMPLATE'),
             ],
         ],

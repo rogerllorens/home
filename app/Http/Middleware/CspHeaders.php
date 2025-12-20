@@ -15,6 +15,10 @@ class CspHeaders
      */
     public function handle(Request $request, Closure $next): Response
     {
+        $nonce = base64_encode(random_bytes(16));
+        $request->attributes->set('csp_nonce', $nonce);
+        view()->share('cspNonce', $nonce);
+
         $response = $next($request);
 
         $frameSources = $this->resolveFrameSources($request);
@@ -23,7 +27,7 @@ class CspHeaders
             "default-src 'self'",
             "img-src 'self' https: data:",
             "style-src 'self' 'unsafe-inline'",
-            "script-src 'self'",
+            "script-src 'self' 'nonce-{$nonce}'",
             "frame-src 'self'{$frameSources}",
         ]);
 

@@ -39,26 +39,28 @@ class VideoController extends Controller
         $partnerLinks = array_replace_recursive($ctaConfig['partner_links'] ?? [], $sourceOverrides);
         $ctaTemplate = $ctaConfig['cta_templates'][$video->category_slug] ?? $ctaConfig['cta_templates']['default'] ?? '';
 
-        $ctas = [
+        $ctas = array_values(array_filter([
             [
                 'title' => 'Cam en vivo',
-                'subtitle' => 'Interactúa ahora',
-                'url' => $partnerLinks['cams']['url'] ?? '#',
+                'label' => $partnerLinks['cams']['label'] ?? 'Watch live',
+                'url' => $partnerLinks['cams']['url'] ?? null,
                 'description' => $partnerLinks['cams']['template'] ?? $ctaTemplate,
             ],
             [
                 'title' => 'Membresía',
-                'subtitle' => 'Full scene',
-                'url' => $partnerLinks['membership']['url'] ?? '#',
+                'label' => $partnerLinks['membership']['label'] ?? 'Watch full scene',
+                'url' => $partnerLinks['membership']['url'] ?? null,
                 'description' => $partnerLinks['membership']['template'] ?? $ctaTemplate,
             ],
             [
                 'title' => 'Dating',
-                'subtitle' => 'Conoce gente',
-                'url' => $partnerLinks['dating']['url'] ?? '#',
+                'label' => $partnerLinks['dating']['label'] ?? 'Meet guys',
+                'url' => $partnerLinks['dating']['url'] ?? null,
                 'description' => $partnerLinks['dating']['template'] ?? $ctaTemplate,
             ],
-        ];
+        ], function ($cta) {
+            return !empty($cta['url']);
+        }));
 
         $noindex = in_array($video->status, [VideoStatus::Broken, VideoStatus::Quarantine], true)
             || !$video->embed_ok

@@ -8,6 +8,7 @@ use App\Enums\VideoStatus;
 use App\Models\ImportRun;
 use App\Models\Source;
 use App\Models\Video;
+use App\Services\CategorySlugNormalizer;
 use App\Services\Embeds\EmbedUrlCanonicalizer;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -16,6 +17,7 @@ class SourceImporter
 {
     public function __construct(
         private readonly EmbedUrlCanonicalizer $canonicalizer,
+        private readonly CategorySlugNormalizer $categoryNormalizer,
         private readonly FeedJsonAdapter $feedJsonAdapter,
         private readonly FeedXmlAdapter $feedXmlAdapter,
         private readonly ManualAdapter $manualAdapter,
@@ -32,10 +34,12 @@ class SourceImporter
 
         $summary = [
             'processed' => 0,
-            'created' => 0,
-            'updated' => 0,
-            'duplicates' => 0,
-            'quarantined' => 0,
+            'imported_count' => 0,
+            'updated_count' => 0,
+            'duplicate_count' => 0,
+            'invalid_count' => 0,
+            'quarantined_count' => 0,
+            'error_count' => 0,
             'errors' => [],
         ];
 
@@ -52,15 +56,15 @@ class SourceImporter
             $run->update([
                 'status' => ImportRunStatus::Success,
                 'finished_at' => now(),
-                'meta' => $summary,
+                'meta' => $this->finalizeSummary($summary),
             ]);
         } catch (\Throwable $exception) {
-            $summary['errors'][] = $exception->getMessage();
+            $this->pushError($summary, $exception->getMessage());
 
             $run->update([
                 'status' => ImportRunStatus::Failed,
                 'finished_at' => now(),
-                'meta' => $summary,
+                'meta' => $this->finalizeSummary($summary),
                 'error_message' => $exception->getMessage(),
             ]);
         }
@@ -83,8 +87,8 @@ class SourceImporter
         $canonicalUrl = $this->canonicalizer->canonicalize($candidate->embedUrl, $allowHttp);
 
         if ($canonicalUrl === null) {
-            $summary['errors'][] = "URL inválida: {$candidate->embedUrl}";
-            return 'errors';
+            $this->pushError($summary, "URL inválida: {$candidate->embedUrl}");
+            return 'invalid_count';
         }
 
         $allowedDomains = Arr::wrap($source->settings['allow_iframe_domains'] ?? []);
@@ -98,7 +102,7 @@ class SourceImporter
         $existingByEmbed = Video::where('embed_url', $canonicalUrl)->first();
         if ($existingByEmbed && (!$video || $existingByEmbed->id !== $video->id)) {
             $existingByEmbed->increment('duplicate_count');
-            return 'duplicates';
+            return 'duplicate_count';
         }
 
         $payload = [
@@ -115,8 +119,8 @@ class SourceImporter
         if (!$isAllowedHost) {
             $payload['status'] = VideoStatus::Quarantine;
             $payload['embed_ok'] = false;
-            $summary['quarantined']++;
-            $summary['errors'][] = "Host no permitido: {$host}";
+            $summary['quarantined_count']++;
+            $this->pushError($summary, "Host no permitido: {$host}");
         }
 
         if ($video) {
@@ -136,9 +140,10 @@ class SourceImporter
                 $video->seo_description = Str::limit($candidate->rawDescription, 300, '');
             }
 
+            $video->category_slug = $this->categoryNormalizer->normalize($video->category_slug);
             $video->save();
 
-            return 'updated';
+            return 'updated_count';
         }
 
         $video = new Video($payload);
@@ -155,9 +160,10 @@ class SourceImporter
             $video->seo_description = Str::limit($candidate->rawDescription, 300, '');
         }
 
+        $video->category_slug = $this->categoryNormalizer->normalize($video->category_slug);
         $video->save();
 
-        return 'created';
+        return 'imported_count';
     }
 
     private function normalizeTags(?array $tags): array
@@ -171,5 +177,19 @@ class SourceImporter
         }
 
         return array_values(array_filter(array_map('trim', $tags)));
+    }
+
+    private function pushError(array &$summary, string $message): void
+    {
+        $summary['error_count']++;
+
+        if (count($summary['errors']) < 50) {
+            $summary['errors'][] = $message;
+        }
+    }
+
+    private function finalizeSummary(array $summary): array
+    {
+        return $summary;
     }
 }
