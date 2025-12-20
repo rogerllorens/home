@@ -37,24 +37,31 @@
             <h1 class="text-2xl font-semibold">{{ $video->title }}</h1>
             <p class="mt-2 text-sm text-slate-400">{{ $video->description }}</p>
 
-            <div class="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-slate-900">
-                @if ($video->embed_url)
-                    <div class="relative aspect-video" id="embed-container" data-embed-container>
-                        <img src="{{ $thumbnail }}" alt="{{ $video->title }}" class="h-full w-full object-cover" loading="lazy">
-                        <button
-                            class="absolute inset-0 flex items-center justify-center bg-slate-950/60 text-white"
-                            type="button"
-                            data-embed-url="{{ $video->embed_url }}"
-                            data-embed-container="#embed-container"
-                        >
-                            <span class="rounded-full bg-indigo-500 px-6 py-3 text-sm font-semibold">Play</span>
-                        </button>
+            <div class="mt-6 space-y-4">
+                @if ($isUnavailable)
+                    <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                        Video currently unavailable.
                     </div>
-                @elseif ($sanitizedEmbed)
-                    <div class="aspect-video">{!! $sanitizedEmbed !!}</div>
-                @else
-                    <div class="flex aspect-video items-center justify-center text-sm text-slate-400">Embed no disponible.</div>
                 @endif
+                <div class="overflow-hidden rounded-2xl border border-white/10 bg-slate-900">
+                    @if (!$isUnavailable && $video->embed_url)
+                        <div class="relative aspect-video" id="embed-container" data-embed-container>
+                            <img src="{{ $thumbnail }}" alt="{{ $video->title }}" class="h-full w-full object-cover" loading="lazy">
+                            <button
+                                class="absolute inset-0 flex items-center justify-center bg-slate-950/60 text-white"
+                                type="button"
+                                data-embed-url="{{ $video->embed_url }}"
+                                data-embed-container="#embed-container"
+                            >
+                                <span class="rounded-full bg-indigo-500 px-6 py-3 text-sm font-semibold">Play</span>
+                            </button>
+                        </div>
+                    @elseif (!$isUnavailable && $sanitizedEmbed)
+                        <div class="aspect-video">{!! $sanitizedEmbed !!}</div>
+                    @else
+                        <div class="flex aspect-video items-center justify-center text-sm text-slate-400">Embed no disponible.</div>
+                    @endif
+                </div>
             </div>
 
             @if ($ctas)

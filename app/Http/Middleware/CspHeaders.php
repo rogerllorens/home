@@ -56,8 +56,28 @@ class CspHeaders
         }
 
         $sources = array_map(function ($domain) {
-            return ' https://'.ltrim($domain, '.');
+            $domain = trim($domain);
+            if ($domain === '') {
+                return null;
+            }
+
+            if (str_starts_with($domain, 'http://') || str_starts_with($domain, 'https://')) {
+                return ' '.$domain;
+            }
+
+            if (str_starts_with($domain, '*.')) {
+                return ' https://'.$domain;
+            }
+
+            $domain = ltrim($domain, '.');
+            if (!preg_match('/^[a-z0-9.-]+$/i', $domain)) {
+                return null;
+            }
+
+            return ' https://'.$domain;
         }, $allowlist);
+
+        $sources = array_values(array_filter($sources));
 
         return implode('', $sources);
     }

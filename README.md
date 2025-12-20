@@ -169,6 +169,9 @@ php artisan scout:import "App\\Models\\Video"
 ## Hotfixes
 
 - Click-to-load del player sin JS inline (CSP compatible).
+- /v/ renderiza BROKEN/QUARANTINE con noindex y aviso de disponibilidad.
+- CSP soporta wildcards y dominios con esquema.
+- Assets se compilan fuera del contenedor (no se ejecuta npm en Docker).
 - Categorías controladas normalizadas para evitar slugs inválidos.
 - Variables de entorno para CTAs y Redis por defecto en `.env.example`.
 - Contadores de import consistentes con resumen y errores limitados.

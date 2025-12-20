@@ -14,7 +14,10 @@ class VideoController extends Controller
 {
     public function __invoke(string $slug, int $id, EmbedSanitizer $sanitizer): View|RedirectResponse
     {
-        $video = Video::published()->findOrFail($id);
+        $video = Video::findOrFail($id);
+        if (!in_array($video->status, [VideoStatus::Published, VideoStatus::Ready, VideoStatus::Broken, VideoStatus::Quarantine], true)) {
+            abort(404);
+        }
         $canonicalSlug = Str::slug($video->seo_title ?: $video->title);
 
         if ($slug !== $canonicalSlug) {
@@ -73,12 +76,15 @@ class VideoController extends Controller
             $sanitizedEmbed = $sanitizer->sanitize($video->embed_html);
         }
 
+        $isUnavailable = in_array($video->status, [VideoStatus::Broken, VideoStatus::Quarantine], true) || !$video->embed_ok;
+
         return view('public.video', [
             'video' => $video,
             'related' => $related,
             'ctas' => $ctas,
             'noindex' => $noindex,
             'sanitizedEmbed' => $sanitizedEmbed,
+            'isUnavailable' => $isUnavailable,
         ]);
     }
 }
