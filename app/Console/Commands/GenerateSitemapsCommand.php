@@ -6,6 +6,7 @@ use App\Models\Video;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 
 class GenerateSitemapsCommand extends Command
 {
@@ -14,6 +15,12 @@ class GenerateSitemapsCommand extends Command
 
     public function handle(): int
     {
+        $lock = Cache::lock('pipeline:daily', 3600);
+        if (!$lock->get()) {
+            $this->info('Pipeline lock active, skipping sitemap generation.');
+            return self::SUCCESS;
+        }
+
         $directory = public_path('sitemaps');
         File::ensureDirectoryExists($directory);
 
@@ -22,7 +29,8 @@ class GenerateSitemapsCommand extends Command
         $fileIndex = 1;
         $sitemapFiles = [];
 
-        $videos->chunk($chunkSize, function ($chunk) use (&$fileIndex, &$sitemapFiles, $directory) {
+        try {
+            $videos->chunk($chunkSize, function ($chunk) use (&$fileIndex, &$sitemapFiles, $directory) {
             $filename = "videos-{$fileIndex}.xml";
             $sitemapFiles[] = $filename;
             $fileIndex++;
@@ -40,6 +48,9 @@ class GenerateSitemapsCommand extends Command
 
             File::put("{$directory}/{$filename}", $xml);
         });
+        } finally {
+            $lock->release();
+        }
 
         $indexEntries = collect($sitemapFiles)->map(function ($file) {
             $loc = url("/sitemaps/{$file}");

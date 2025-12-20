@@ -6,6 +6,7 @@ use App\Enums\VideoStatus;
 use App\Models\Video;
 use App\Services\CategorySlugNormalizer;
 use App\Services\Embeds\EmbedUrlCanonicalizer;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
 
@@ -16,6 +17,12 @@ class VideosQualityCommand extends Command
 
     public function handle(EmbedUrlCanonicalizer $canonicalizer, CategorySlugNormalizer $normalizer): int
     {
+        $lock = Cache::lock('pipeline:daily', 3600);
+        if (!$lock->get()) {
+            $this->info('Pipeline lock active, skipping quality run.');
+            return self::SUCCESS;
+        }
+
         $limit = (int) $this->option('limit');
 
         $videos = Video::with('source')
@@ -23,11 +30,15 @@ class VideosQualityCommand extends Command
             ->limit($limit)
             ->get();
 
-        foreach ($videos as $video) {
-            $status = $this->evaluateStatus($video, $canonicalizer);
-            $video->status = $status;
-            $video->category_slug = $normalizer->normalize($video->category_slug);
-            $video->save();
+        try {
+            foreach ($videos as $video) {
+                $status = $this->evaluateStatus($video, $canonicalizer);
+                $video->status = $status;
+                $video->category_slug = $normalizer->normalize($video->category_slug);
+                $video->save();
+            }
+        } finally {
+            $lock->release();
         }
 
         $this->info("Processed {$videos->count()} videos.");

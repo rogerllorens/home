@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Enums\VideoStatus;
 use App\Models\Video;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 
 class VideosPublishCommand extends Command
 {
@@ -13,6 +14,12 @@ class VideosPublishCommand extends Command
 
     public function handle(): int
     {
+        $lock = Cache::lock('pipeline:daily', 3600);
+        if (!$lock->get()) {
+            $this->info('Pipeline lock active, skipping publish run.');
+            return self::SUCCESS;
+        }
+
         $daily = (int) $this->option('daily');
 
         $videos = Video::query()
@@ -22,11 +29,15 @@ class VideosPublishCommand extends Command
             ->limit($daily)
             ->get();
 
-        foreach ($videos as $video) {
-            $video->update([
-                'status' => VideoStatus::Published,
-                'published_at' => now(),
-            ]);
+        try {
+            foreach ($videos as $video) {
+                $video->update([
+                    'status' => VideoStatus::Published,
+                    'published_at' => now(),
+                ]);
+            }
+        } finally {
+            $lock->release();
         }
 
         $this->info("Published {$videos->count()} videos.");

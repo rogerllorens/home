@@ -116,7 +116,32 @@ class Video extends Model
             'seo_tags' => $this->seo_tags ?? [],
             'category_slug' => $this->category_slug,
             'published_at' => optional($this->published_at)->toAtomString(),
-            'quality_score' => $this->ai_quality,
+            'quality_score' => $this->quality_score,
         ];
+    }
+
+    public function getSeoTitleAttribute(): ?string
+    {
+        return $this->attributes['seo_title'] ?? $this->attributes['title'] ?? null;
+    }
+
+    public function getSeoDescriptionAttribute(): ?string
+    {
+        return $this->attributes['seo_description'] ?? $this->attributes['description'] ?? null;
+    }
+
+    public function getQualityScoreAttribute(): int
+    {
+        return (int) ($this->attributes['quality_score'] ?? $this->attributes['ai_quality'] ?? 0);
+    }
+
+    public function getEmbedLastCheckedAtAttribute(): ?\Illuminate\Support\Carbon
+    {
+        return $this->embed_checked_at;
+    }
+
+    public function getEmbedLastOkAtAttribute(): ?\Illuminate\Support\Carbon
+    {
+        return $this->embed_last_ok_at;
     }
 }

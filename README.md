@@ -172,6 +172,16 @@ php artisan scout:import "App\\Models\\Video"
 - /v/ renderiza BROKEN/QUARANTINE con noindex y aviso de disponibilidad.
 - CSP soporta wildcards y dominios con esquema.
 - Assets se compilan fuera del contenedor (no se ejecuta npm en Docker).
+
+## Production hardening
+
+- `/search` usa Meilisearch (Scout) si está disponible; si falla, hace fallback a SQL.
+- Reindex manual:
+  ```bash
+  php artisan scout:import "App\\Models\\Video"
+  ```
+- Scheduler con `withoutOverlapping` + `onOneServer` y lock `pipeline:daily` para calidad/publicación/sitemaps.
+- Compat layer en modelo `Video`: `seo_title`, `seo_description`, `quality_score`, `embed_last_checked_at` y `embed_last_ok_at` se normalizan vía accessors.
 - Categorías controladas normalizadas para evitar slugs inválidos.
 - Variables de entorno para CTAs y Redis por defecto en `.env.example`.
 - Contadores de import consistentes con resumen y errores limitados.

@@ -11,26 +11,32 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('sources:import')
             ->dailyAt('02:10')
-            ->withoutOverlapping();
+            ->withoutOverlapping()
+            ->onOneServer();
 
         $schedule->command('videos:ai')
             ->everyThirtyMinutes()
-            ->withoutOverlapping();
+            ->withoutOverlapping()
+            ->onOneServer();
 
         $schedule->command('videos:quality')
             ->dailyAt('03:10')
-            ->withoutOverlapping();
+            ->withoutOverlapping()
+            ->onOneServer();
 
         $schedule->command('videos:publish')
             ->dailyAt('03:30')
-            ->withoutOverlapping();
+            ->withoutOverlapping()
+            ->onOneServer();
 
         $schedule->command('sitemaps:generate')
             ->dailyAt('03:50')
-            ->withoutOverlapping();
+            ->withoutOverlapping()
+            ->onOneServer();
 
         $schedule->command('videos:check-embeds')
             ->hourly()
-            ->withoutOverlapping();
+            ->withoutOverlapping()
+            ->onOneServer();
     }
 }
