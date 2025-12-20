@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\SourceType;
 use App\Http\Controllers\Controller;
 use App\Models\Source;
+use App\Services\Embeds\EmbedDomainMatcher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -39,13 +40,30 @@ class SourceController extends Controller
             ->with('status', 'Fuente creada correctamente.');
     }
 
-    public function edit(Source $source): View
+    public function edit(Source $source, EmbedDomainMatcher $matcher): View
     {
+        $recentVideos = $source->videos()->latest()->take(10)->get();
+        $allowlist = $source->settings['allow_iframe_domains'] ?? [];
+        $diagnostics = $recentVideos->map(function ($video) use ($matcher, $allowlist) {
+            $host = $matcher->normalizeHost($video->embed_url ?? '');
+            return [
+                'id' => $video->id,
+                'host' => $host,
+                'status' => $video->status->value,
+                'allowed' => $host ? $matcher->isAllowed($host, $allowlist) : false,
+            ];
+        });
+
+        $blockedCount = $diagnostics->filter(fn ($item) => !$item['allowed'])->count();
+
         return view('admin.sources.form', [
             'source' => $source,
             'types' => SourceType::cases(),
             'method' => 'put',
             'route' => route('admin.sources.update', $source),
+            'diagnostics' => $diagnostics,
+            'allowlist' => $allowlist,
+            'blockedCount' => $blockedCount,
         ]);
     }
 

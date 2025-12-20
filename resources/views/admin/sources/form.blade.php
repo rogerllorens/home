@@ -87,6 +87,50 @@
             <p class="mt-2 text-xs text-slate-400">Ayuda: items_path, field mappings, allow_iframe_domains, deny_keywords, allow_categories.</p>
         </div>
 
+        @if ($source->exists)
+            <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                <h3 class="text-sm font-semibold">Diagnóstico de embeds</h3>
+                <p class="mt-2 text-xs text-slate-400">Allowlist actual: {{ $allowlist ? implode(', ', $allowlist) : 'Sin allowlist' }}</p>
+
+                @if ($blockedCount >= 3)
+                    <div class="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                        Atención: varios embeds no están permitidos por la allowlist.
+                    </div>
+                @endif
+
+                <div class="mt-4 overflow-hidden rounded-lg border border-white/10">
+                    <table class="min-w-full divide-y divide-white/10 text-xs">
+                        <thead class="bg-slate-900/40 text-left text-slate-400">
+                            <tr>
+                                <th class="px-3 py-2">Video ID</th>
+                                <th class="px-3 py-2">Embed host</th>
+                                <th class="px-3 py-2">Status</th>
+                                <th class="px-3 py-2">Allowed</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            @forelse ($diagnostics as $row)
+                                <tr>
+                                    <td class="px-3 py-2">{{ $row['id'] }}</td>
+                                    <td class="px-3 py-2">{{ $row['host'] ?? '-' }}</td>
+                                    <td class="px-3 py-2">{{ $row['status'] }}</td>
+                                    <td class="px-3 py-2">
+                                        <span class="{{ $row['allowed'] ? 'text-emerald-300' : 'text-rose-300' }}">
+                                            {{ $row['allowed'] ? 'Sí' : 'No' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td class="px-3 py-3 text-center text-slate-400" colspan="4">Sin videos recientes.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+
         <div class="flex items-center gap-3">
             <button class="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white" type="submit">Guardar</button>
             <a class="text-sm text-slate-400 hover:text-slate-200" href="{{ route('admin.sources.index') }}">Cancelar</a>

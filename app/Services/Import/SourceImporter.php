@@ -9,6 +9,7 @@ use App\Models\ImportRun;
 use App\Models\Source;
 use App\Models\Video;
 use App\Services\CategorySlugNormalizer;
+use App\Services\Embeds\EmbedDomainMatcher;
 use App\Services\Embeds\EmbedUrlCanonicalizer;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -18,6 +19,7 @@ class SourceImporter
     public function __construct(
         private readonly EmbedUrlCanonicalizer $canonicalizer,
         private readonly CategorySlugNormalizer $categoryNormalizer,
+        private readonly EmbedDomainMatcher $domainMatcher,
         private readonly FeedJsonAdapter $feedJsonAdapter,
         private readonly FeedXmlAdapter $feedXmlAdapter,
         private readonly ManualAdapter $manualAdapter,
@@ -93,7 +95,7 @@ class SourceImporter
 
         $allowedDomains = Arr::wrap($source->settings['allow_iframe_domains'] ?? []);
         $host = parse_url($canonicalUrl, PHP_URL_HOST);
-        $isAllowedHost = in_array($host, $allowedDomains, true);
+        $isAllowedHost = $this->domainMatcher->isAllowed((string) $host, $allowedDomains);
 
         $video = Video::where('source_id', $source->id)
             ->where('external_id', $candidate->externalId)

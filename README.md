@@ -182,6 +182,11 @@ php artisan scout:import "App\\Models\\Video"
   ```
 - Scheduler con `withoutOverlapping` + `onOneServer` y lock `pipeline:daily` para calidad/publicación/sitemaps.
 - Compat layer en modelo `Video`: `seo_title`, `seo_description`, `quality_score`, `embed_last_checked_at` y `embed_last_ok_at` se normalizan vía accessors.
+
+## Ops improvements
+
+- El admin de sources muestra un diagnóstico de allow_iframe_domains con los últimos 10 videos y su estado.
+- Ejemplos de allow_iframe_domains válidos: `example.com`, `*.example.com`, `https://player.example.com`.
 - Categorías controladas normalizadas para evitar slugs inválidos.
 - Variables de entorno para CTAs y Redis por defecto en `.env.example`.
 - Contadores de import consistentes con resumen y errores limitados.

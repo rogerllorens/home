@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Video;
+use App\Services\Embeds\EmbedDomainMatcher;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -41,6 +42,7 @@ class CspHeaders
 
     private function resolveFrameSources(Request $request): string
     {
+        $matcher = app(EmbedDomainMatcher::class);
         $allowlist = config('candidboys.security.global_iframe_allowlist', []);
 
         if ($request->route()?->getName() === 'public.video') {
@@ -55,26 +57,23 @@ class CspHeaders
             return '';
         }
 
-        $sources = array_map(function ($domain) {
-            $domain = trim($domain);
-            if ($domain === '') {
+        $sources = array_map(function ($domain) use ($matcher) {
+            $value = trim((string) $domain);
+            if ($value === '') {
                 return null;
             }
 
-            if (str_starts_with($domain, 'http://') || str_starts_with($domain, 'https://')) {
-                return ' '.$domain;
+            if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+                return ' '.$value;
             }
 
-            if (str_starts_with($domain, '*.')) {
-                return ' https://'.$domain;
+            if (str_starts_with($value, '*.')) {
+                $normalized = $matcher->normalizeHost($value);
+                return $normalized ? ' https://'.$normalized : null;
             }
 
-            $domain = ltrim($domain, '.');
-            if (!preg_match('/^[a-z0-9.-]+$/i', $domain)) {
-                return null;
-            }
-
-            return ' https://'.$domain;
+            $normalized = $matcher->normalizeHost($value);
+            return $normalized ? ' https://'.$normalized : null;
         }, $allowlist);
 
         $sources = array_values(array_filter($sources));
