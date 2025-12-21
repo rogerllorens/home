@@ -41,9 +41,10 @@
         <div class="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-slate-400 md:flex-row md:items-center md:justify-between">
             <span>© {{ date('Y') }} Candid Boys</span>
             <div class="flex flex-wrap gap-4">
-                <a class="hover:text-slate-200" href="#">Aviso legal</a>
-                <a class="hover:text-slate-200" href="#">Privacidad</a>
-                <a class="hover:text-slate-200" href="#">Contacto</a>
+                <a class="hover:text-slate-200" href="{{ route('public.terms') }}">Terms</a>
+                <a class="hover:text-slate-200" href="{{ route('public.privacy') }}">Privacy</a>
+                <a class="hover:text-slate-200" href="{{ route('public.takedown') }}">Takedown</a>
+                <a class="hover:text-slate-200" href="{{ route('public.contact') }}">Contact</a>
             </div>
         </div>
     </footer>

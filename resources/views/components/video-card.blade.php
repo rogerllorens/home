@@ -1,41 +1,75 @@
-@props(['video'])
+@props([
+    'video',
+    'variant' => 'dense',
+    'showTags' => true,
+    'showCategory' => true,
+])
 
+{{-- Dense cards: duration + meta always visible; views shown only if available. --}}
 @php
     $thumbnail = $video->thumbnail_url ?: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=80';
-    $tags = array_slice($video->raw_tags ?? [], 0, 2);
+    $tags = $showTags ? array_slice($video->raw_tags ?? [], 0, 2) : [];
+    $publishedAt = $video->published_at ?? $video->created_at;
+    $timeAgo = $publishedAt ? time_ago($publishedAt) : '';
+    $viewsTotal = $video->display_views;
+    $formattedViews = $viewsTotal ? format_views($viewsTotal) : null;
+    $durationLabel = null;
+    if ($video->duration_seconds) {
+        $durationLabel = $video->duration_seconds >= 3600
+            ? gmdate('H:i:s', $video->duration_seconds)
+            : gmdate('i:s', $video->duration_seconds);
+    }
+
+    $wrapperClasses = $variant === 'hero'
+        ? 'rounded-lg border border-red-600/40 bg-black/80'
+        : 'h-full rounded-md border border-red-600/30 bg-slate-950';
 @endphp
 
-<article class="group overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-sm transition hover:-translate-y-1 hover:border-indigo-400/40">
-    <a href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]) }}">
-        <div class="relative w-full overflow-hidden bg-slate-800/60">
+<article class="overflow-hidden shadow-sm transition hover:border-red-500/70 {{ $wrapperClasses }}">
+    <a
+        class="flex h-full flex-col"
+        href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]) }}"
+        aria-label="Watch {{ $video->title }}"
+    >
+        <div class="relative w-full overflow-hidden bg-black">
             <div class="aspect-video w-full">
                 <img
                     src="{{ $thumbnail }}"
                     alt="{{ $video->title }}"
-                    class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                    class="h-full w-full object-cover"
                     loading="lazy"
+                    decoding="async"
                 />
             </div>
-            @if ($video->duration_seconds)
-                <span class="absolute bottom-3 right-3 rounded-full bg-slate-900/80 px-3 py-1 text-xs font-semibold text-slate-100">
-                    {{ gmdate('i:s', $video->duration_seconds) }}
+            <div class="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent"></div>
+            @if ($durationLabel)
+                <span class="absolute bottom-2 right-2 rounded bg-black/80 px-2 py-0.5 text-[11px] font-semibold text-white">
+                    {{ $durationLabel }}
                 </span>
             @endif
         </div>
-        <div class="space-y-4 px-4 py-5">
-            <h3 class="text-base font-semibold text-white">
+        <div class="flex flex-1 flex-col gap-1 px-2 py-2">
+            <h3 class="line-clamp-2 text-sm font-semibold text-white">
                 {{ $video->title }}
             </h3>
-            <div class="flex flex-wrap gap-2 text-xs">
-                @if ($video->category_slug)
-                    <span class="rounded-full bg-indigo-500/10 px-3 py-1 font-medium text-indigo-200">
-                        {{ \Illuminate\Support\Str::headline($video->category_slug) }}
-                    </span>
+            <div class="flex items-center justify-between text-xs text-slate-400">
+                <span>{{ $timeAgo }}</span>
+                @if ($formattedViews)
+                    <span>{{ $formattedViews }} views</span>
                 @endif
-                @foreach ($tags as $tag)
-                    <span class="rounded-full bg-slate-700/40 px-3 py-1 font-medium text-slate-200">#{{ $tag }}</span>
-                @endforeach
             </div>
+            @if ($showCategory || $tags)
+                <div class="flex flex-wrap gap-1 pt-1 text-[11px]">
+                    @if ($showCategory && $video->category_slug)
+                        <span class="rounded-full border border-red-500/50 px-2 py-0.5 text-red-100">
+                            {{ \Illuminate\Support\Str::headline($video->category_slug) }}
+                        </span>
+                    @endif
+                    @foreach ($tags as $tag)
+                        <span class="rounded-full bg-white/5 px-2 py-0.5 text-slate-200">#{{ $tag }}</span>
+                    @endforeach
+                </div>
+            @endif
         </div>
     </a>
 </article>

@@ -12,9 +12,10 @@ class CategoryController extends Controller
     public function __invoke(string $categorySlug): View
     {
         $videos = Video::published()
+            ->withSum('viewsDaily', 'views')
             ->where('category_slug', $categorySlug)
             ->orderByDesc('published_at')
-            ->paginate(18)
+            ->paginate(24)
             ->withQueryString();
 
         $heading = Str::headline($categorySlug);

@@ -19,6 +19,10 @@ Route::get('/v/{slug}-{id}', PublicVideoController::class)->whereNumber('id')->n
 Route::get('/c/{category_slug}', CategoryController::class)->name('public.category');
 Route::get('/t/{tag_slug}', TagController::class)->name('public.tag');
 Route::get('/search', SearchController::class)->name('public.search')->middleware('throttle:search');
+Route::view('/terms', 'public.legal.terms')->name('public.terms');
+Route::view('/privacy', 'public.legal.privacy')->name('public.privacy');
+Route::view('/takedown', 'public.legal.takedown')->name('public.takedown');
+Route::view('/contact', 'public.legal.contact')->name('public.contact');
 Route::get('/sitemaps/index.xml', [SitemapController::class, 'index'])->name('public.sitemap.index');
 Route::get('/sitemaps/videos-{file}', [SitemapController::class, 'videos'])->where('file', '.*\\.xml')->name('public.sitemap.videos');
 
