@@ -15,13 +15,13 @@
         @endif
     </section>
 
-    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <x-video-grid>
         @forelse ($videos as $video)
             <x-video-card :video="$video" />
         @empty
             <p class="text-sm text-slate-400">No hay resultados.</p>
         @endforelse
-    </div>
+    </x-video-grid>
 
     <div class="mt-6">
         {{ $videos->links() }}

@@ -24,18 +24,46 @@ class VideoController extends Controller
             return redirect()->route('public.video', ['slug' => $canonicalSlug, 'id' => $video->id], 301);
         }
 
+        $video->loadSum('viewsDaily', 'views');
         $tags = $video->raw_tags ?? [];
-        $relatedQuery = Video::published()
-            ->where('id', '!=', $video->id)
-            ->when($video->category_slug, function ($query) use ($video) {
-                $query->where('category_slug', $video->category_slug);
-            });
+        $relatedLimit = 48;
+        $related = collect();
 
-        if (!empty($tags)) {
-            $relatedQuery->whereRaw('raw_tags && ?', ['{' . implode(',', $tags) . '}']);
+        $appendRelated = function ($query) use (&$related, $relatedLimit, $video) {
+            if ($related->count() >= $relatedLimit) {
+                return;
+            }
+
+            $results = $query
+                ->where('id', '!=', $video->id)
+                ->whereNotIn('id', $related->pluck('id'))
+                ->withSum('viewsDaily', 'views')
+                ->orderByDesc('published_at')
+                ->take($relatedLimit - $related->count())
+                ->get();
+
+            $related = $related->concat($results);
+        };
+
+        if ($video->category_slug && !empty($tags)) {
+            $appendRelated(
+                Video::published()
+                    ->where('category_slug', $video->category_slug)
+                    ->whereRaw('raw_tags && ?', ['{' . implode(',', $tags) . '}'])
+            );
         }
 
-        $related = $relatedQuery->orderByDesc('published_at')->take(6)->get();
+        if ($video->category_slug) {
+            $appendRelated(
+                Video::published()->where('category_slug', $video->category_slug)
+            );
+        }
+
+        $appendRelated(Video::published());
+
+        $related = $related->take($relatedLimit);
+        $nextVideo = $related->first();
+        $shuffleVideo = $related->count() > 1 ? $related->random() : $related->first();
 
         $ctaConfig = config('candidboys.monetization');
         $sourceOverrides = $video->source?->settings['partner_links'] ?? [];
@@ -66,8 +94,6 @@ class VideoController extends Controller
         }));
 
         $noindex = in_array($video->status, [VideoStatus::Broken, VideoStatus::Quarantine], true)
-            || !$video->embed_ok
-            || $video->embed_last_ok_at === null
             || !$video->seo_title
             || !$video->seo_description;
 
@@ -81,6 +107,8 @@ class VideoController extends Controller
         return view('public.video', [
             'video' => $video,
             'related' => $related,
+            'nextVideo' => $nextVideo,
+            'shuffleVideo' => $shuffleVideo,
             'ctas' => $ctas,
             'noindex' => $noindex,
             'sanitizedEmbed' => $sanitizedEmbed,

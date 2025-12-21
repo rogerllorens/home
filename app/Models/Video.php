@@ -144,4 +144,23 @@ class Video extends Model
     {
         return $this->embed_last_ok_at;
     }
+
+    public function getDisplayViewsAttribute(): ?int
+    {
+        $candidates = [
+            'views_total',
+            'views',
+            'views_daily',
+            'views_daily_sum_views',
+        ];
+
+        foreach ($candidates as $field) {
+            $value = $this->getAttribute($field);
+            if (is_numeric($value) && (int) $value > 0) {
+                return (int) $value;
+            }
+        }
+
+        return null;
+    }
 }
