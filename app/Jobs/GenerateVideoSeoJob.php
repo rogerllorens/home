@@ -4,15 +4,13 @@ namespace App\Jobs;
 
 use App\Enums\VideoStatus;
 use App\Models\Video;
-use App\Services\AI\OllamaClient;
-use App\Services\CategorySlugNormalizer;
+use App\Services\AI\AiClientFactory;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class GenerateVideoSeoJob implements ShouldQueue
 {
@@ -25,31 +23,31 @@ class GenerateVideoSeoJob implements ShouldQueue
     {
     }
 
-    public function handle(OllamaClient $client, CategorySlugNormalizer $normalizer): void
+    public function handle(AiClientFactory $factory): void
     {
         $video = Video::with('source')->find($this->videoId);
         if (!$video) {
             return;
         }
 
-        $payload = $client->generateSeoPayload([
+        $input = [
             'raw_title' => $video->raw_title ?? $video->title,
             'raw_description' => $video->raw_description ?? $video->description,
             'raw_tags' => implode(', ', $video->raw_tags ?? []),
             'duration' => $video->duration_seconds ? $video->duration_seconds.'s' : 'n/a',
+            'duration_seconds' => $video->duration_seconds ?? 0,
             'source_name' => $video->source?->name ?? 'unknown',
             'category_hint' => $video->category_slug ?? 'n/a',
-        ], $video->id);
+            'video_id' => $video->id,
+        ];
 
-        if (!$payload) {
-            $video->update([
-                'status' => VideoStatus::Quarantine,
+        try {
+            $validated = $factory->make()->generateVideoSeo($input);
+        } catch (\Throwable $exception) {
+            Log::warning('AI SEO generation failed', [
+                'video_id' => $video->id,
+                'error' => $exception->getMessage(),
             ]);
-            return;
-        }
-
-        $validated = $this->validatePayload($payload, $normalizer);
-        if (!$validated) {
             $video->update([
                 'status' => VideoStatus::Quarantine,
             ]);
@@ -67,51 +65,5 @@ class GenerateVideoSeoJob implements ShouldQueue
         ]);
 
         $video->save();
-    }
-
-    private function validatePayload(array $payload, CategorySlugNormalizer $normalizer): ?array
-    {
-        $title = trim((string) ($payload['seo_title'] ?? ''));
-        $description = trim((string) ($payload['seo_description'] ?? ''));
-        $tags = $payload['seo_tags'] ?? [];
-        $category = (string) ($payload['category_slug'] ?? '');
-        $quality = (int) ($payload['quality_score'] ?? 0);
-
-        if ($title === '' || $description === '') {
-            return null;
-        }
-
-        $titleLength = Str::length($title);
-        if ($titleLength < config('candidboys.seo.title_min') || $titleLength > config('candidboys.seo.title_max')) {
-            return null;
-        }
-
-        $descLength = Str::length($description);
-        if ($descLength < config('candidboys.seo.desc_min') || $descLength > config('candidboys.seo.desc_max')) {
-            return null;
-        }
-
-        $tags = array_values(array_unique(array_map('strtolower', Arr::wrap($tags))));
-        $tags = array_values(array_filter($tags));
-
-        $minTags = config('candidboys.seo.tags_min');
-        $maxTags = config('candidboys.seo.tags_max');
-        if (count($tags) < $minTags || count($tags) > $maxTags) {
-            return null;
-        }
-
-        $category = $normalizer->normalize($category);
-
-        if ($quality < 0 || $quality > 100) {
-            return null;
-        }
-
-        return [
-            'seo_title' => $title,
-            'seo_description' => $description,
-            'seo_tags' => $tags,
-            'category_slug' => $category,
-            'quality_score' => $quality,
-        ];
     }
 }

@@ -18,8 +18,13 @@ return [
         'retry_delay_seconds' => 3600,
     ],
     'ai' => [
+        'provider' => env('AI_PROVIDER', 'ollama'),
         'ollama_host' => env('OLLAMA_HOST', 'http://localhost:11434'),
         'ollama_model' => env('OLLAMA_MODEL', 'llama3'),
+        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        'openai_base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+        'openai_api_key' => env('OPENAI_API_KEY'),
+        'temperature' => env('OPENAI_TEMPERATURE', 0.3),
         'timeout_seconds' => 60,
         'retries' => 2,
         'backoff_seconds' => [2, 5],

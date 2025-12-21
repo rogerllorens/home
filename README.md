@@ -103,7 +103,9 @@ php artisan schedule:work
 - `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
 - `MEILISEARCH_HOST`, `MEILISEARCH_KEY`
-- `OLLAMA_HOST`, `OLLAMA_MODEL`
+- `AI_PROVIDER` (por defecto `ollama`)
+- `OLLAMA_HOST`, `OLLAMA_MODEL` (si usas `ollama`)
+- `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` (si usas `openai`)
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD`
 
 ## Sanitización HTML
