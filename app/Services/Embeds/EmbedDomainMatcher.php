@@ -36,6 +36,10 @@ class EmbedDomainMatcher
 
     public function isAllowed(string $host, array $allowlist): bool
     {
+        if (empty($allowlist)) {
+            return true;
+        }
+
         $normalizedHost = $this->normalizeHost($host);
         if (!$normalizedHost) {
             return false;
