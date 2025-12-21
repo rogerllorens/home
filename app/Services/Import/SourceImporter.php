@@ -168,7 +168,7 @@ class SourceImporter
         return 'imported_count';
     }
 
-    private function normalizeTags(?array $tags): array
+    private function normalizeTags(array|string|null $tags): array
     {
         if ($tags === null) {
             return [];
@@ -178,7 +178,17 @@ class SourceImporter
             $tags = preg_split('/[,|]/', $tags) ?: [];
         }
 
-        return array_values(array_filter(array_map('trim', $tags)));
+        if (is_scalar($tags)) {
+            $tags = [(string) $tags];
+        }
+
+        if (!is_array($tags)) {
+            return [];
+        }
+
+        $normalized = array_map(static fn ($tag) => trim((string) $tag), $tags);
+
+        return array_values(array_filter($normalized));
     }
 
     private function pushError(array &$summary, string $message): void

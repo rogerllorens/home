@@ -10,7 +10,7 @@ class VideoCandidate
         public string $thumbnailUrl,
         public string $rawTitle,
         public ?string $rawDescription = null,
-        public ?array $rawTags = null,
+        public array|string|null $rawTags = null,
         public ?int $durationSeconds = null,
         public ?string $sourceUrl = null,
     ) {
