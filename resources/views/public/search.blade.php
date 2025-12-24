@@ -1,4 +1,12 @@
 <x-layouts.public title="Buscar | Candid Boys">
+    @push('head')
+        <x-seo-head
+            title="Buscar | Candid Boys"
+            description="Buscar videos y tags en Candid Boys."
+            canonical="{{ route('public.search') }}"
+            robots="noindex,follow"
+        />
+    @endpush
     <section class="mb-8">
         <h1 class="text-2xl font-semibold">Buscar</h1>
         <form class="mt-4" method="GET" action="{{ route('public.search') }}">
@@ -12,6 +20,8 @@
         </form>
         @if ($query)
             <p class="mt-3 text-sm text-slate-400">Resultados para “{{ $query }}”</p>
+        @else
+            <p class="mt-3 text-sm text-slate-400">Escribe un término para buscar videos o tags.</p>
         @endif
     </section>
 

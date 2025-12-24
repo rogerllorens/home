@@ -6,13 +6,14 @@ use App\Enums\VideoStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Video;
 use App\Services\Embeds\EmbedSanitizer;
+use App\Services\Monetization\CtaResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class VideoController extends Controller
 {
-    public function __invoke(string $slug, int $id, EmbedSanitizer $sanitizer): View|RedirectResponse
+    public function __invoke(string $slug, int $id, EmbedSanitizer $sanitizer, CtaResolver $ctaResolver): View|RedirectResponse
     {
         $video = Video::findOrFail($id);
         if (!in_array($video->status, [VideoStatus::Published, VideoStatus::Ready, VideoStatus::Broken, VideoStatus::Quarantine], true)) {
@@ -65,37 +66,26 @@ class VideoController extends Controller
         $nextVideo = $related->first();
         $shuffleVideo = $related->count() > 1 ? $related->random() : $related->first();
 
-        $ctaConfig = config('candidboys.monetization');
-        $sourceOverrides = $video->source?->settings['partner_links'] ?? [];
-        $partnerLinks = array_replace_recursive($ctaConfig['partner_links'] ?? [], $sourceOverrides);
-        $ctaTemplate = $ctaConfig['cta_templates'][$video->category_slug] ?? $ctaConfig['cta_templates']['default'] ?? '';
+        $ctaDefinitions = $ctaResolver->resolve($video);
+        $ctas = collect($ctaDefinitions)
+            ->filter(fn ($cta) => !empty($cta['url']))
+            ->map(function (array $cta, string $key) use ($video) {
+                $cta['key'] = $key;
+                $cta['track_url'] = route('public.cta.track', [
+                    'video' => $video->id,
+                    'ctaKey' => $key,
+                    'placement' => 'video_detail',
+                ]);
+                return $cta;
+            })
+            ->values()
+            ->all();
 
-        $ctas = array_values(array_filter([
-            [
-                'title' => 'Cam en vivo',
-                'label' => $partnerLinks['cams']['label'] ?? 'Watch live',
-                'url' => $partnerLinks['cams']['url'] ?? null,
-                'description' => $partnerLinks['cams']['template'] ?? $ctaTemplate,
-            ],
-            [
-                'title' => 'Membresía',
-                'label' => $partnerLinks['membership']['label'] ?? 'Watch full scene',
-                'url' => $partnerLinks['membership']['url'] ?? null,
-                'description' => $partnerLinks['membership']['template'] ?? $ctaTemplate,
-            ],
-            [
-                'title' => 'Dating',
-                'label' => $partnerLinks['dating']['label'] ?? 'Meet guys',
-                'url' => $partnerLinks['dating']['url'] ?? null,
-                'description' => $partnerLinks['dating']['template'] ?? $ctaTemplate,
-            ],
-        ], function ($cta) {
-            return !empty($cta['url']);
-        }));
-
-        $noindex = in_array($video->status, [VideoStatus::Broken, VideoStatus::Quarantine], true)
-            || !$video->seo_title
-            || !$video->seo_description;
+        $isIndexable = $video->status === VideoStatus::Published
+            && !empty($video->seo_title)
+            && !empty($video->seo_description)
+            && $video->embed_ok;
+        $robots = $isIndexable ? 'index,follow' : 'noindex,follow';
 
         $sanitizedEmbed = null;
         if (!$video->embed_url && $video->embed_html) {
@@ -110,7 +100,7 @@ class VideoController extends Controller
             'nextVideo' => $nextVideo,
             'shuffleVideo' => $shuffleVideo,
             'ctas' => $ctas,
-            'noindex' => $noindex,
+            'robots' => $robots,
             'sanitizedEmbed' => $sanitizedEmbed,
             'isUnavailable' => $isUnavailable,
         ]);

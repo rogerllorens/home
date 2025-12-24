@@ -23,16 +23,22 @@ class CspHeaders
         $response = $next($request);
 
         $frameSources = $this->resolveFrameSources($request);
+        $assetCdn = config('candidboys.security.asset_cdn');
+        $assetSource = $assetCdn ? " https://{$assetCdn}" : '';
 
         $policy = implode('; ', [
             "default-src 'self'",
-            "img-src 'self' https: data:",
+            "img-src 'self' https: data:{$assetSource}",
             "style-src 'self' 'unsafe-inline'",
             "script-src 'self' 'nonce-{$nonce}'",
             "frame-src 'self'{$frameSources}",
+            "child-src 'self'{$frameSources}",
+            "frame-ancestors 'self'",
         ]);
 
         $response->headers->set('Content-Security-Policy', $policy);
+        $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+        $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');

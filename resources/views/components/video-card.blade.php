@@ -39,6 +39,8 @@
                     class="h-full w-full object-cover"
                     loading="lazy"
                     decoding="async"
+                    width="320"
+                    height="180"
                 />
             </div>
             <div class="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent"></div>

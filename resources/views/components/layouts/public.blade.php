@@ -5,7 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title ?? config('app.name', 'Candid Boys') }}</title>
     @stack('head')
+    <link rel="preload" href="{{ Vite::asset('resources/css/app.css') }}" as="style">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
+        {!! json_encode([
+            '@context' => 'https://schema.org',
+            '@type' => 'Organization',
+            'name' => config('app.name', 'Candid Boys'),
+            'url' => url('/'),
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+    </script>
+    <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
+        {!! json_encode([
+            '@context' => 'https://schema.org',
+            '@type' => 'WebSite',
+            'name' => config('app.name', 'Candid Boys'),
+            'url' => url('/'),
+            'potentialAction' => [
+                '@type' => 'SearchAction',
+                'target' => route('public.search', ['q' => '{search_term_string}']),
+                'query-input' => 'required name=search_term_string',
+            ],
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+    </script>
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
     <div class="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 backdrop-blur">

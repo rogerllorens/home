@@ -9,8 +9,28 @@
 
 <x-layouts.public title="Candid Boys | Home">
     @push('head')
-        <meta name="description" content="Discover the latest and most popular videos with a fast, classic tube-style browsing experience.">
-        <link rel="canonical" href="{{ url('/') }}">
+        <x-seo-head
+            title="Candid Boys | Home"
+            description="Discover the latest and most popular videos with a fast, classic tube-style browsing experience."
+            canonical="{{ url('/') }}"
+        />
+        <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
+            {!! json_encode([
+                '@context' => 'https://schema.org',
+                '@type' => 'ItemList',
+                'itemListElement' => $latestVideos->map(function ($video, $index) {
+                    return [
+                        '@type' => 'ListItem',
+                        'position' => $index + 1,
+                        'url' => route('public.video', [
+                            'slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title),
+                            'id' => $video->id,
+                        ]),
+                        'name' => $video->seo_title ?: $video->title,
+                    ];
+                })->values()->all(),
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+        </script>
     @endpush
 
     @if ($featured)
@@ -98,7 +118,12 @@
             @forelse ($latestVideos as $video)
                 <x-video-card :video="$video" />
             @empty
-                <p class="text-sm text-slate-400">No videos available right now.</p>
+                <div class="space-y-3">
+                    <p class="text-sm text-slate-400">No videos available right now.</p>
+                    <a class="inline-flex rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500" href="{{ route('public.search') }}">
+                        Buscar videos
+                    </a>
+                </div>
             @endforelse
         </x-video-grid>
 

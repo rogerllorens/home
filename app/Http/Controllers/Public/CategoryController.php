@@ -4,23 +4,35 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Video;
+use App\Support\PublicCache;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class CategoryController extends Controller
 {
     public function __invoke(string $categorySlug): View
     {
-        $videos = Video::published()
-            ->withSum('viewsDaily', 'views')
-            ->where('category_slug', $categorySlug)
-            ->orderByDesc('published_at')
-            ->paginate(24)
-            ->withQueryString();
+        $page = (int) request()->query('page', 1);
+        $cacheKey = PublicCache::key("category:{$categorySlug}:page:{$page}");
 
-        $heading = Str::headline($categorySlug);
-        $description = "Últimos videos en la categoría {$heading}.";
+        $payload = Cache::remember($cacheKey, now()->addMinutes(15), function () use ($categorySlug) {
+            $videos = Video::published()
+                ->withSum('viewsDaily', 'views')
+                ->where('category_slug', $categorySlug)
+                ->orderByDesc('published_at')
+                ->paginate(24)
+                ->withQueryString();
 
-        return view('public.category', compact('videos', 'categorySlug', 'heading', 'description'));
+            $heading = Str::headline($categorySlug);
+            $description = "Últimos videos en la categoría {$heading}.";
+
+            return compact('videos', 'heading', 'description');
+        });
+
+        return view('public.category', [
+            ...$payload,
+            'categorySlug' => $categorySlug,
+        ]);
     }
 }

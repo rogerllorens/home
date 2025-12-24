@@ -16,23 +16,30 @@ class FeedXmlAdapter implements SourceAdapterInterface
 
     public function fetchCandidates(Source $source): array
     {
-        $response = $this->client->get($source->feed_url, [
-            'headers' => $this->buildHeaders($source),
-            'timeout' => 10,
-        ]);
+        try {
+            $response = $this->client->get($source->feed_url, [
+                'headers' => $this->buildHeaders($source),
+                'timeout' => 10,
+            ]);
+        } catch (\Throwable $exception) {
+            throw new \RuntimeException('Feed XML no disponible: '.$exception->getMessage(), 0, $exception);
+        }
 
         $xml = (string) $response->getBody();
         $document = new DOMDocument();
         $document->resolveExternals = false;
         $document->substituteEntities = false;
-        $document->loadXML($xml, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
+        $loaded = $document->loadXML($xml, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
+        if (!$loaded) {
+            throw new \RuntimeException('Feed XML inválido: no se pudo parsear.');
+        }
 
         $xpath = new DOMXPath($document);
         $itemsPath = $source->settings['items_path'] ?? null;
         $nodes = $itemsPath ? $xpath->query($itemsPath) : $document->getElementsByTagName('item');
 
         if ($nodes === false) {
-            return [];
+            throw new \RuntimeException("items_path inválido o no encontrado: {$itemsPath}");
         }
 
         $mapping = $source->settings['mappings'] ?? [];
