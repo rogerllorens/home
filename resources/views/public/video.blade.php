@@ -33,14 +33,38 @@
     @push('head')
         <link rel="canonical" href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]) }}">
         <meta name="description" content="{{ $video->seo_description ?: \Illuminate\Support\Str::limit(strip_tags($video->description ?? ''), 160) }}">
-        @if ($noindex)
-            <meta name="robots" content="noindex,nofollow">
-        @endif
+        <meta name="robots" content="{{ $robots }}">
         <meta property="og:title" content="{{ $video->seo_title ?: $video->title }}">
         <meta property="og:description" content="{{ $video->seo_description ?: \Illuminate\Support\Str::limit(strip_tags($video->description ?? ''), 160) }}">
         <meta property="og:type" content="video.other">
         <meta property="og:url" content="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]) }}">
         <meta property="og:image" content="{{ $thumbnail }}">
+        <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
+            {!! json_encode(array_filter([
+                '@context' => 'https://schema.org',
+                '@type' => 'BreadcrumbList',
+                'itemListElement' => array_values(array_filter([
+                    [
+                        '@type' => 'ListItem',
+                        'position' => 1,
+                        'name' => 'Home',
+                        'item' => url('/'),
+                    ],
+                    $video->category_slug ? [
+                        '@type' => 'ListItem',
+                        'position' => 2,
+                        'name' => \Illuminate\Support\Str::headline($video->category_slug),
+                        'item' => route('public.category', $video->category_slug),
+                    ] : null,
+                    [
+                        '@type' => 'ListItem',
+                        'position' => $video->category_slug ? 3 : 2,
+                        'name' => $video->seo_title ?: $video->title,
+                        'item' => route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]),
+                    ],
+                ])),
+            ]), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+        </script>
         <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
             {!! json_encode(array_filter([
                 '@context' => 'https://schema.org',
@@ -139,7 +163,7 @@
                             <p class="text-xs uppercase text-slate-400">{{ $cta['label'] }}</p>
                             <h3 class="mt-2 text-base font-semibold text-white">{{ $cta['title'] }}</h3>
                             <p class="mt-2 text-sm text-slate-300">{{ $cta['description'] }}</p>
-                            <a class="mt-4 inline-flex text-sm font-semibold text-red-300 hover:text-red-200" href="{{ $cta['url'] }}" target="_blank" rel="noopener">Ver oferta</a>
+                            <a class="mt-4 inline-flex text-sm font-semibold text-red-300 hover:text-red-200" href="{{ $cta['track_url'] }}" target="_blank" rel="noopener">Ver oferta</a>
                         </div>
                     @endforeach
                 </div>

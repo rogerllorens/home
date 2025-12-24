@@ -45,11 +45,4 @@ class AppServiceProvider extends ServiceProvider
         return (int) $value;
     }
 
-    /**
-     * Bootstrap any application services.
-     */
-    public function boot(): void
-    {
-        //
-    }
 }

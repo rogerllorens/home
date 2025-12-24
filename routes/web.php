@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\CtaClickController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ImportRunController;
 use App\Http\Controllers\Admin\SourceController;
 use App\Http\Controllers\Admin\TakedownController;
 use App\Http\Controllers\Admin\VideoController;
+use App\Http\Controllers\Public\CtaTrackingController;
 use App\Http\Controllers\Public\CategoryController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\SearchController;
@@ -19,12 +21,15 @@ Route::get('/v/{slug}-{id}', PublicVideoController::class)->whereNumber('id')->n
 Route::get('/c/{category_slug}', CategoryController::class)->name('public.category');
 Route::get('/t/{tag_slug}', TagController::class)->name('public.tag');
 Route::get('/search', SearchController::class)->name('public.search')->middleware('throttle:search');
+Route::get('/r/{video}/{ctaKey}', CtaTrackingController::class)->name('public.cta.track');
 Route::view('/terms', 'public.legal.terms')->name('public.terms');
 Route::view('/privacy', 'public.legal.privacy')->name('public.privacy');
 Route::view('/takedown', 'public.legal.takedown')->name('public.takedown');
 Route::view('/contact', 'public.legal.contact')->name('public.contact');
 Route::get('/sitemaps/index.xml', [SitemapController::class, 'index'])->name('public.sitemap.index');
 Route::get('/sitemaps/videos-{file}', [SitemapController::class, 'videos'])->where('file', '.*\\.xml')->name('public.sitemap.videos');
+Route::get('/sitemaps/categories-{file}', [SitemapController::class, 'categories'])->where('file', '.*\\.xml')->name('public.sitemap.categories');
+Route::get('/sitemaps/tags-{file}', [SitemapController::class, 'tags'])->where('file', '.*\\.xml')->name('public.sitemap.tags');
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('login', [AuthController::class, 'showLogin'])->name('login');
@@ -57,5 +62,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('takedowns/{takedown}/edit', [TakedownController::class, 'edit'])->name('takedowns.edit');
         Route::put('takedowns/{takedown}', [TakedownController::class, 'update'])->name('takedowns.update');
         Route::delete('takedowns/{takedown}', [TakedownController::class, 'destroy'])->name('takedowns.destroy');
+
+        Route::get('cta-clicks', [CtaClickController::class, 'index'])->name('cta-clicks.index');
     });
 });

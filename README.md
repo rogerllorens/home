@@ -97,6 +97,14 @@ Para ejecución continua usa el scheduler:
 php artisan schedule:work
 ```
 
+## Admin auth
+
+El acceso admin usa usuarios en la tabla `users` con `is_admin = true`. Para crear/actualizar el admin desde `.env`:
+
+```bash
+php artisan admin:sync
+```
+
 ## Variables .env obligatorias
 
 - `APP_URL`
@@ -107,6 +115,7 @@ php artisan schedule:work
 - `OLLAMA_HOST`, `OLLAMA_MODEL` (si usas `ollama`)
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` (si usas `openai`)
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD`
+- `CTA_UTM_SOURCE`, `CTA_UTM_MEDIUM` (tracking CTAs)
 
 ## Sanitización HTML
 
@@ -188,6 +197,8 @@ Configura las CTAs en `config/candidboys.php` o vía variables de entorno:
 - `PARTNER_MEMBERSHIP_URL`, `PARTNER_MEMBERSHIP_TEMPLATE`
 - `PARTNER_DATING_URL`, `PARTNER_DATING_TEMPLATE`
 
+Los clicks se registran en `cta_clicks` y se redirigen con UTM + `click_id`.
+
 ## Producción
 
 - Define `APP_DEBUG=false`.
@@ -198,6 +209,27 @@ Configura las CTAs en `config/candidboys.php` o vía variables de entorno:
 
 - Configurar variables `PARTNER_*` para CTAs.
 - Crear sources con allowlist correcto.
+- Ejecutar `php artisan admin:sync` para el usuario admin.
+
+## Runbook operativo
+
+1. **Sincronizar admin**
+   ```bash
+   php artisan admin:sync
+   ```
+2. **Pipeline completo**
+   ```bash
+   php artisan sources:import
+   php artisan videos:ai --limit=5000
+   php artisan videos:quality --limit=5000
+   php artisan videos:publish --daily=3000
+   php artisan sitemaps:generate
+   php artisan videos:check-embeds --limit=5000
+   ```
+3. **Troubleshooting rápido**
+   - Si no hay sitemaps: verificar `public/sitemaps` y `storage/logs/laravel.log`.
+   - Si no hay clicks: revisar `cta_clicks` y la URL de partner en `PARTNER_*`.
+   - Si el admin no accede: ejecutar `php artisan admin:sync` y validar `is_admin`.
 - Ejecutar pipeline: import -> ai -> quality -> publish -> sitemaps -> check-embeds.
 - Reindex Meilisearch: `php artisan scout:import "App\\Models\\Video"`.
 

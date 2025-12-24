@@ -42,6 +42,10 @@ return [
         'cta_templates' => [
             'default' => 'Descubre más contenido y ofertas exclusivas.',
         ],
+        'utm' => [
+            'source' => env('CTA_UTM_SOURCE', 'candidboys'),
+            'medium' => env('CTA_UTM_MEDIUM', 'cta'),
+        ],
         'partner_links' => [
             'cams' => [
                 'url' => env('PARTNER_CAMS_URL'),

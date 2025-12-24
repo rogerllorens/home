@@ -11,6 +11,23 @@
     @push('head')
         <meta name="description" content="Discover the latest and most popular videos with a fast, classic tube-style browsing experience.">
         <link rel="canonical" href="{{ url('/') }}">
+        <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
+            {!! json_encode([
+                '@context' => 'https://schema.org',
+                '@type' => 'ItemList',
+                'itemListElement' => $latestVideos->map(function ($video, $index) {
+                    return [
+                        '@type' => 'ListItem',
+                        'position' => $index + 1,
+                        'url' => route('public.video', [
+                            'slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title),
+                            'id' => $video->id,
+                        ]),
+                        'name' => $video->seo_title ?: $video->title,
+                    ];
+                })->values()->all(),
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+        </script>
     @endpush
 
     @if ($featured)

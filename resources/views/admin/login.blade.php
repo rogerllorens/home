@@ -12,7 +12,7 @@
             <div class="mb-6 text-center">
                 <div class="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/15 text-indigo-200">CB</div>
                 <h1 class="text-xl font-semibold">Acceso admin</h1>
-                <p class="mt-2 text-sm text-slate-400">Ingresa las credenciales configuradas en el .env</p>
+                <p class="mt-2 text-sm text-slate-400">Usa el admin creado con <code>php artisan admin:sync</code>.</p>
             </div>
 
             <form class="space-y-4" method="POST" action="{{ route('admin.login') }}">
