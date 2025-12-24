@@ -9,10 +9,12 @@ use App\Http\Controllers\Admin\TakedownController;
 use App\Http\Controllers\Admin\VideoController;
 use App\Http\Controllers\Public\CtaTrackingController;
 use App\Http\Controllers\Public\CategoryController;
+use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\SearchController;
 use App\Http\Controllers\Public\SitemapController;
 use App\Http\Controllers\Public\TagController;
+use App\Http\Controllers\Public\TakedownRequestController;
 use App\Http\Controllers\Public\VideoController as PublicVideoController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,8 +26,10 @@ Route::get('/search', SearchController::class)->name('public.search')->middlewar
 Route::get('/r/{video}/{ctaKey}', CtaTrackingController::class)->name('public.cta.track');
 Route::view('/terms', 'public.legal.terms')->name('public.terms');
 Route::view('/privacy', 'public.legal.privacy')->name('public.privacy');
-Route::view('/takedown', 'public.legal.takedown')->name('public.takedown');
-Route::view('/contact', 'public.legal.contact')->name('public.contact');
+Route::get('/takedown', [TakedownRequestController::class, 'show'])->name('public.takedown');
+Route::post('/takedown', [TakedownRequestController::class, 'store'])->middleware('throttle:public_takedown');
+Route::get('/contact', [ContactController::class, 'show'])->name('public.contact');
+Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:public_contact');
 Route::get('/sitemaps/index.xml', [SitemapController::class, 'index'])->name('public.sitemap.index');
 Route::get('/sitemaps/videos-{file}', [SitemapController::class, 'videos'])->where('file', '.*\\.xml')->name('public.sitemap.videos');
 Route::get('/sitemaps/categories-{file}', [SitemapController::class, 'categories'])->where('file', '.*\\.xml')->name('public.sitemap.categories');

@@ -116,6 +116,7 @@ php artisan admin:sync
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` (si usas `openai`)
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD`
 - `CTA_UTM_SOURCE`, `CTA_UTM_MEDIUM` (tracking CTAs)
+- `ASSET_CDN_HOST` (si sirves estáticos desde CDN)
 
 ## Sanitización HTML
 
@@ -230,6 +231,11 @@ Los clicks se registran en `cta_clicks` y se redirigen con UTM + `click_id`.
    - Si no hay sitemaps: verificar `public/sitemaps` y `storage/logs/laravel.log`.
    - Si no hay clicks: revisar `cta_clicks` y la URL de partner en `PARTNER_*`.
    - Si el admin no accede: ejecutar `php artisan admin:sync` y validar `is_admin`.
+
+## Seguridad y proxy
+
+- Configura el proxy/HTTPS en producción (`APP_URL` con https) y usa `ASSET_CDN_HOST` si sirves assets desde CDN.
+- En entornos con proxy reverso, asegúrate de reenviar `X-Forwarded-*`.
 - Ejecutar pipeline: import -> ai -> quality -> publish -> sitemaps -> check-embeds.
 - Reindex Meilisearch: `php artisan scout:import "App\\Models\\Video"`.
 
