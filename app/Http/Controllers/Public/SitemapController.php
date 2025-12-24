@@ -18,6 +18,16 @@ class SitemapController extends Controller
         return $this->serveFile("sitemaps/videos-{$file}");
     }
 
+    public function categories(string $file): Response
+    {
+        return $this->serveFile("sitemaps/categories-{$file}");
+    }
+
+    public function tags(string $file): Response
+    {
+        return $this->serveFile("sitemaps/tags-{$file}");
+    }
+
     private function serveFile(string $path): Response
     {
         $fullPath = public_path($path);

@@ -44,6 +44,7 @@ class CheckVideoEmbedJob implements ShouldQueue
             $video->embed_checked_at = now();
             $video->embed_ok = false;
             $video->status = VideoStatus::Quarantine;
+            $video->quarantine_reason = 'host_not_allowed';
             $video->save();
             return;
         }
@@ -68,6 +69,7 @@ class CheckVideoEmbedJob implements ShouldQueue
 
         if ($failures >= $maxFailures) {
             $video->status = VideoStatus::Broken;
+            $video->quarantine_reason = 'embed_unreachable';
         }
 
         $video->save();

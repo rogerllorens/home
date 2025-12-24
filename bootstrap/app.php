@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.auth' => \App\Http\Middleware\AdminAuth::class,
             'csp.headers' => \App\Http\Middleware\CspHeaders::class,
         ]);
+        $middleware->prepend(\App\Http\Middleware\TrustProxies::class);
         $middleware->appendToGroup('web', \App\Http\Middleware\CspHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

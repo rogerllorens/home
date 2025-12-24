@@ -31,16 +31,43 @@
 
 <x-layouts.public title="{{ $video->seo_title ?: $video->title }}">
     @push('head')
-        <link rel="canonical" href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]) }}">
-        <meta name="description" content="{{ $video->seo_description ?: \Illuminate\Support\Str::limit(strip_tags($video->description ?? ''), 160) }}">
-        @if ($noindex)
-            <meta name="robots" content="noindex,nofollow">
-        @endif
+        <x-seo-head
+            title="{{ ($video->seo_title ?: $video->title) . ' | Candid Boys' }}"
+            description="{{ $video->seo_description ?: \Illuminate\Support\Str::limit(strip_tags($video->description ?? ''), 160) }}"
+            canonical="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]) }}"
+            robots="{{ $robots }}"
+            og-image="{{ $thumbnail }}"
+        />
         <meta property="og:title" content="{{ $video->seo_title ?: $video->title }}">
         <meta property="og:description" content="{{ $video->seo_description ?: \Illuminate\Support\Str::limit(strip_tags($video->description ?? ''), 160) }}">
         <meta property="og:type" content="video.other">
         <meta property="og:url" content="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]) }}">
-        <meta property="og:image" content="{{ $thumbnail }}">
+        <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
+            {!! json_encode(array_filter([
+                '@context' => 'https://schema.org',
+                '@type' => 'BreadcrumbList',
+                'itemListElement' => array_values(array_filter([
+                    [
+                        '@type' => 'ListItem',
+                        'position' => 1,
+                        'name' => 'Home',
+                        'item' => url('/'),
+                    ],
+                    $video->category_slug ? [
+                        '@type' => 'ListItem',
+                        'position' => 2,
+                        'name' => \Illuminate\Support\Str::headline($video->category_slug),
+                        'item' => route('public.category', $video->category_slug),
+                    ] : null,
+                    [
+                        '@type' => 'ListItem',
+                        'position' => $video->category_slug ? 3 : 2,
+                        'name' => $video->seo_title ?: $video->title,
+                        'item' => route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]),
+                    ],
+                ])),
+            ]), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+        </script>
         <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
             {!! json_encode(array_filter([
                 '@context' => 'https://schema.org',
@@ -58,6 +85,17 @@
 
     <section class="grid gap-8 lg:grid-cols-3">
         <div class="lg:col-span-2">
+            <nav class="mb-3 text-xs text-slate-400">
+                <a class="hover:text-slate-200" href="{{ route('public.home') }}">Home</a>
+                @if ($video->category_slug)
+                    <span>›</span>
+                    <a class="hover:text-slate-200" href="{{ route('public.category', $video->category_slug) }}">
+                        {{ \Illuminate\Support\Str::headline($video->category_slug) }}
+                    </a>
+                @endif
+                <span>›</span>
+                <span class="text-slate-200">{{ $video->title }}</span>
+            </nav>
             <h1 class="text-2xl font-semibold text-white">{{ $video->title }}</h1>
             <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
                 @if ($durationLabel)
@@ -114,6 +152,19 @@
                     @endif
                 </div>
 
+                @if ($ctas)
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        @foreach ($ctas as $cta)
+                            <div class="rounded-md border border-white/10 bg-white/5 p-4">
+                                <p class="text-xs uppercase text-slate-400">{{ $cta['label'] }}</p>
+                                <h3 class="mt-2 text-base font-semibold text-white">{{ $cta['title'] }}</h3>
+                                <p class="mt-2 text-sm text-slate-300">{{ $cta['description'] }}</p>
+                                <a class="mt-4 inline-flex text-sm font-semibold text-red-300 hover:text-red-200" href="{{ $cta['track_url'] }}" target="_blank" rel="noopener">Ver oferta</a>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
                 <div class="flex flex-wrap items-center gap-3 text-sm">
                     @if ($nextVideo)
                         <a class="rounded-md border border-red-500/60 px-3 py-2 font-semibold text-red-100 hover:border-red-400" href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($nextVideo->seo_title ?: $nextVideo->title), 'id' => $nextVideo->id]) }}">
@@ -127,24 +178,11 @@
                     @endif
                 </div>
 
-                @if ($video->description)
-                    <p class="text-sm text-slate-300">{{ $video->description }}</p>
-                @endif
-            </div>
-
-            @if ($ctas)
-                <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    @foreach ($ctas as $cta)
-                        <div class="rounded-md border border-white/10 bg-white/5 p-4">
-                            <p class="text-xs uppercase text-slate-400">{{ $cta['label'] }}</p>
-                            <h3 class="mt-2 text-base font-semibold text-white">{{ $cta['title'] }}</h3>
-                            <p class="mt-2 text-sm text-slate-300">{{ $cta['description'] }}</p>
-                            <a class="mt-4 inline-flex text-sm font-semibold text-red-300 hover:text-red-200" href="{{ $cta['url'] }}" target="_blank" rel="noopener">Ver oferta</a>
-                        </div>
-                    @endforeach
-                </div>
+            @if ($video->description)
+                <p class="text-sm text-slate-300">{{ $video->description }}</p>
             @endif
         </div>
+    </div>
 
         <aside class="space-y-4">
             <div class="rounded-md border border-white/10 bg-white/5 p-4">
