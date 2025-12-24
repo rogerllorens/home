@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Video;
+use App\Services\Sitemaps\TaxonomySitemapGenerator;
+use App\Services\Sitemaps\VideoSitemapGenerator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 
 class GenerateSitemapsCommand extends Command
@@ -24,30 +24,14 @@ class GenerateSitemapsCommand extends Command
         $directory = public_path('sitemaps');
         File::ensureDirectoryExists($directory);
 
-        $videos = Video::published()->orderBy('id');
-        $chunkSize = 20000;
-        $fileIndex = 1;
-        $sitemapFiles = [];
-
         try {
-            $videos->chunk($chunkSize, function ($chunk) use (&$fileIndex, &$sitemapFiles, $directory) {
-            $filename = "videos-{$fileIndex}.xml";
-            $sitemapFiles[] = $filename;
-            $fileIndex++;
+            $videoGenerator = new VideoSitemapGenerator();
+            $taxonomyGenerator = new TaxonomySitemapGenerator();
 
-            $entries = $chunk->map(function (Video $video) {
-                $slug = Str::slug($video->seo_title ?: $video->title);
-                $loc = route('public.video', ['slug' => $slug, 'id' => $video->id]);
-                $lastmod = $video->updated_at?->toAtomString();
-
-                return "<url><loc>{$loc}</loc><lastmod>{$lastmod}</lastmod></url>";
-            })->implode('');
-
-            $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
-            $xml .= "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">{$entries}</urlset>";
-
-            File::put("{$directory}/{$filename}", $xml);
-        });
+            $sitemapFiles = array_merge(
+                $videoGenerator->generate($directory),
+                $taxonomyGenerator->generate($directory)
+            );
         } finally {
             $lock->release();
         }

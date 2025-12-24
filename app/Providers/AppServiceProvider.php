@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use GuzzleHttp\Client;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,6 +22,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
+
         RateLimiter::for('search', function () {
             return Limit::perMinute($this->rateLimitValue('search'));
         });
@@ -31,6 +36,22 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('admin_login', function () {
             return Limit::perMinute($this->rateLimitValue('admin_login'));
+        });
+
+        RateLimiter::for('admin', function () {
+            return Limit::perMinute($this->rateLimitValue('admin'));
+        });
+
+        RateLimiter::for('public_contact', function () {
+            return Limit::perMinute($this->rateLimitValue('public_contact'));
+        });
+
+        RateLimiter::for('public_takedown', function () {
+            return Limit::perMinute($this->rateLimitValue('public_takedown'));
+        });
+
+        RateLimiter::for('video_events', function () {
+            return Limit::perMinute($this->rateLimitValue('video_events'));
         });
     }
 
@@ -45,11 +66,4 @@ class AppServiceProvider extends ServiceProvider
         return (int) $value;
     }
 
-    /**
-     * Bootstrap any application services.
-     */
-    public function boot(): void
-    {
-        //
-    }
 }
