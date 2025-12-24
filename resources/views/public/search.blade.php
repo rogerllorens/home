@@ -20,6 +20,8 @@
         </form>
         @if ($query)
             <p class="mt-3 text-sm text-slate-400">Resultados para “{{ $query }}”</p>
+        @else
+            <p class="mt-3 text-sm text-slate-400">Escribe un término para buscar videos o tags.</p>
         @endif
     </section>
 
