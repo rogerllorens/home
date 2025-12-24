@@ -118,7 +118,12 @@
             @forelse ($latestVideos as $video)
                 <x-video-card :video="$video" />
             @empty
-                <p class="text-sm text-slate-400">No videos available right now.</p>
+                <div class="space-y-3">
+                    <p class="text-sm text-slate-400">No videos available right now.</p>
+                    <a class="inline-flex rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500" href="{{ route('public.search') }}">
+                        Buscar videos
+                    </a>
+                </div>
             @endforelse
         </x-video-grid>
 

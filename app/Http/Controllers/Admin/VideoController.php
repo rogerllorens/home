@@ -31,11 +31,19 @@ class VideoController extends Controller
             $query->where('category_slug', $request->string('category_slug'));
         }
 
+        if ($request->filled('q')) {
+            $query->where(function ($builder) use ($request) {
+                $term = $request->string('q')->toString();
+                $builder->where('title', 'ilike', "%{$term}%")
+                    ->orWhere('seo_title', 'ilike', "%{$term}%");
+            });
+        }
+
         return view('admin.videos.index', [
             'videos' => $query->paginate(20)->withQueryString(),
             'sources' => Source::orderBy('name')->get(),
             'statuses' => VideoStatus::cases(),
-            'filters' => $request->only(['status', 'source', 'category_slug']),
+            'filters' => $request->only(['status', 'source', 'category_slug', 'q']),
         ]);
     }
 

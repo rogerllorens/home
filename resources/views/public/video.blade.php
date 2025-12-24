@@ -133,7 +133,7 @@
                     @endphp
                     @if (!$isUnavailable && $video->embed_url)
                         <div class="relative aspect-video" id="embed-container" data-embed-container>
-                            <img src="{{ $thumbnail }}" alt="{{ $video->title }}" class="h-full w-full object-cover" loading="lazy" decoding="async">
+                            <img src="{{ $thumbnail }}" alt="{{ $video->title }}" class="h-full w-full object-cover" loading="lazy" decoding="async" width="1280" height="720">
                             <button
                                 class="absolute inset-0 flex items-center justify-center bg-black/60 text-white"
                                 type="button"
@@ -159,13 +159,18 @@
                                 <p class="text-xs uppercase text-slate-400">{{ $cta['label'] }}</p>
                                 <h3 class="mt-2 text-base font-semibold text-white">{{ $cta['title'] }}</h3>
                                 <p class="mt-2 text-sm text-slate-300">{{ $cta['description'] }}</p>
-                                <a class="mt-4 inline-flex text-sm font-semibold text-red-300 hover:text-red-200" href="{{ $cta['track_url'] }}" target="_blank" rel="noopener">Ver oferta</a>
+                                <a class="mt-4 inline-flex text-sm font-semibold text-red-300 hover:text-red-200" href="{{ $cta['track_url'] }}" target="_blank" rel="sponsored noopener">Ver oferta</a>
                             </div>
                         @endforeach
                     </div>
                 @endif
 
                 <div class="flex flex-wrap items-center gap-3 text-sm">
+                    @if ($video->category_slug)
+                        <a class="rounded-md bg-white/5 px-3 py-2 font-semibold text-slate-100 hover:bg-white/10" href="{{ route('public.category', $video->category_slug) }}">
+                            Volver a {{ \Illuminate\Support\Str::headline($video->category_slug) }}
+                        </a>
+                    @endif
                     @if ($nextVideo)
                         <a class="rounded-md border border-red-500/60 px-3 py-2 font-semibold text-red-100 hover:border-red-400" href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($nextVideo->seo_title ?: $nextVideo->title), 'id' => $nextVideo->id]) }}">
                             Next video
@@ -178,11 +183,11 @@
                     @endif
                 </div>
 
-            @if ($video->description)
-                <p class="text-sm text-slate-300">{{ $video->description }}</p>
-            @endif
+                @if ($video->description)
+                    <p class="text-sm text-slate-300">{{ $video->description }}</p>
+                @endif
+            </div>
         </div>
-    </div>
 
         <aside class="space-y-4">
             <div class="rounded-md border border-white/10 bg-white/5 p-4">
@@ -193,6 +198,18 @@
                     <p>Publicado: {{ $video->published_at?->format('d/m/Y') ?? '-' }}</p>
                 </div>
             </div>
+            @if ($ctas)
+                <div class="rounded-md border border-white/10 bg-white/5 p-4">
+                    <h2 class="text-sm font-semibold text-white">Ofertas destacadas</h2>
+                    <div class="mt-3 space-y-2 text-sm text-slate-300">
+                        @foreach ($ctas as $cta)
+                            <a class="block rounded-md bg-red-600/20 px-3 py-2 text-red-100 hover:bg-red-600/30" href="{{ $cta['track_url'] }}" target="_blank" rel="sponsored noopener">
+                                {{ $cta['title'] }}
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
         </aside>
     </section>
 
@@ -200,6 +217,18 @@
         <div class="mb-3 flex items-center justify-between">
             <h2 class="text-lg font-semibold text-white">Related videos</h2>
         </div>
+        @if ($ctas)
+            <div class="mb-6 rounded-md border border-white/10 bg-white/5 p-4">
+                <p class="text-sm font-semibold text-white">Más opciones para ti</p>
+                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                    @foreach ($ctas as $cta)
+                        <a class="rounded-md border border-red-500/50 px-3 py-2 text-sm text-red-100 hover:border-red-400" href="{{ $cta['track_url'] }}" target="_blank" rel="sponsored noopener">
+                            {{ $cta['label'] }}
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+        @endif
         <x-video-grid>
             @forelse ($related as $item)
                 <x-video-card :video="$item" />

@@ -29,6 +29,9 @@
         <p class="mt-2 text-sm text-slate-300">{{ $description }}</p>
         @if ($videos->isEmpty())
             <p class="mt-4 text-sm text-slate-400">Explora otras categorías o vuelve más tarde para nuevos videos.</p>
+            <a class="mt-3 inline-flex rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500" href="{{ route('public.home') }}">
+                Explorar recientes
+            </a>
         @endif
     </section>
 

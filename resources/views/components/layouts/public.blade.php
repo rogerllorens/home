@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title ?? config('app.name', 'Candid Boys') }}</title>
     @stack('head')
+    <link rel="preload" href="{{ Vite::asset('resources/css/app.css') }}" as="style">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
         {!! json_encode([
