@@ -42,6 +42,10 @@ return [
         'cta_templates' => [
             'default' => 'Descubre más contenido y ofertas exclusivas.',
         ],
+        'utm' => [
+            'source' => env('CTA_UTM_SOURCE', 'candidboys'),
+            'medium' => env('CTA_UTM_MEDIUM', 'cta'),
+        ],
         'partner_links' => [
             'cams' => [
                 'url' => env('PARTNER_CAMS_URL'),
@@ -62,10 +66,13 @@ return [
     ],
     'security' => [
         'global_iframe_allowlist' => [],
+        'asset_cdn' => env('ASSET_CDN_HOST'),
         'rate_limits' => [
             'search' => '30/min',
             'video' => '60/min',
             'admin_login' => '10/min',
+            'public_contact' => '5/min',
+            'public_takedown' => '3/min',
         ],
     ],
 ];
