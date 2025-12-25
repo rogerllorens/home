@@ -34,10 +34,12 @@ return new class extends Migration
             $table->index('status');
         });
 
-        DB::statement("ALTER TABLE videos ALTER COLUMN raw_tags TYPE text[] USING CASE WHEN raw_tags IS NULL OR raw_tags = '' THEN ARRAY[]::text[] ELSE string_to_array(raw_tags, ',') END");
-        DB::statement("ALTER TABLE videos ALTER COLUMN raw_tags SET DEFAULT ARRAY[]::text[]");
-        DB::statement("ALTER TABLE videos ALTER COLUMN seo_tags TYPE text[] USING CASE WHEN seo_tags IS NULL OR seo_tags = '' THEN ARRAY[]::text[] ELSE string_to_array(seo_tags, ',') END");
-        DB::statement("ALTER TABLE videos ALTER COLUMN seo_tags SET DEFAULT ARRAY[]::text[]");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE videos ALTER COLUMN raw_tags TYPE text[] USING CASE WHEN raw_tags IS NULL OR raw_tags = '' THEN ARRAY[]::text[] ELSE string_to_array(raw_tags, ',') END");
+            DB::statement("ALTER TABLE videos ALTER COLUMN raw_tags SET DEFAULT ARRAY[]::text[]");
+            DB::statement("ALTER TABLE videos ALTER COLUMN seo_tags TYPE text[] USING CASE WHEN seo_tags IS NULL OR seo_tags = '' THEN ARRAY[]::text[] ELSE string_to_array(seo_tags, ',') END");
+            DB::statement("ALTER TABLE videos ALTER COLUMN seo_tags SET DEFAULT ARRAY[]::text[]");
+        }
     }
 
     public function down(): void

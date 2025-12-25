@@ -42,6 +42,10 @@ return [
         'cta_templates' => [
             'default' => 'Descubre más contenido y ofertas exclusivas.',
         ],
+        'utm' => [
+            'source' => env('CTA_UTM_SOURCE', 'candidboys'),
+            'medium' => env('CTA_UTM_MEDIUM', 'cta'),
+        ],
         'partner_links' => [
             'cams' => [
                 'url' => env('PARTNER_CAMS_URL'),
@@ -61,11 +65,33 @@ return [
         ],
     ],
     'security' => [
-        'global_iframe_allowlist' => [],
+        'global_iframe_allowlist' => array_values(array_filter(explode(',', (string) env('IFRAME_ALLOWLIST', '')))),
+        'asset_cdn' => env('ASSET_CDN_HOST'),
+        'captcha_enabled' => env('PUBLIC_CAPTCHA_ENABLED', false),
+        'captcha_site_key' => env('CAPTCHA_SITE_KEY'),
+        'captcha_secret' => env('CAPTCHA_SECRET_KEY'),
+        'captcha_verify_url' => env('CAPTCHA_VERIFY_URL', 'https://www.google.com/recaptcha/api/siteverify'),
+        'captcha_hosts' => array_values(array_filter(explode(',', (string) env('CAPTCHA_HOSTS', 'www.google.com,www.gstatic.com')))),
+        'analytics_hosts' => array_values(array_filter(explode(',', (string) env('ANALYTICS_HOSTS', '')))),
+        'admin_login_captcha_enabled' => env('ADMIN_LOGIN_CAPTCHA_ENABLED', false),
+        'admin_login_lockout_max_attempts' => env('ADMIN_LOGIN_LOCKOUT_MAX_ATTEMPTS', 5),
+        'admin_login_lockout_minutes' => env('ADMIN_LOGIN_LOCKOUT_MINUTES', 10),
+        'csp' => [
+            'img' => array_values(array_filter(explode(',', (string) env('CSP_IMG_HOSTS', '')))),
+            'script' => array_values(array_filter(explode(',', (string) env('CSP_SCRIPT_HOSTS', '')))),
+            'style' => array_values(array_filter(explode(',', (string) env('CSP_STYLE_HOSTS', '')))),
+            'connect' => array_values(array_filter(explode(',', (string) env('CSP_CONNECT_HOSTS', '')))),
+            'frame' => array_values(array_filter(explode(',', (string) env('CSP_FRAME_HOSTS', '')))),
+            'child' => array_values(array_filter(explode(',', (string) env('CSP_CHILD_HOSTS', '')))),
+        ],
         'rate_limits' => [
             'search' => '30/min',
             'video' => '60/min',
             'admin_login' => '10/min',
+            'admin' => '120/min',
+            'public_contact' => '5/min',
+            'public_takedown' => '3/min',
+            'video_events' => '60/min',
         ],
     ],
 ];

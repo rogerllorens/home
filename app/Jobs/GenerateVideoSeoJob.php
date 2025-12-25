@@ -19,8 +19,17 @@ class GenerateVideoSeoJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
+    public int $tries = 3;
+    public int $timeout = 120;
+    public array $backoff = [60, 120, 300];
+
     public function __construct(public int $videoId)
     {
+    }
+
+    public function retryUntil(): \DateTimeInterface
+    {
+        return now()->addMinutes(10);
     }
 
     public function handle(AiClientFactory $factory): void

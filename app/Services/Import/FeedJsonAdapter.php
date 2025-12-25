@@ -14,16 +14,23 @@ class FeedJsonAdapter implements SourceAdapterInterface
 
     public function fetchCandidates(Source $source): array
     {
-        $response = $this->client->get($source->feed_url, [
-            'headers' => $this->buildHeaders($source),
-            'timeout' => 10,
-        ]);
+        try {
+            $response = $this->client->get($source->feed_url, [
+                'headers' => $this->buildHeaders($source),
+                'timeout' => 10,
+            ]);
 
-        $payload = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
-        $itemsPath = $source->settings['items_path'] ?? null;
-        $items = $itemsPath ? data_get($payload, $itemsPath) : $payload;
+            $payload = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+            $itemsPath = $source->settings['items_path'] ?? null;
+            $items = $itemsPath ? data_get($payload, $itemsPath) : $payload;
+        } catch (\Throwable $exception) {
+            throw new \RuntimeException('Feed JSON inválido: '.$exception->getMessage(), 0, $exception);
+        }
 
         if (!is_array($items)) {
+            if ($itemsPath) {
+                throw new \RuntimeException("items_path inválido o no encontrado: {$itemsPath}");
+            }
             return [];
         }
 
