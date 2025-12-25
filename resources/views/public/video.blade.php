@@ -80,6 +80,7 @@
                 'description' => $video->seo_description ?: strip_tags($video->description ?? ''),
                 'thumbnailUrl' => [$thumbnail],
                 'datePublished' => optional($video->published_at)->toIso8601String(),
+                'uploadDate' => optional($video->published_at)->toIso8601String(),
                 'duration' => $durationIso,
                 'embedUrl' => $video->embed_url,
                 'url' => route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]),

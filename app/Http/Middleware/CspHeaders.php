@@ -24,22 +24,47 @@ class CspHeaders
 
         $frameSources = $this->resolveFrameSources($request);
         $assetCdn = config('candidboys.security.asset_cdn');
-        $assetSource = $assetCdn ? " https://{$assetCdn}" : '';
-        $mediaSources = $frameSources === 'none' ? '' : $frameSources;
+        $assetSource = $assetCdn ? ["https://{$assetCdn}"] : [];
         $captchaSources = $this->captchaSources();
+        $analyticsSources = $this->analyticsSources();
+        $cspConfig = config('candidboys.security.csp', []);
+
+        $imgSources = $this->formatSources(array_merge(
+            $assetSource,
+            $analyticsSources,
+            $captchaSources,
+            $cspConfig['img'] ?? []
+        ));
+        $scriptSources = $this->formatSources(array_merge(
+            $assetSource,
+            $analyticsSources,
+            $captchaSources,
+            $cspConfig['script'] ?? []
+        ));
+        $styleSources = $this->formatSources(array_merge(
+            $assetSource,
+            $captchaSources,
+            $cspConfig['style'] ?? []
+        ));
+        $connectSources = $this->formatSources(array_merge(
+            $analyticsSources,
+            $captchaSources,
+            $cspConfig['connect'] ?? []
+        ));
 
         $frameDirective = $frameSources === 'none'
-            ? "frame-src 'self'{$captchaSources}"
-            : "frame-src 'self'{$frameSources}{$captchaSources}";
+            ? "frame-src 'self'{$this->formatSources(array_merge($captchaSources, $cspConfig['frame'] ?? []))}"
+            : "frame-src 'self'{$frameSources}{$this->formatSources(array_merge($captchaSources, $cspConfig['frame'] ?? []))}";
         $childDirective = $frameSources === 'none'
-            ? "child-src 'self'{$captchaSources}"
-            : "child-src 'self'{$frameSources}{$captchaSources}";
+            ? "child-src 'self'{$this->formatSources(array_merge($captchaSources, $cspConfig['child'] ?? []))}"
+            : "child-src 'self'{$frameSources}{$this->formatSources(array_merge($captchaSources, $cspConfig['child'] ?? []))}";
 
         $policy = implode('; ', [
             "default-src 'self'",
-            "img-src 'self' data:{$assetSource}{$mediaSources}{$captchaSources}",
-            "style-src 'self' 'unsafe-inline'{$assetSource}{$captchaSources}",
-            "script-src 'self' 'nonce-{$nonce}'{$assetSource}{$captchaSources}",
+            "img-src 'self' data:{$imgSources}",
+            "style-src 'self' 'unsafe-inline'{$styleSources}",
+            "script-src 'self' 'nonce-{$nonce}'{$scriptSources}",
+            "connect-src 'self'{$connectSources}",
             $frameDirective,
             $childDirective,
             "frame-ancestors 'self'",
@@ -58,13 +83,18 @@ class CspHeaders
         return $response;
     }
 
-    private function captchaSources(): string
+    private function captchaSources(): array
     {
         if (!config('candidboys.security.captcha_enabled')) {
-            return '';
+            return [];
         }
 
-        return ' https://www.google.com https://www.gstatic.com';
+        return config('candidboys.security.captcha_hosts', []);
+    }
+
+    private function analyticsSources(): array
+    {
+        return config('candidboys.security.analytics_hosts', []);
     }
 
     private function resolveFrameSources(Request $request): string
@@ -106,5 +136,38 @@ class CspHeaders
         $sources = array_values(array_filter($sources));
 
         return implode('', $sources);
+    }
+
+    private function formatSources(array $sources): string
+    {
+        $matcher = app(EmbedDomainMatcher::class);
+        $formatted = [];
+
+        foreach ($sources as $source) {
+            $value = trim((string) $source);
+            if ($value === '') {
+                continue;
+            }
+
+            if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+                $formatted[] = ' '.$value;
+                continue;
+            }
+
+            if (str_starts_with($value, '*.')) {
+                $normalized = $matcher->normalizeHost($value);
+                if ($normalized) {
+                    $formatted[] = ' https://'.$normalized;
+                }
+                continue;
+            }
+
+            $normalized = $matcher->normalizeHost($value);
+            if ($normalized) {
+                $formatted[] = ' https://'.$normalized;
+            }
+        }
+
+        return implode('', $formatted);
     }
 }
