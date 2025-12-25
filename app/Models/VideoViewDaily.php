@@ -10,6 +10,8 @@ class VideoViewDaily extends Model
 {
     use HasFactory;
 
+    protected $table = 'video_views_daily';
+
     protected $fillable = [
         'video_id',
         'day',

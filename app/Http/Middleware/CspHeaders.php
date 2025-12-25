@@ -23,21 +23,78 @@ class CspHeaders
         $response = $next($request);
 
         $frameSources = $this->resolveFrameSources($request);
+        $assetCdn = config('candidboys.security.asset_cdn');
+        $assetSource = $assetCdn ? ["https://{$assetCdn}"] : [];
+        $captchaSources = $this->captchaSources();
+        $analyticsSources = $this->analyticsSources();
+        $cspConfig = config('candidboys.security.csp', []);
+
+        $imgSources = $this->formatSources(array_merge(
+            $assetSource,
+            $analyticsSources,
+            $captchaSources,
+            $cspConfig['img'] ?? []
+        ));
+        $scriptSources = $this->formatSources(array_merge(
+            $assetSource,
+            $analyticsSources,
+            $captchaSources,
+            $cspConfig['script'] ?? []
+        ));
+        $styleSources = $this->formatSources(array_merge(
+            $assetSource,
+            $captchaSources,
+            $cspConfig['style'] ?? []
+        ));
+        $connectSources = $this->formatSources(array_merge(
+            $analyticsSources,
+            $captchaSources,
+            $cspConfig['connect'] ?? []
+        ));
+
+        $frameDirective = $frameSources === 'none'
+            ? "frame-src 'self'{$this->formatSources(array_merge($captchaSources, $cspConfig['frame'] ?? []))}"
+            : "frame-src 'self'{$frameSources}{$this->formatSources(array_merge($captchaSources, $cspConfig['frame'] ?? []))}";
+        $childDirective = $frameSources === 'none'
+            ? "child-src 'self'{$this->formatSources(array_merge($captchaSources, $cspConfig['child'] ?? []))}"
+            : "child-src 'self'{$frameSources}{$this->formatSources(array_merge($captchaSources, $cspConfig['child'] ?? []))}";
 
         $policy = implode('; ', [
             "default-src 'self'",
-            "img-src 'self' https: data:",
-            "style-src 'self' 'unsafe-inline'",
-            "script-src 'self' 'nonce-{$nonce}'",
-            "frame-src 'self'{$frameSources}",
+            "img-src 'self' data:{$imgSources}",
+            "style-src 'self' 'unsafe-inline'{$styleSources}",
+            "script-src 'self' 'nonce-{$nonce}'{$scriptSources}",
+            "connect-src 'self'{$connectSources}",
+            $frameDirective,
+            $childDirective,
+            "frame-ancestors 'self'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "object-src 'none'",
         ]);
 
         $response->headers->set('Content-Security-Policy', $policy);
+        $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+        $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
 
         return $response;
+    }
+
+    private function captchaSources(): array
+    {
+        if (!config('candidboys.security.captcha_enabled')) {
+            return [];
+        }
+
+        return config('candidboys.security.captcha_hosts', []);
+    }
+
+    private function analyticsSources(): array
+    {
+        return config('candidboys.security.analytics_hosts', []);
     }
 
     private function resolveFrameSources(Request $request): string
@@ -54,7 +111,7 @@ class CspHeaders
 
         $allowlist = array_values(array_unique(array_filter($allowlist)));
         if (empty($allowlist)) {
-            return '';
+            return app()->environment('production') ? 'none' : '';
         }
 
         $sources = array_map(function ($domain) use ($matcher) {
@@ -79,5 +136,38 @@ class CspHeaders
         $sources = array_values(array_filter($sources));
 
         return implode('', $sources);
+    }
+
+    private function formatSources(array $sources): string
+    {
+        $matcher = app(EmbedDomainMatcher::class);
+        $formatted = [];
+
+        foreach ($sources as $source) {
+            $value = trim((string) $source);
+            if ($value === '') {
+                continue;
+            }
+
+            if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+                $formatted[] = ' '.$value;
+                continue;
+            }
+
+            if (str_starts_with($value, '*.')) {
+                $normalized = $matcher->normalizeHost($value);
+                if ($normalized) {
+                    $formatted[] = ' https://'.$normalized;
+                }
+                continue;
+            }
+
+            $normalized = $matcher->normalizeHost($value);
+            if ($normalized) {
+                $formatted[] = ' https://'.$normalized;
+            }
+        }
+
+        return implode('', $formatted);
     }
 }

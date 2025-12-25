@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\VideoStatus;
 use App\Models\Video;
+use App\Support\PublicCache;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 
@@ -35,6 +36,9 @@ class VideosPublishCommand extends Command
                     'status' => VideoStatus::Published,
                     'published_at' => now(),
                 ]);
+            }
+            if ($videos->isNotEmpty()) {
+                PublicCache::bust();
             }
         } finally {
             $lock->release();

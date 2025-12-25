@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\VideoStatus;
 use App\Http\Controllers\Controller;
 use App\Jobs\GenerateVideoSeoJob;
+use App\Models\AdminAuditLog;
 use App\Models\Source;
 use App\Models\Video;
+use App\Support\PublicCache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,7 +17,7 @@ class VideoController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Video::with('source')->orderByDesc('created_at');
+        $query = Video::with('source');
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
@@ -29,11 +31,26 @@ class VideoController extends Controller
             $query->where('category_slug', $request->string('category_slug'));
         }
 
+        if ($request->filled('q')) {
+            $query->where(function ($builder) use ($request) {
+                $term = $request->string('q')->toString();
+                $builder->where('title', 'ilike', "%{$term}%")
+                    ->orWhere('seo_title', 'ilike', "%{$term}%");
+            });
+        }
+
+        $sort = $request->string('sort', 'recent')->toString();
+        $query = match ($sort) {
+            'oldest' => $query->orderBy('created_at'),
+            'status' => $query->orderBy('status')->orderByDesc('created_at'),
+            default => $query->orderByDesc('created_at'),
+        };
+
         return view('admin.videos.index', [
             'videos' => $query->paginate(20)->withQueryString(),
             'sources' => Source::orderBy('name')->get(),
             'statuses' => VideoStatus::cases(),
-            'filters' => $request->only(['status', 'source', 'category_slug']),
+            'filters' => $request->only(['status', 'source', 'category_slug', 'q', 'sort']),
         ]);
     }
 
@@ -55,6 +72,11 @@ class VideoController extends Controller
             'published_at' => now(),
         ]);
 
+        AdminAuditLog::record('video_publish', [
+            'video_id' => $video->id,
+        ]);
+        PublicCache::bust();
+
         return back()->with('status', 'Video publicado.');
     }
 
@@ -68,6 +90,11 @@ class VideoController extends Controller
             'status' => VideoStatus::Ready,
         ]);
 
+        AdminAuditLog::record('video_unpublish', [
+            'video_id' => $video->id,
+        ]);
+        PublicCache::bust();
+
         return back()->with('status', 'Video despublicado (se mantiene published_at).');
     }
 
@@ -77,6 +104,10 @@ class VideoController extends Controller
             'status' => VideoStatus::Draft,
         ]);
 
+        AdminAuditLog::record('video_regenerate_ai', [
+            'video_id' => $video->id,
+        ]);
+        PublicCache::bust();
         GenerateVideoSeoJob::dispatch($video->id);
 
         return back()->with('status', 'SEO en cola para regeneración.');
@@ -88,6 +119,11 @@ class VideoController extends Controller
             'status' => VideoStatus::Broken,
             'embed_ok' => false,
         ]);
+
+        AdminAuditLog::record('video_mark_broken', [
+            'video_id' => $video->id,
+        ]);
+        PublicCache::bust();
 
         return back()->with('status', 'Video marcado como roto.');
     }

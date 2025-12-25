@@ -85,11 +85,51 @@ class SourceImporter
 
     private function upsertCandidate(Source $source, VideoCandidate $candidate, array &$summary): string
     {
+        if (empty($candidate->externalId) || empty($candidate->embedUrl) || empty($candidate->rawTitle)) {
+            $missing = [];
+            if (empty($candidate->externalId)) {
+                $missing[] = 'external_id';
+            }
+            if (empty($candidate->embedUrl)) {
+                $missing[] = 'embed_url';
+            }
+            if (empty($candidate->rawTitle)) {
+                $missing[] = 'raw_title';
+            }
+
+            $reason = 'missing_fields:'.implode(',', $missing);
+            $this->pushError($summary, "Datos incompletos: {$reason}");
+
+            if (!empty($candidate->externalId)) {
+                $existing = Video::where('source_id', $source->id)
+                    ->where('external_id', $candidate->externalId)
+                    ->first();
+
+                if ($existing) {
+                    $existing->update([
+                        'status' => VideoStatus::Quarantine,
+                        'import_error_reason' => $reason,
+                    ]);
+                }
+            }
+
+            return 'invalid_count';
+        }
+
         $allowHttp = (bool) ($source->settings['allow_http'] ?? false);
         $canonicalUrl = $this->canonicalizer->canonicalize($candidate->embedUrl, $allowHttp);
 
         if ($canonicalUrl === null) {
             $this->pushError($summary, "URL inválida: {$candidate->embedUrl}");
+            $existing = Video::where('source_id', $source->id)
+                ->where('external_id', $candidate->externalId)
+                ->first();
+            if ($existing) {
+                $existing->update([
+                    'status' => VideoStatus::Quarantine,
+                    'import_error_reason' => 'invalid_embed_url',
+                ]);
+            }
             return 'invalid_count';
         }
 
@@ -116,11 +156,14 @@ class SourceImporter
             'raw_tags' => $this->normalizeTags($candidate->rawTags),
             'duration_seconds' => $candidate->durationSeconds,
             'source_url' => $candidate->sourceUrl,
+            'import_error_reason' => null,
+            'quarantine_reason' => null,
         ];
 
         if (!$isAllowedHost) {
             $payload['status'] = VideoStatus::Quarantine;
             $payload['embed_ok'] = false;
+            $payload['quarantine_reason'] = 'host_not_allowed';
             $summary['quarantined_count']++;
             $this->pushError($summary, "Host no permitido: {$host}");
         }

@@ -7,9 +7,9 @@
         <div class="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
             <p class="text-slate-400">Fuente</p>
             <p class="mt-1 font-semibold">{{ $run->source?->name ?? 'Sin fuente' }}</p>
-            <p class="mt-3 text-slate-400">Estado</p>
+            <p class="mt-3 text-slate-400">Status</p>
             <p class="mt-1 font-semibold">{{ $run->status->value }}</p>
-            <p class="mt-3 text-slate-400">Inicio</p>
+            <p class="mt-3 text-slate-400">Started</p>
             <p class="mt-1">{{ $run->started_at?->format('d/m/Y H:i') ?? '-' }}</p>
             <p class="mt-3 text-slate-400">Fin</p>
             <p class="mt-1">{{ $run->finished_at?->format('d/m/Y H:i') ?? '-' }}</p>

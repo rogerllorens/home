@@ -1,5 +1,5 @@
 <x-layouts.admin title="Admin | Videos" heading="Videos" subheading="Listado con filtros">
-    <form class="grid gap-4 rounded-xl border border-white/10 bg-white/5 p-4 lg:grid-cols-4" method="GET" action="{{ route('admin.videos.index') }}">
+    <form class="grid gap-4 rounded-xl border border-white/10 bg-white/5 p-4 lg:grid-cols-5" method="GET" action="{{ route('admin.videos.index') }}">
         <div>
             <label class="text-xs uppercase text-slate-400" for="status">Status</label>
             <select id="status" name="status" class="mt-2 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm">
@@ -32,6 +32,25 @@
                 class="mt-2 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm"
             />
         </div>
+        <div>
+            <label class="text-xs uppercase text-slate-400" for="q">Search</label>
+            <input
+                id="q"
+                name="q"
+                type="text"
+                value="{{ $filters['q'] ?? '' }}"
+                placeholder="Título o SEO"
+                class="mt-2 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm"
+            />
+        </div>
+        <div>
+            <label class="text-xs uppercase text-slate-400" for="sort">Orden</label>
+            <select id="sort" name="sort" class="mt-2 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm">
+                <option value="recent" @selected(($filters['sort'] ?? '') === 'recent')>Most recent</option>
+                <option value="oldest" @selected(($filters['sort'] ?? '') === 'oldest')>Oldest</option>
+                <option value="status" @selected(($filters['sort'] ?? '') === 'status')>Por status</option>
+            </select>
+        </div>
         <div class="flex items-end gap-2">
             <button class="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white" type="submit">Filtrar</button>
             <a class="text-sm text-slate-400 hover:text-slate-200" href="{{ route('admin.videos.index') }}">Reset</a>
@@ -45,7 +64,7 @@
                     <th class="px-4 py-3">Título</th>
                     <th class="px-4 py-3">Source</th>
                     <th class="px-4 py-3">Status</th>
-                    <th class="px-4 py-3">Categoría</th>
+                    <th class="px-4 py-3">Category</th>
                     <th class="px-4 py-3">Acciones</th>
                 </tr>
             </thead>
@@ -54,7 +73,9 @@
                     <tr>
                         <td class="px-4 py-3 font-medium">{{ $video->title }}</td>
                         <td class="px-4 py-3">{{ $video->source?->name ?? '-' }}</td>
-                        <td class="px-4 py-3">{{ $video->status->value }}</td>
+                        <td class="px-4 py-3">
+                            <span class="rounded-full bg-white/10 px-2 py-1 text-xs uppercase">{{ $video->status->value }}</span>
+                        </td>
                         <td class="px-4 py-3">{{ $video->category_slug ?? '-' }}</td>
                         <td class="px-4 py-3">
                             <a class="text-indigo-300 hover:text-indigo-200" href="{{ route('admin.videos.show', $video) }}">Detalle</a>

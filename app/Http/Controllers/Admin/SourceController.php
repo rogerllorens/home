@@ -8,6 +8,7 @@ use App\Models\Source;
 use App\Services\Embeds\EmbedDomainMatcher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class SourceController extends Controller
@@ -90,7 +91,7 @@ class SourceController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'string'],
+            'type' => ['required', 'string', Rule::in(array_map(fn (SourceType $type) => $type->value, SourceType::cases()))],
             'feed_url' => ['nullable', 'url'],
             'auth_header' => ['nullable', 'string', 'max:255'],
             'import_schedule_cron' => ['required', 'string', 'max:255'],

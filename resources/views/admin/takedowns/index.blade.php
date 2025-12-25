@@ -1,4 +1,4 @@
-<x-layouts.admin title="Admin | Takedowns" heading="Takedowns" subheading="Solicitudes y acciones">
+<x-layouts.admin title="Admin | Takedowns" heading="Takedowns" subheading="Requests and actions">
     <div class="flex items-center justify-between">
         <div class="text-sm text-slate-400">{{ $takedowns->total() }} registros</div>
         <a class="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white" href="{{ route('admin.takedowns.create') }}">Nuevo takedown</a>

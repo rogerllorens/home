@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Enums\VideoStatus;
 use App\Models\Video;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
@@ -40,11 +41,12 @@ class SearchController extends Controller
         return Video::query()
             ->where('status', VideoStatus::Published->value)
             ->when($query !== '', function ($builder) use ($query) {
-                $builder->where(function ($subQuery) use ($query) {
-                    $subQuery->where('seo_title', 'ilike', "%{$query}%")
-                        ->orWhere('title', 'ilike', "%{$query}%")
-                        ->orWhere('seo_description', 'ilike', "%{$query}%")
-                        ->orWhere('description', 'ilike', "%{$query}%");
+                $operator = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+                $builder->where(function ($subQuery) use ($query, $operator) {
+                    $subQuery->where('seo_title', $operator, "%{$query}%")
+                        ->orWhere('title', $operator, "%{$query}%")
+                        ->orWhere('seo_description', $operator, "%{$query}%")
+                        ->orWhere('description', $operator, "%{$query}%");
                 });
             })
             ->orderByDesc('published_at')

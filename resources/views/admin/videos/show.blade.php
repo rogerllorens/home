@@ -13,7 +13,7 @@
                     <p class="mt-1">{{ $video->source?->name ?? '-' }}</p>
                 </div>
                 <div>
-                    <p class="text-xs uppercase text-slate-400">Categoría</p>
+                    <p class="text-xs uppercase text-slate-400">Category</p>
                     <p class="mt-1">{{ $video->category_slug ?? '-' }}</p>
                 </div>
                 <div>

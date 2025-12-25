@@ -5,7 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title ?? config('app.name', 'Candid Boys') }}</title>
     @stack('head')
+    @php
+        $assetCdn = config('candidboys.security.asset_cdn');
+        $meiliHost = config('scout.meilisearch.host');
+        $meiliOrigin = $meiliHost ? (parse_url($meiliHost, PHP_URL_SCHEME) ?? 'https') . '://' . (parse_url($meiliHost, PHP_URL_HOST) ?? '') : null;
+    @endphp
+    @if ($assetCdn)
+        <link rel="preconnect" href="https://{{ $assetCdn }}" crossorigin>
+        <link rel="dns-prefetch" href="//{{ $assetCdn }}">
+    @endif
+    @if ($meiliOrigin)
+        <link rel="preconnect" href="{{ $meiliOrigin }}" crossorigin>
+        <link rel="dns-prefetch" href="{{ $meiliOrigin }}">
+    @endif
+    <link rel="preload" href="{{ Vite::asset('resources/css/app.css') }}" as="style">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
+        {!! json_encode([
+            '@context' => 'https://schema.org',
+            '@type' => 'Organization',
+            'name' => config('app.name', 'Candid Boys'),
+            'url' => url('/'),
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+    </script>
+    <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
+        {!! json_encode([
+            '@context' => 'https://schema.org',
+            '@type' => 'WebSite',
+            'name' => config('app.name', 'Candid Boys'),
+            'url' => url('/'),
+            'potentialAction' => [
+                '@type' => 'SearchAction',
+                'target' => route('public.search', ['q' => '{search_term_string}']),
+                'query-input' => 'required name=search_term_string',
+            ],
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+    </script>
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
     <div class="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 backdrop-blur">
@@ -15,7 +50,7 @@
                 <span>Candid Boys</span>
             </div>
             <form class="ml-auto flex w-full max-w-md items-center" method="GET" action="{{ route('public.search') }}">
-                <label class="sr-only" for="search">Buscar</label>
+                <label class="sr-only" for="search">Search</label>
                 <div class="flex w-full items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm">
                     <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="7" />
@@ -25,7 +60,7 @@
                         id="search"
                         name="q"
                         type="search"
-                        placeholder="Buscar videos o tags"
+                        placeholder="Search videos or tags"
                         class="w-full bg-transparent text-slate-100 placeholder:text-slate-500 focus:outline-none"
                     />
                 </div>
