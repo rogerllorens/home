@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class AdminAuth
@@ -13,8 +14,12 @@ class AdminAuth
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!$request->session()->get('admin_authenticated', false)) {
+        if (!Auth::check()) {
             return redirect()->route('admin.login');
+        }
+
+        if (!Auth::user()?->is_admin) {
+            abort(403);
         }
 
         return $next($request);

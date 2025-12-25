@@ -20,8 +20,17 @@ class CheckVideoEmbedJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
+    public int $tries = 3;
+    public int $timeout = 60;
+    public array $backoff = [60, 120, 300];
+
     public function __construct(public int $videoId)
     {
+    }
+
+    public function retryUntil(): \DateTimeInterface
+    {
+        return now()->addMinutes(10);
     }
 
     public function handle(EmbedChecker $checker, EmbedDomainMatcher $matcher): void
@@ -44,11 +53,21 @@ class CheckVideoEmbedJob implements ShouldQueue
             $video->embed_checked_at = now();
             $video->embed_ok = false;
             $video->status = VideoStatus::Quarantine;
+            $video->quarantine_reason = 'host_not_allowed';
             $video->save();
             return;
         }
 
-        $isOk = $checker->check($video->embed_url, $timeout);
+        try {
+            $isOk = $checker->check($video->embed_url, $timeout);
+        } catch (\Throwable $exception) {
+            logger()->warning('Embed check failed', [
+                'video_id' => $video->id,
+                'error' => $exception->getMessage(),
+            ]);
+            $this->release(60);
+            return;
+        }
         $failureKey = "embed_failures:{$video->id}";
 
         $video->embed_checked_at = now();
@@ -61,13 +80,23 @@ class CheckVideoEmbedJob implements ShouldQueue
             return;
         }
 
-        $failures = Redis::incr($failureKey);
-        Redis::expire($failureKey, 7 * 24 * 60 * 60);
+        try {
+            $failures = Redis::incr($failureKey);
+            Redis::expire($failureKey, 7 * 24 * 60 * 60);
+        } catch (\Throwable $exception) {
+            logger()->warning('Embed failure counter failed', [
+                'video_id' => $video->id,
+                'error' => $exception->getMessage(),
+            ]);
+            $this->release(60);
+            return;
+        }
 
         $video->embed_ok = false;
 
         if ($failures >= $maxFailures) {
             $video->status = VideoStatus::Broken;
+            $video->quarantine_reason = 'embed_unreachable';
         }
 
         $video->save();

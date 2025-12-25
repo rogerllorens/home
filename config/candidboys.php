@@ -42,6 +42,10 @@ return [
         'cta_templates' => [
             'default' => 'Descubre más contenido y ofertas exclusivas.',
         ],
+        'utm' => [
+            'source' => env('CTA_UTM_SOURCE', 'candidboys'),
+            'medium' => env('CTA_UTM_MEDIUM', 'cta'),
+        ],
         'partner_links' => [
             'cams' => [
                 'url' => env('PARTNER_CAMS_URL'),
@@ -61,11 +65,20 @@ return [
         ],
     ],
     'security' => [
-        'global_iframe_allowlist' => [],
+        'global_iframe_allowlist' => array_values(array_filter(explode(',', (string) env('IFRAME_ALLOWLIST', '')))),
+        'asset_cdn' => env('ASSET_CDN_HOST'),
+        'captcha_enabled' => env('PUBLIC_CAPTCHA_ENABLED', false),
+        'captcha_site_key' => env('CAPTCHA_SITE_KEY'),
+        'captcha_secret' => env('CAPTCHA_SECRET_KEY'),
+        'captcha_verify_url' => env('CAPTCHA_VERIFY_URL', 'https://www.google.com/recaptcha/api/siteverify'),
         'rate_limits' => [
             'search' => '30/min',
             'video' => '60/min',
             'admin_login' => '10/min',
+            'admin' => '120/min',
+            'public_contact' => '5/min',
+            'public_takedown' => '3/min',
+            'video_events' => '60/min',
         ],
     ],
 ];

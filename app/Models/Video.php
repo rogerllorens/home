@@ -29,6 +29,7 @@ class Video extends Model
         'thumbnail_url',
         'duration_seconds',
         'status',
+        'quarantine_reason',
         'category_slug',
         'raw_title',
         'raw_description',
@@ -39,6 +40,7 @@ class Video extends Model
         'embed_ok',
         'duplicate_count',
         'source_url',
+        'import_error_reason',
         'published_at',
         'ai_checked_at',
         'ai_quality',
@@ -104,7 +106,8 @@ class Video extends Model
 
     public function shouldBeSearchable(): bool
     {
-        return $this->status === VideoStatus::Published;
+        return $this->status === VideoStatus::Published
+            && !app()->environment('testing');
     }
 
     public function toSearchableArray(): array

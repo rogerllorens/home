@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\TakedownStatus;
 use App\Http\Controllers\Controller;
+use App\Models\AdminAuditLog;
 use App\Models\Takedown;
 use App\Models\Video;
 use Illuminate\Http\RedirectResponse;
@@ -33,7 +34,12 @@ class TakedownController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validateTakedown($request);
-        Takedown::create($data);
+        $takedown = Takedown::create($data);
+
+        AdminAuditLog::record('takedown_create', [
+            'takedown_id' => $takedown->id,
+            'video_id' => $takedown->video_id,
+        ]);
 
         return redirect()->route('admin.takedowns.index')
             ->with('status', 'Takedown creado correctamente.');
@@ -55,12 +61,21 @@ class TakedownController extends Controller
         $data = $this->validateTakedown($request);
         $takedown->update($data);
 
+        AdminAuditLog::record('takedown_update', [
+            'takedown_id' => $takedown->id,
+            'video_id' => $takedown->video_id,
+        ]);
+
         return redirect()->route('admin.takedowns.index')
             ->with('status', 'Takedown actualizado correctamente.');
     }
 
     public function destroy(Takedown $takedown): RedirectResponse
     {
+        AdminAuditLog::record('takedown_delete', [
+            'takedown_id' => $takedown->id,
+            'video_id' => $takedown->video_id,
+        ]);
         $takedown->delete();
 
         return redirect()->route('admin.takedowns.index')
