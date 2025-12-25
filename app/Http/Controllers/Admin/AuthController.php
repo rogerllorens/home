@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AdminLoginRequest;
 use App\Models\AdminAuditLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -16,14 +18,19 @@ class AuthController extends Controller
         return view('admin.login');
     }
 
-    public function login(Request $request): RedirectResponse
+    public function login(AdminLoginRequest $request): RedirectResponse
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
+        $credentials = $request->validated();
+
+        if ($this->isLockedOut($request)) {
+            return back()
+                ->withErrors(['email' => 'Demasiados intentos. Intenta de nuevo más tarde.'])
+                ->withInput()
+                ->setStatusCode(429);
+        }
 
         if (!Auth::attempt($credentials, true)) {
+            $this->recordFailedAttempt($request);
             AdminAuditLog::record('admin_login_failed', [
                 'email' => $credentials['email'],
             ]);
@@ -33,6 +40,7 @@ class AuthController extends Controller
         }
 
         $request->session()->regenerate();
+        $this->clearLockout($request);
 
         if (!Auth::user()?->is_admin) {
             AdminAuditLog::record('admin_login_forbidden', [
@@ -61,5 +69,66 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('admin.login');
+    }
+
+    private function isLockedOut(Request $request): bool
+    {
+        $maxAttempts = (int) config('candidboys.security.admin_login_lockout_max_attempts', 0);
+        if ($maxAttempts <= 0) {
+            return false;
+        }
+
+        $lockoutUntil = Cache::get($this->lockoutKey($request));
+        if (!$lockoutUntil) {
+            return false;
+        }
+
+        return now()->lessThan($lockoutUntil);
+    }
+
+    private function recordFailedAttempt(Request $request): void
+    {
+        $maxAttempts = (int) config('candidboys.security.admin_login_lockout_max_attempts', 0);
+        $lockoutMinutes = (int) config('candidboys.security.admin_login_lockout_minutes', 10);
+        if ($maxAttempts <= 0) {
+            return;
+        }
+
+        $attemptsKey = $this->attemptsKey($request);
+        $attempts = (int) Cache::get($attemptsKey, 0) + 1;
+
+        Cache::put($attemptsKey, $attempts, now()->addMinutes($lockoutMinutes));
+
+        if ($attempts >= $maxAttempts) {
+            Cache::put(
+                $this->lockoutKey($request),
+                now()->addMinutes($lockoutMinutes),
+                now()->addMinutes($lockoutMinutes)
+            );
+        }
+    }
+
+    private function clearLockout(Request $request): void
+    {
+        Cache::forget($this->attemptsKey($request));
+        Cache::forget($this->lockoutKey($request));
+    }
+
+    private function attemptsKey(Request $request): string
+    {
+        return 'admin_login_attempts:' . $this->lockoutIdentifier($request);
+    }
+
+    private function lockoutKey(Request $request): string
+    {
+        return 'admin_login_lockout:' . $this->lockoutIdentifier($request);
+    }
+
+    private function lockoutIdentifier(Request $request): string
+    {
+        $email = strtolower((string) $request->input('email', ''));
+        $ip = (string) $request->ip();
+
+        return sha1($email . '|' . $ip);
     }
 }

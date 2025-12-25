@@ -71,6 +71,9 @@ return [
         'captcha_site_key' => env('CAPTCHA_SITE_KEY'),
         'captcha_secret' => env('CAPTCHA_SECRET_KEY'),
         'captcha_verify_url' => env('CAPTCHA_VERIFY_URL', 'https://www.google.com/recaptcha/api/siteverify'),
+        'admin_login_captcha_enabled' => env('ADMIN_LOGIN_CAPTCHA_ENABLED', false),
+        'admin_login_lockout_max_attempts' => env('ADMIN_LOGIN_LOCKOUT_MAX_ATTEMPTS', 5),
+        'admin_login_lockout_minutes' => env('ADMIN_LOGIN_LOCKOUT_MINUTES', 10),
         'rate_limits' => [
             'search' => '30/min',
             'video' => '60/min',

@@ -4,6 +4,21 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Admin Login | Candid Boys</title>
+    @php
+        $captchaEnabled = (bool) config('candidboys.security.admin_login_captcha_enabled')
+            && config('candidboys.security.captcha_site_key');
+    @endphp
+    @if ($captchaEnabled)
+        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+        <script>
+            const captchaCallback = (token) => {
+                const input = document.getElementById('captcha');
+                if (input) {
+                    input.value = token;
+                }
+            };
+        </script>
+    @endif
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
@@ -41,6 +56,15 @@
                         required
                     />
                 </div>
+                @if ($captchaEnabled)
+                    <div>
+                        <div class="g-recaptcha" data-sitekey="{{ config('candidboys.security.captcha_site_key') }}" data-callback="captchaCallback"></div>
+                        <input id="captcha" name="captcha" type="hidden" value="{{ old('captcha') }}" />
+                        @error('captcha')
+                            <p class="mt-1 text-xs text-rose-300">{{ $message }}</p>
+                        @enderror
+                    </div>
+                @endif
                 <button class="w-full rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400" type="submit">
                     Entrar
                 </button>
