@@ -25,6 +25,7 @@ class CspHeaders
         $frameSources = $this->resolveFrameSources($request);
         $assetCdn = config('candidboys.security.asset_cdn');
         $assetSource = $assetCdn ? " https://{$assetCdn}" : '';
+        $mediaSources = $frameSources === 'none' ? '' : $frameSources;
 
         $frameDirective = $frameSources === 'none'
             ? "frame-src 'none'"
@@ -35,12 +36,15 @@ class CspHeaders
 
         $policy = implode('; ', [
             "default-src 'self'",
-            "img-src 'self' https: data:{$assetSource}",
-            "style-src 'self' 'unsafe-inline'",
-            "script-src 'self' 'nonce-{$nonce}'",
+            "img-src 'self' data:{$assetSource}{$mediaSources}",
+            "style-src 'self' 'unsafe-inline'{$assetSource}",
+            "script-src 'self' 'nonce-{$nonce}'{$assetSource}",
             $frameDirective,
             $childDirective,
             "frame-ancestors 'self'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "object-src 'none'",
         ]);
 
         $response->headers->set('Content-Security-Policy', $policy);

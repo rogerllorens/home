@@ -9,7 +9,9 @@ use App\Models\Video;
 use App\Services\CategorySlugNormalizer;
 use App\Services\Embeds\EmbedDomainMatcher;
 use App\Services\Embeds\EmbedUrlCanonicalizer;
-use App\Services\Import\SourceAdapterInterface;
+use App\Services\Import\FeedJsonAdapter;
+use App\Services\Import\FeedXmlAdapter;
+use App\Services\Import\ManualAdapter;
 use App\Services\Import\SourceImporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,7 +22,11 @@ class SourceImporterTest extends TestCase
 
     public function test_missing_fields_are_marked_invalid(): void
     {
-        $adapter = new class implements SourceAdapterInterface {
+        $manualAdapter = new class extends ManualAdapter {
+            public function __construct()
+            {
+            }
+
             public function fetchCandidates(Source $source): array
             {
                 return [
@@ -47,9 +53,27 @@ class SourceImporterTest extends TestCase
             new EmbedUrlCanonicalizer(),
             new CategorySlugNormalizer(),
             new EmbedDomainMatcher(),
-            $adapter,
-            $adapter,
-            $adapter,
+            new class extends FeedJsonAdapter {
+                public function __construct()
+                {
+                }
+
+                public function fetchCandidates(Source $source): array
+                {
+                    return [];
+                }
+            },
+            new class extends FeedXmlAdapter {
+                public function __construct()
+                {
+                }
+
+                public function fetchCandidates(Source $source): array
+                {
+                    return [];
+                }
+            },
+            $manualAdapter,
         );
 
         $run = $importer->import($source);
@@ -60,7 +84,11 @@ class SourceImporterTest extends TestCase
 
     public function test_duplicate_embed_url_increments_counter(): void
     {
-        $adapter = new class implements SourceAdapterInterface {
+        $manualAdapter = new class extends ManualAdapter {
+            public function __construct()
+            {
+            }
+
             public function fetchCandidates(Source $source): array
             {
                 return [
@@ -96,9 +124,27 @@ class SourceImporterTest extends TestCase
             new EmbedUrlCanonicalizer(),
             new CategorySlugNormalizer(),
             new EmbedDomainMatcher(),
-            $adapter,
-            $adapter,
-            $adapter,
+            new class extends FeedJsonAdapter {
+                public function __construct()
+                {
+                }
+
+                public function fetchCandidates(Source $source): array
+                {
+                    return [];
+                }
+            },
+            new class extends FeedXmlAdapter {
+                public function __construct()
+                {
+                }
+
+                public function fetchCandidates(Source $source): array
+                {
+                    return [];
+                }
+            },
+            $manualAdapter,
         );
 
         $run = $importer->import($source);

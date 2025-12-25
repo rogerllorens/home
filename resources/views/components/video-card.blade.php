@@ -54,7 +54,7 @@
         </div>
         <div class="flex flex-1 flex-col gap-1 px-2 py-2">
             <h3 class="line-clamp-2 text-sm font-semibold text-white">
-                {{ $video->title }}
+                {{ $video->seo_title ?: $video->title }}
             </h3>
             <div class="flex items-center justify-between text-xs text-slate-400">
                 <span>{{ $timeAgo }}</span>

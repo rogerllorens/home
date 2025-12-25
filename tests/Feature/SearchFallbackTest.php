@@ -78,10 +78,21 @@ class SearchFallbackTest extends TestCase
                     ];
                 }
 
+                public function mapIds($results)
+                {
+                    return collect(array_map(fn ($row) => $row['id'], $results['results'] ?? []));
+                }
+
                 public function map(Builder $builder, $results, $model)
                 {
                     $ids = array_map(fn ($row) => $row['id'], $results['results']);
                     return $model::whereIn('id', $ids)->get();
+                }
+
+                public function lazyMap(Builder $builder, $results, $model)
+                {
+                    $ids = array_map(fn ($row) => $row['id'], $results['results']);
+                    return $model::whereIn('id', $ids)->cursor();
                 }
 
                 public function getTotalCount($results): int

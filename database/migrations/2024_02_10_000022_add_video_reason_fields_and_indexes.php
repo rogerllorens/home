@@ -18,7 +18,9 @@ return new class extends Migration
             $table->index('duration_seconds');
         });
 
-        DB::statement('CREATE INDEX IF NOT EXISTS videos_raw_tags_gin ON videos USING GIN (raw_tags)');
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('CREATE INDEX IF NOT EXISTS videos_raw_tags_gin ON videos USING GIN (raw_tags)');
+        }
     }
 
     public function down(): void
@@ -30,6 +32,8 @@ return new class extends Migration
             $table->dropColumn(['quarantine_reason', 'import_error_reason']);
         });
 
-        DB::statement('DROP INDEX IF EXISTS videos_raw_tags_gin');
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('DROP INDEX IF EXISTS videos_raw_tags_gin');
+        }
     }
 };

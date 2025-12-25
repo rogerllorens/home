@@ -20,7 +20,11 @@ use App\Http\Controllers\Public\VideoController as PublicVideoController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('public.home');
-Route::get('/v/{slug}-{id}', PublicVideoController::class)->whereNumber('id')->name('public.video')->middleware('throttle:video');
+Route::get('/v/{slug}-{id}', PublicVideoController::class)
+    ->whereNumber('id')
+    ->where('slug', '[A-Za-z0-9-]+')
+    ->name('public.video')
+    ->middleware('throttle:video');
 Route::get('/c/{category_slug}', CategoryController::class)->name('public.category');
 Route::get('/t/{tag_slug}', TagController::class)->name('public.tag');
 Route::get('/search', SearchController::class)->name('public.search')->middleware('throttle:search');

@@ -4,6 +4,7 @@ namespace App\Services\Videos;
 
 use App\Models\Video;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class RelatedVideosService
 {
@@ -29,11 +30,20 @@ class RelatedVideosService
         };
 
         if ($video->category_slug && !empty($tags)) {
-            $appendRelated(
-                Video::published()
-                    ->where('category_slug', $video->category_slug)
-                    ->whereRaw('raw_tags && ?', ['{' . implode(',', $tags) . '}'])
-            );
+            $query = Video::published()
+                ->where('category_slug', $video->category_slug);
+
+            if (DB::getDriverName() === 'pgsql') {
+                $query->whereRaw('raw_tags && ?', ['{' . implode(',', $tags) . '}']);
+            } else {
+                $query->where(function ($tagQuery) use ($tags) {
+                    foreach ($tags as $tag) {
+                        $tagQuery->orWhere('raw_tags', 'like', "%{$tag}%");
+                    }
+                });
+            }
+
+            $appendRelated($query);
         }
 
         if ($video->category_slug) {

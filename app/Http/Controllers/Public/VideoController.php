@@ -26,7 +26,10 @@ class VideoController extends Controller
     ): View|RedirectResponse
     {
         $video = Video::findOrFail($id);
-        if (!in_array($video->status, [VideoStatus::Published, VideoStatus::Ready, VideoStatus::Broken, VideoStatus::Quarantine], true)) {
+        $status = $video->status instanceof VideoStatus
+            ? $video->status
+            : VideoStatus::tryFrom((string) $video->status);
+        if (!$status || !in_array($status, [VideoStatus::Published, VideoStatus::Ready, VideoStatus::Broken, VideoStatus::Quarantine], true)) {
             abort(404);
         }
         $canonicalSlug = $seoService->canonicalSlug($video);

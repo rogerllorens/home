@@ -55,4 +55,29 @@ class CtaTrackingTest extends TestCase
 
         $response->assertNotFound();
     }
+
+    public function test_cta_tracking_appends_utm_parameters(): void
+    {
+        config()->set('candidboys.monetization.partner_links.cams.url', 'https://partner.example.com/offer?ref=abc');
+        config()->set('candidboys.monetization.utm.source', 'campaign-source');
+        config()->set('candidboys.monetization.utm.medium', 'banner');
+
+        $video = Video::factory()->create();
+
+        $response = $this->get(route('public.cta.track', [
+            'video' => $video->id,
+            'ctaKey' => 'cams',
+            'placement' => 'home',
+        ]));
+
+        $response->assertRedirect();
+        $redirectUrl = $response->headers->get('Location');
+
+        $this->assertNotNull($redirectUrl);
+        $this->assertStringContainsString('utm_source=campaign-source', $redirectUrl);
+        $this->assertStringContainsString('utm_medium=banner', $redirectUrl);
+        $this->assertStringContainsString('utm_campaign=cams', $redirectUrl);
+        $this->assertStringContainsString('click_id=', $redirectUrl);
+        $this->assertStringContainsString('ref=abc', $redirectUrl);
+    }
 }

@@ -6,7 +6,9 @@ use Illuminate\Support\ServiceProvider;
 use GuzzleHttp\Client;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
+use App\Models\Video;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Vite;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,6 +26,11 @@ class AppServiceProvider extends ServiceProvider
     {
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
+        }
+
+        if ($this->app->environment('testing')) {
+            Vite::useBuildDirectory('tests');
+            Video::disableSearchSyncing();
         }
 
         RateLimiter::for('search', function () {

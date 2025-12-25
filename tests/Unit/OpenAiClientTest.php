@@ -73,7 +73,7 @@ class OpenAiClientTest extends TestCase
                 ['message' => ['content' => json_encode([
                     'seo_title' => str_repeat('A', 50),
                     'seo_description' => str_repeat('B', 160),
-                    'seo_tags' => array_fill(0, 8, 'tag'),
+                    'seo_tags' => array_map(fn ($i) => 'tag'.$i, range(1, 8)),
                     'category_slug' => 'not-allowed',
                     'quality_score' => 90,
                 ])]],

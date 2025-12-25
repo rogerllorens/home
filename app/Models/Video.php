@@ -106,7 +106,8 @@ class Video extends Model
 
     public function shouldBeSearchable(): bool
     {
-        return $this->status === VideoStatus::Published;
+        return $this->status === VideoStatus::Published
+            && !app()->environment('testing');
     }
 
     public function toSearchableArray(): array
