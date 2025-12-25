@@ -19,6 +19,7 @@
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.import-runs.index') }}">Import runs</a>
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.videos.index') }}">Videos</a>
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.takedowns.index') }}">Takedowns</a>
+                <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.cta-clicks.index') }}">CTA clicks</a>
             </nav>
         </aside>
 

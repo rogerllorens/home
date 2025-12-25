@@ -32,8 +32,9 @@ class VideosQualityCommand extends Command
 
         try {
             foreach ($videos as $video) {
-                $status = $this->evaluateStatus($video, $canonicalizer);
-                $video->status = $status;
+                $evaluation = $this->evaluateStatus($video, $canonicalizer);
+                $video->status = $evaluation['status'];
+                $video->quarantine_reason = $evaluation['reason'];
                 $video->category_slug = $normalizer->normalize($video->category_slug);
                 $video->save();
             }
@@ -46,33 +47,33 @@ class VideosQualityCommand extends Command
         return self::SUCCESS;
     }
 
-    private function evaluateStatus(Video $video, EmbedUrlCanonicalizer $canonicalizer): VideoStatus
+    private function evaluateStatus(Video $video, EmbedUrlCanonicalizer $canonicalizer): array
     {
         if (empty($video->seo_title) || empty($video->seo_description)) {
-            return VideoStatus::Quarantine;
+            return ['status' => VideoStatus::Quarantine, 'reason' => 'missing_seo'];
         }
 
         if (empty($video->thumbnail_url)) {
-            return VideoStatus::Quarantine;
+            return ['status' => VideoStatus::Quarantine, 'reason' => 'missing_thumbnail'];
         }
 
         $allowHttp = (bool) ($video->source?->settings['allow_http'] ?? false);
         $canonical = $canonicalizer->canonicalize($video->embed_url, $allowHttp);
         if ($canonical === null) {
-            return VideoStatus::Broken;
+            return ['status' => VideoStatus::Broken, 'reason' => 'invalid_embed_url'];
         }
 
         $qualityMin = config('candidboys.seo.quality_min', 55);
         if (($video->ai_quality ?? 0) < $qualityMin) {
-            return VideoStatus::Quarantine;
+            return ['status' => VideoStatus::Quarantine, 'reason' => 'quality_below_threshold'];
         }
 
         $allowed = Arr::wrap($video->source?->settings['allow_iframe_domains'] ?? []);
         $host = parse_url($canonical, PHP_URL_HOST);
         if (!in_array($host, $allowed, true)) {
-            return VideoStatus::Quarantine;
+            return ['status' => VideoStatus::Quarantine, 'reason' => 'host_not_allowed'];
         }
 
-        return VideoStatus::Ready;
+        return ['status' => VideoStatus::Ready, 'reason' => null];
     }
 }

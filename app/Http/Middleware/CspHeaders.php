@@ -23,21 +23,48 @@ class CspHeaders
         $response = $next($request);
 
         $frameSources = $this->resolveFrameSources($request);
+        $assetCdn = config('candidboys.security.asset_cdn');
+        $assetSource = $assetCdn ? " https://{$assetCdn}" : '';
+        $mediaSources = $frameSources === 'none' ? '' : $frameSources;
+        $captchaSources = $this->captchaSources();
+
+        $frameDirective = $frameSources === 'none'
+            ? "frame-src 'self'{$captchaSources}"
+            : "frame-src 'self'{$frameSources}{$captchaSources}";
+        $childDirective = $frameSources === 'none'
+            ? "child-src 'self'{$captchaSources}"
+            : "child-src 'self'{$frameSources}{$captchaSources}";
 
         $policy = implode('; ', [
             "default-src 'self'",
-            "img-src 'self' https: data:",
-            "style-src 'self' 'unsafe-inline'",
-            "script-src 'self' 'nonce-{$nonce}'",
-            "frame-src 'self'{$frameSources}",
+            "img-src 'self' data:{$assetSource}{$mediaSources}{$captchaSources}",
+            "style-src 'self' 'unsafe-inline'{$assetSource}{$captchaSources}",
+            "script-src 'self' 'nonce-{$nonce}'{$assetSource}{$captchaSources}",
+            $frameDirective,
+            $childDirective,
+            "frame-ancestors 'self'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "object-src 'none'",
         ]);
 
         $response->headers->set('Content-Security-Policy', $policy);
+        $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+        $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
 
         return $response;
+    }
+
+    private function captchaSources(): string
+    {
+        if (!config('candidboys.security.captcha_enabled')) {
+            return '';
+        }
+
+        return ' https://www.google.com https://www.gstatic.com';
     }
 
     private function resolveFrameSources(Request $request): string
@@ -54,7 +81,7 @@ class CspHeaders
 
         $allowlist = array_values(array_unique(array_filter($allowlist)));
         if (empty($allowlist)) {
-            return '';
+            return app()->environment('production') ? 'none' : '';
         }
 
         $sources = array_map(function ($domain) use ($matcher) {

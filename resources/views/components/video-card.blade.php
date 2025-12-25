@@ -35,10 +35,14 @@
             <div class="aspect-video w-full">
                 <img
                     src="{{ $thumbnail }}"
+                    srcset="{{ $thumbnail }} 320w, {{ $thumbnail }} 640w"
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                     alt="{{ $video->title }}"
                     class="h-full w-full object-cover"
                     loading="lazy"
                     decoding="async"
+                    width="320"
+                    height="180"
                 />
             </div>
             <div class="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent"></div>
@@ -50,7 +54,7 @@
         </div>
         <div class="flex flex-1 flex-col gap-1 px-2 py-2">
             <h3 class="line-clamp-2 text-sm font-semibold text-white">
-                {{ $video->title }}
+                {{ $video->seo_title ?: $video->title }}
             </h3>
             <div class="flex items-center justify-between text-xs text-slate-400">
                 <span>{{ $timeAgo }}</span>
