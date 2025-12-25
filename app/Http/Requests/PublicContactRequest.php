@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Rules\CaptchaToken;
 
 class PublicContactRequest extends FormRequest
 {
@@ -15,7 +16,12 @@ class PublicContactRequest extends FormRequest
             'subject' => ['nullable', 'string', 'max:190'],
             'message' => ['required', 'string', 'min:20', 'max:2000'],
             'website' => ['nullable', 'size:0'],
-            'captcha' => [Rule::requiredIf((bool) config('candidboys.security.captcha_enabled')), 'string', 'max:200'],
+            'captcha' => [
+                Rule::requiredIf((bool) config('candidboys.security.captcha_enabled')),
+                'string',
+                'max:200',
+                new CaptchaToken(),
+            ],
         ];
     }
 }

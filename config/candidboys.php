@@ -68,6 +68,9 @@ return [
         'global_iframe_allowlist' => array_values(array_filter(explode(',', (string) env('IFRAME_ALLOWLIST', '')))),
         'asset_cdn' => env('ASSET_CDN_HOST'),
         'captcha_enabled' => env('PUBLIC_CAPTCHA_ENABLED', false),
+        'captcha_site_key' => env('CAPTCHA_SITE_KEY'),
+        'captcha_secret' => env('CAPTCHA_SECRET_KEY'),
+        'captcha_verify_url' => env('CAPTCHA_VERIFY_URL', 'https://www.google.com/recaptcha/api/siteverify'),
         'rate_limits' => [
             'search' => '30/min',
             'video' => '60/min',

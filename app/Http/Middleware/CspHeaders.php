@@ -26,19 +26,20 @@ class CspHeaders
         $assetCdn = config('candidboys.security.asset_cdn');
         $assetSource = $assetCdn ? " https://{$assetCdn}" : '';
         $mediaSources = $frameSources === 'none' ? '' : $frameSources;
+        $captchaSources = $this->captchaSources();
 
         $frameDirective = $frameSources === 'none'
-            ? "frame-src 'none'"
-            : "frame-src 'self'{$frameSources}";
+            ? "frame-src 'self'{$captchaSources}"
+            : "frame-src 'self'{$frameSources}{$captchaSources}";
         $childDirective = $frameSources === 'none'
-            ? "child-src 'none'"
-            : "child-src 'self'{$frameSources}";
+            ? "child-src 'self'{$captchaSources}"
+            : "child-src 'self'{$frameSources}{$captchaSources}";
 
         $policy = implode('; ', [
             "default-src 'self'",
-            "img-src 'self' data:{$assetSource}{$mediaSources}",
-            "style-src 'self' 'unsafe-inline'{$assetSource}",
-            "script-src 'self' 'nonce-{$nonce}'{$assetSource}",
+            "img-src 'self' data:{$assetSource}{$mediaSources}{$captchaSources}",
+            "style-src 'self' 'unsafe-inline'{$assetSource}{$captchaSources}",
+            "script-src 'self' 'nonce-{$nonce}'{$assetSource}{$captchaSources}",
             $frameDirective,
             $childDirective,
             "frame-ancestors 'self'",
@@ -55,6 +56,15 @@ class CspHeaders
         $response->headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
 
         return $response;
+    }
+
+    private function captchaSources(): string
+    {
+        if (!config('candidboys.security.captcha_enabled')) {
+            return '';
+        }
+
+        return ' https://www.google.com https://www.gstatic.com';
     }
 
     private function resolveFrameSources(Request $request): string

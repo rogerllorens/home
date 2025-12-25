@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Rules\CaptchaToken;
 
 class PublicTakedownRequest extends FormRequest
 {
@@ -16,7 +17,12 @@ class PublicTakedownRequest extends FormRequest
             'reason' => ['nullable', 'string', 'max:2000'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'website' => ['nullable', 'size:0'],
-            'captcha' => [Rule::requiredIf((bool) config('candidboys.security.captcha_enabled')), 'string', 'max:200'],
+            'captcha' => [
+                Rule::requiredIf((bool) config('candidboys.security.captcha_enabled')),
+                'string',
+                'max:200',
+                new CaptchaToken(),
+            ],
         ];
     }
 }

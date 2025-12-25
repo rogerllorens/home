@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class PublicFormsTest extends TestCase
@@ -30,6 +31,48 @@ class PublicFormsTest extends TestCase
             'email' => 'test@example.com',
             'subject' => 'Hello',
             'message' => 'This is a valid message content.',
+        ]);
+
+        $response->assertSessionHas('status');
+        $this->assertDatabaseHas('public_contact_messages', [
+            'email' => 'test@example.com',
+            'subject' => 'Hello',
+        ]);
+    }
+
+    public function test_contact_form_requires_captcha_when_enabled(): void
+    {
+        config()->set('candidboys.security.captcha_enabled', true);
+        config()->set('candidboys.security.captcha_secret', 'secret');
+        config()->set('candidboys.security.captcha_verify_url', 'https://captcha.test/verify');
+
+        $response = $this->post(route('public.contact'), [
+            'name' => 'Test',
+            'email' => 'test@example.com',
+            'subject' => 'Hello',
+            'message' => 'This is a valid message content.',
+        ]);
+
+        $response->assertSessionHasErrors('captcha');
+        $this->assertDatabaseCount('public_contact_messages', 0);
+    }
+
+    public function test_contact_form_accepts_valid_captcha_when_enabled(): void
+    {
+        config()->set('candidboys.security.captcha_enabled', true);
+        config()->set('candidboys.security.captcha_secret', 'secret');
+        config()->set('candidboys.security.captcha_verify_url', 'https://captcha.test/verify');
+
+        Http::fake([
+            'https://captcha.test/verify' => Http::response(['success' => true], 200),
+        ]);
+
+        $response = $this->post(route('public.contact'), [
+            'name' => 'Test',
+            'email' => 'test@example.com',
+            'subject' => 'Hello',
+            'message' => 'This is a valid message content.',
+            'captcha' => 'token',
         ]);
 
         $response->assertSessionHas('status');
@@ -81,6 +124,47 @@ class PublicFormsTest extends TestCase
             'email' => 'test@example.com',
             'requester_name' => 'Test',
             'reason' => 'Copyright',
+        ]);
+
+        $response->assertSessionHas('status');
+        $this->assertDatabaseHas('public_takedown_requests', [
+            'email' => 'test@example.com',
+        ]);
+    }
+
+    public function test_takedown_form_requires_captcha_when_enabled(): void
+    {
+        config()->set('candidboys.security.captcha_enabled', true);
+        config()->set('candidboys.security.captcha_secret', 'secret');
+        config()->set('candidboys.security.captcha_verify_url', 'https://captcha.test/verify');
+
+        $response = $this->post(route('public.takedown'), [
+            'url' => 'https://example.com/video',
+            'email' => 'test@example.com',
+            'requester_name' => 'Test',
+            'reason' => 'Copyright',
+        ]);
+
+        $response->assertSessionHasErrors('captcha');
+        $this->assertDatabaseCount('public_takedown_requests', 0);
+    }
+
+    public function test_takedown_form_accepts_valid_captcha_when_enabled(): void
+    {
+        config()->set('candidboys.security.captcha_enabled', true);
+        config()->set('candidboys.security.captcha_secret', 'secret');
+        config()->set('candidboys.security.captcha_verify_url', 'https://captcha.test/verify');
+
+        Http::fake([
+            'https://captcha.test/verify' => Http::response(['success' => true], 200),
+        ]);
+
+        $response = $this->post(route('public.takedown'), [
+            'url' => 'https://example.com/video',
+            'email' => 'test@example.com',
+            'requester_name' => 'Test',
+            'reason' => 'Copyright',
+            'captcha' => 'token',
         ]);
 
         $response->assertSessionHas('status');

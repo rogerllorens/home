@@ -141,15 +141,15 @@
                 <div class="overflow-hidden rounded-md border border-red-600/30 bg-black">
                     @php
                         $iframeSandbox = $video->source?->settings['iframe_sandbox'] ?? 'allow-scripts allow-same-origin allow-presentation';
-                        $iframeAllow = $video->source?->settings['iframe_allow'] ?? 'fullscreen';
+                        $iframeAllow = $video->source?->settings['iframe_allow'] ?? 'fullscreen; picture-in-picture';
                     @endphp
-                    @if (!$isUnavailable && $video->embed_url)
+                    @if (!$isUnavailable && $embedUrl)
                         <div class="relative aspect-video" id="embed-container" data-embed-container>
                             <img src="{{ $thumbnail }}" alt="{{ $video->title }}" class="h-full w-full object-cover" loading="lazy" decoding="async" width="1280" height="720">
                             <button
                                 class="absolute inset-0 flex items-center justify-center bg-black/60 text-white"
                                 type="button"
-                                data-embed-url="{{ $video->embed_url }}"
+                                data-embed-url="{{ $embedUrl }}"
                                 data-embed-container="#embed-container"
                                 data-iframe-sandbox="{{ $iframeSandbox }}"
                                 data-iframe-allow="{{ $iframeAllow }}"

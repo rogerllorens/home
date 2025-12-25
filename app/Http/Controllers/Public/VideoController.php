@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Public;
 use App\Enums\VideoStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Video;
+use App\Services\Embeds\EmbedDomainMatcher;
 use App\Services\Embeds\EmbedSanitizer;
+use App\Services\Embeds\EmbedUrlCanonicalizer;
 use App\Services\Videos\CtaPresenter;
 use App\Services\Videos\RelatedVideosService;
 use App\Services\Videos\VideoAvailabilityPolicy;
 use App\Services\Videos\VideoSeoService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Arr;
 use Illuminate\View\View;
 
 class VideoController extends Controller
@@ -19,6 +22,8 @@ class VideoController extends Controller
         string $slug,
         int $id,
         EmbedSanitizer $sanitizer,
+        EmbedUrlCanonicalizer $canonicalizer,
+        EmbedDomainMatcher $domainMatcher,
         RelatedVideosService $relatedService,
         CtaPresenter $ctaPresenter,
         VideoAvailabilityPolicy $availabilityPolicy,
@@ -46,8 +51,24 @@ class VideoController extends Controller
         $ctas = $ctaPresenter->present($video, 'video_detail');
         $robots = $seoService->robots($video, $availabilityPolicy);
 
+        $embedUrl = null;
+        if ($video->embed_url) {
+            $allowHttp = (bool) ($video->source?->settings['allow_http'] ?? false);
+            $canonical = $canonicalizer->canonicalize($video->embed_url, $allowHttp);
+            if ($canonical) {
+                $host = parse_url($canonical, PHP_URL_HOST);
+                $allowlist = array_merge(
+                    config('candidboys.security.global_iframe_allowlist', []),
+                    Arr::wrap($video->source?->settings['allow_iframe_domains'] ?? [])
+                );
+                $embedUrl = empty($allowlist) || $domainMatcher->isAllowed((string) $host, $allowlist)
+                    ? $canonical
+                    : null;
+            }
+        }
+
         $sanitizedEmbed = null;
-        if (!$video->embed_url && $video->embed_html) {
+        if (!$embedUrl && $video->embed_html) {
             $sanitizedEmbed = $sanitizer->sanitize($video->embed_html);
         }
 
@@ -60,6 +81,7 @@ class VideoController extends Controller
             'shuffleVideo' => $shuffleVideo,
             'ctas' => $ctas,
             'robots' => $robots,
+            'embedUrl' => $embedUrl,
             'sanitizedEmbed' => $sanitizedEmbed,
             'isUnavailable' => $isUnavailable,
         ]);

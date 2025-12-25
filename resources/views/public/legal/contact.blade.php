@@ -1,10 +1,25 @@
 <x-layouts.public title="Contact | Candid Boys">
+    @php
+        $captchaEnabled = (bool) config('candidboys.security.captcha_enabled')
+            && config('candidboys.security.captcha_site_key');
+    @endphp
     @push('head')
         <x-seo-head
             title="Contact | Candid Boys"
             description="Contact Candid Boys for support or inquiries."
             canonical="{{ url('/contact') }}"
         />
+        @if ($captchaEnabled)
+            <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+            <script nonce="{{ $cspNonce ?? '' }}">
+                const captchaCallback = (token) => {
+                    const input = document.getElementById('captcha');
+                    if (input) {
+                        input.value = token;
+                    }
+                };
+            </script>
+        @endif
     @endpush
 
     <section class="space-y-6">
@@ -50,10 +65,13 @@
             <label for="website">Website</label>
             <input id="website" name="website" type="text" tabindex="-1" autocomplete="off">
         </div>
-        @if (config('candidboys.security.captcha_enabled'))
+        @if ($captchaEnabled)
             <div>
-                <label class="text-sm text-slate-300" for="captcha">Captcha</label>
-                <input id="captcha" name="captcha" type="text" class="mt-2 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100" />
+                <label class="text-sm text-slate-300">Captcha</label>
+                <div class="mt-2">
+                    <div class="g-recaptcha" data-sitekey="{{ config('candidboys.security.captcha_site_key') }}" data-callback="captchaCallback"></div>
+                </div>
+                <input id="captcha" name="captcha" type="hidden" value="{{ old('captcha') }}" />
                 @error('captcha')
                     <p class="mt-1 text-xs text-rose-300">{{ $message }}</p>
                 @enderror
