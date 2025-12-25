@@ -5,11 +5,67 @@ Plataforma Laravel para un catálogo "tube" con búsqueda y curación de conteni
 ## Requisitos
 
 - PHP 8.3+
+- Extensiones: pdo, pdo_pgsql, mbstring, openssl, curl, json
 - Composer 2
 - Node.js 20+
 - Docker + Docker Compose (para servicios externos)
 - Redis
 - Meilisearch
+- (Opcional) Ollama u OpenAI
+
+## Variables de entorno críticas
+
+- `APP_NAME`, `APP_ENV`, `APP_DEBUG`, `APP_URL`, `APP_KEY`
+- `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
+- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
+- `CACHE_STORE`, `QUEUE_CONNECTION`, `SESSION_DRIVER`
+- `MEILISEARCH_HOST`, `MEILISEARCH_KEY`
+- `AI_PROVIDER`, `OLLAMA_HOST`, `OLLAMA_MODEL`, `OPENAI_API_KEY`
+- `PARTNER_CAMS_URL`, `PARTNER_MEMBERSHIP_URL`, `PARTNER_DATING_URL`
+- `SENTRY_LARAVEL_DSN`, `SENTRY_ENABLED`
+- `IFRAME_ALLOWLIST`, `ASSET_CDN_HOST`, `PUBLIC_CAPTCHA_ENABLED`
+
+## Ejemplo de .env (mínimo)
+
+```env
+APP_NAME="Candid Boys"
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://candidboys.example
+APP_KEY=base64:...
+
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=candidboys
+DB_USERNAME=candidboys
+DB_PASSWORD=secret
+
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+
+CACHE_STORE=redis
+QUEUE_CONNECTION=redis
+SESSION_DRIVER=redis
+
+MEILISEARCH_HOST=http://localhost:7700
+MEILISEARCH_KEY=masterKey
+
+AI_PROVIDER=ollama
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:7b
+
+PARTNER_CAMS_URL=https://partner.example/cams
+PARTNER_MEMBERSHIP_URL=https://partner.example/members
+PARTNER_DATING_URL=https://partner.example/dating
+
+SENTRY_LARAVEL_DSN=
+SENTRY_ENABLED=false
+
+IFRAME_ALLOWLIST=player.example.com,*.cdn.example.com
+ASSET_CDN_HOST=cdn.example.com
+PUBLIC_CAPTCHA_ENABLED=false
+```
 
 ## Arranque local
 
@@ -199,6 +255,18 @@ Configura las CTAs en `config/candidboys.php` o vía variables de entorno:
 - `PARTNER_DATING_URL`, `PARTNER_DATING_TEMPLATE`
 
 Los clicks se registran en `cta_clicks` y se redirigen con UTM + `click_id`.
+
+## Monitoreo (Sentry)
+
+Para activar el monitoreo de errores:
+
+1. Añade `SENTRY_LARAVEL_DSN` en `.env`.
+2. Define `SENTRY_ENABLED=true` (recomendado solo en `APP_ENV=production`).
+3. (Opcional) ajusta `SENTRY_TRACES_SAMPLE_RATE` para performance tracing.
+
+Para verificar:
+
+- Genera un error controlado y valida que aparece en el panel de Sentry.
 
 ## Producción
 
