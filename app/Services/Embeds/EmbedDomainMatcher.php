@@ -16,6 +16,7 @@ class EmbedDomainMatcher
             return $host ? strtolower($host) : null;
         }
 
+        $value = preg_replace('/:\d+$/', '', $value);
         $value = preg_replace('/[^a-z0-9.*-]/', '', $value);
         if (str_starts_with($value, '*.')) {
             $suffix = ltrim(substr($value, 2), '.');
