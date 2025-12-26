@@ -3,17 +3,32 @@
         <x-seo-head
             title="Terms | Candid Boys"
             description="Terms of use, 18+ notice, and general guidelines for Candid Boys."
-            canonical="{{ url('/terms') }}"
+            canonical="{{ route('public.terms') }}"
         />
     @endpush
 
     <section class="space-y-6">
         <h1 class="text-2xl font-semibold text-white">Terms of Service</h1>
-        <div class="space-y-3 text-sm text-slate-300">
-            <!-- TODO: Review this text with legal counsel to comply with local regulations. -->
-            <p>You must be 18+ to access this site. By browsing you confirm you meet the minimum age and local requirements.</p>
-            <p>Content is provided for personal viewing only. Do not redistribute or rehost media without permission.</p>
-            <p>We may remove or restrict content to comply with legal or safety requirements.</p>
+        <div class="space-y-5 text-sm text-slate-300">
+            <p class="text-xs uppercase tracking-wide text-slate-500">{{ __('ui.legal.placeholder_notice') }}</p>
+            <p>{{ __('ui.legal.placeholder_copy') }}</p>
+
+            <div>
+                <h2 class="text-base font-semibold text-white">Eligibility & age</h2>
+                <p class="mt-2">El sitio está destinado a mayores de edad. Al continuar confirmas que cumples la edad mínima en tu jurisdicción.</p>
+            </div>
+            <div>
+                <h2 class="text-base font-semibold text-white">Permitted use</h2>
+                <p class="mt-2">El contenido se ofrece para visualización personal. No redistribuyas ni alojes el material sin autorización.</p>
+            </div>
+            <div>
+                <h2 class="text-base font-semibold text-white">Moderation</h2>
+                <p class="mt-2">Podemos restringir o retirar contenido cuando sea necesario por seguridad o cumplimiento.</p>
+            </div>
+            <div>
+                <h2 class="text-base font-semibold text-white">Contact</h2>
+                <p class="mt-2">Para consultas sobre términos, usa la página de contacto.</p>
+            </div>
         </div>
     </section>
 </x-layouts.public>

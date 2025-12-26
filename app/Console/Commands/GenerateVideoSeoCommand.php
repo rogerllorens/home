@@ -13,6 +13,11 @@ class GenerateVideoSeoCommand extends Command
 
     public function handle(): int
     {
+        if (!(bool) config('ai.enabled', true) || config('ai.provider', 'none') === 'none') {
+            $this->warn('AI generation is disabled.');
+            return self::SUCCESS;
+        }
+
         $limit = (int) $this->option('limit');
 
         $videos = Video::query()
@@ -21,7 +26,13 @@ class GenerateVideoSeoCommand extends Command
             ->limit($limit)
             ->get();
 
+        $usageLimiter = app(\App\Services\AI\AiUsageLimiter::class);
+
         foreach ($videos as $video) {
+            if (!$usageLimiter->canRequest()) {
+                $this->warn('AI daily limit reached. Skipping remaining videos.');
+                break;
+            }
             GenerateVideoSeoJob::dispatch($video->id);
         }
 

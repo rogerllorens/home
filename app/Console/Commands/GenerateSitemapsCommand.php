@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\Sitemaps\TaxonomySitemapGenerator;
+use App\Services\Sitemaps\SearchLandingSitemapGenerator;
 use App\Services\Sitemaps\VideoSitemapGenerator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -27,10 +28,12 @@ class GenerateSitemapsCommand extends Command
         try {
             $videoGenerator = new VideoSitemapGenerator();
             $taxonomyGenerator = new TaxonomySitemapGenerator();
+            $landingGenerator = new SearchLandingSitemapGenerator();
 
             $sitemapFiles = array_merge(
                 $videoGenerator->generate($directory),
-                $taxonomyGenerator->generate($directory)
+                $taxonomyGenerator->generate($directory),
+                $landingGenerator->generate($directory)
             );
         } finally {
             $lock->release();

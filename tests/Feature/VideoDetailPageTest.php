@@ -40,4 +40,45 @@ class VideoDetailPageTest extends TestCase
         $response->assertSee('Related videos');
         $response->assertSee($related->title);
     }
+
+    public function test_unavailable_video_shows_unavailable_notice(): void
+    {
+        $video = Video::factory()->create([
+            'status' => VideoStatus::Broken,
+            'seo_title' => 'Broken title',
+            'published_at' => now()->subDay(),
+            'embed_ok' => false,
+        ]);
+
+        $response = $this->get(route('public.video', [
+            'slug' => Str::slug($video->seo_title),
+            'id' => $video->id,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Video unavailable.');
+    }
+
+    public function test_video_page_displays_duration_views_and_tags(): void
+    {
+        $video = Video::factory()->create([
+            'status' => VideoStatus::Published,
+            'seo_title' => 'Focus title',
+            'published_at' => now()->subDay(),
+            'duration_seconds' => 90,
+            'raw_tags' => ['focus'],
+        ]);
+
+        $video->forceFill(['views_total' => 1200])->save();
+
+        $response = $this->get(route('public.video', [
+            'slug' => Str::slug($video->seo_title),
+            'id' => $video->id,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('01:30');
+        $response->assertSee('1.2K views');
+        $response->assertSee('#focus');
+    }
 }

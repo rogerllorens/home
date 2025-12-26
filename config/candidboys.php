@@ -37,6 +37,86 @@ return [
         'tags_min' => 8,
         'tags_max' => 16,
         'quality_min' => 55,
+        'og_image' => env('SEO_OG_IMAGE'),
+        'og_type' => env('SEO_OG_TYPE', 'website'),
+        'twitter_card' => env('SEO_TWITTER_CARD', 'summary_large_image'),
+        'robots' => env('SEO_ROBOTS', 'index,follow'),
+    ],
+    'analytics' => [
+        'provider' => env('ANALYTICS_PROVIDER', 'none'),
+        'plausible_domain' => env('PLAUSIBLE_DOMAIN'),
+        'ga_measurement_id' => env('GA_MEASUREMENT_ID'),
+    ],
+    'ui' => [
+        'show_adult_warning' => env('SHOW_ADULT_WARNING', false),
+        'adult_warning_text' => env('ADULT_WARNING_TEXT', 'Adult content. 18+ only.'),
+        'affiliate_notice_text' => env('AFFILIATE_NOTICE_TEXT', 'Some links on this site are affiliate links and may generate commissions.'),
+        'cookie_banner_enabled' => env('COOKIE_BANNER_ENABLED', false),
+        'cookie_banner_cookie' => env('COOKIE_BANNER_COOKIE', 'cookie_consent'),
+        'cookie_notice_text' => env('COOKIE_NOTICE_TEXT', 'Usamos cookies y analítica básica para mejorar la experiencia. Puedes aceptar para continuar.'),
+        'cookie_ads_notice_text' => env('COOKIE_ADS_NOTICE_TEXT', 'Este sitio puede incluir contenido patrocinado o anuncios.'),
+    ],
+    'articles' => [
+        [
+            'slug' => 'how-affiliate-links-work',
+            'title' => 'How affiliate links work on this site',
+            'summary' => 'A short overview of how affiliate links support Candid Boys.',
+            'sections' => [
+                [
+                    'title' => 'What affiliate links are',
+                    'body' => 'Algunos enlaces nos permiten recibir una comisión si decides visitar un partner. No cambia tu experiencia en el sitio.',
+                ],
+                [
+                    'title' => 'Why we use them',
+                    'body' => 'Nos ayudan a mantener el sitio y a seguir curando contenido de forma sostenible.',
+                ],
+            ],
+        ],
+        [
+            'slug' => 'how-content-removal-works',
+            'title' => 'How we handle content removal requests',
+            'summary' => 'Información general sobre el proceso de retirada de contenidos.',
+            'sections' => [
+                [
+                    'title' => 'Requesting removal',
+                    'body' => 'Puedes reportar contenido mediante el formulario de takedown o el email indicado.',
+                ],
+                [
+                    'title' => 'Review process',
+                    'body' => 'Revisamos cada solicitud y respondemos con pasos claros y tiempos estimados.',
+                ],
+            ],
+        ],
+        [
+            'slug' => 'privacy-basics',
+            'title' => 'Basic privacy tips for adult content viewers',
+            'summary' => 'Consejos generales para navegar de forma más privada y segura.',
+            'sections' => [
+                [
+                    'title' => 'Use trusted devices',
+                    'body' => 'Prioriza dispositivos personales y revisa permisos antes de compartir.',
+                ],
+                [
+                    'title' => 'Stay aware of shared access',
+                    'body' => 'Cierra sesión y limpia el historial si usas un equipo compartido.',
+                ],
+            ],
+        ],
+    ],
+    'taxonomy_intros' => [
+        'categories' => [
+            'couples' => 'Momentos reales en pareja con química natural y miradas cómplices. El ritmo es cercano y sin poses. Ideal para disfrutar con calma.',
+            'first-time' => 'Primeras veces auténticas con nervios, risas y curiosidad. La energía es espontánea y cercana. Pensado para quienes buscan frescura.',
+            'romantic' => 'Romance y conexión en escenas suaves y atmosféricas. El enfoque es íntimo y emocional. Perfecto para un mood relajado.',
+            'playful' => 'Energía juguetona con risas y complicidad. Clips dinámicos y ligeros que mantienen el ritmo. Una selección para ver sin prisa.',
+            'massage' => 'Masajes sensuales con un ritmo lento y cálido. Ambientes relajados y enfoque en la conexión. Ideal para una experiencia tranquila.',
+        ],
+        'tags' => [
+            'amateur' => 'Escenas espontáneas y cercanas con un aire real desde el primer minuto. Tono natural y sin artificios.',
+            'romantic' => 'Momentos de conexión y ternura, perfectos para ver sin prisas. Ritmo suave y cercano.',
+            'massage' => 'Relajación y sensualidad en videos pausados y envolventes. Ambiente cálido y tranquilo.',
+            'playful' => 'Clips ligeros y divertidos con energía positiva. Dinámica ágil y cercana.',
+        ],
     ],
     'monetization' => [
         'cta_templates' => [
@@ -78,6 +158,7 @@ return [
         'captcha_verify_url' => env('CAPTCHA_VERIFY_URL', 'https://www.google.com/recaptcha/api/siteverify'),
         'captcha_hosts' => array_values(array_filter(explode(',', (string) env('CAPTCHA_HOSTS', 'www.google.com,www.gstatic.com')))),
         'analytics_hosts' => array_values(array_filter(explode(',', (string) env('ANALYTICS_HOSTS', '')))),
+        'ads_hosts' => array_values(array_filter(explode(',', (string) env('ADS_HOSTS', '')))),
         'admin_login_captcha_enabled' => env('ADMIN_LOGIN_CAPTCHA_ENABLED', false),
         'admin_login_lockout_max_attempts' => env('ADMIN_LOGIN_LOCKOUT_MAX_ATTEMPTS', 5),
         'admin_login_lockout_minutes' => env('ADMIN_LOGIN_LOCKOUT_MINUTES', 10),

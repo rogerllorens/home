@@ -17,7 +17,7 @@ class OpenAiClient implements AiClientInterface
     ) {
     }
 
-    public function generateVideoSeo(array $input): array
+    public function generateVideoSeo(array $input): ?array
     {
         $model = config('candidboys.ai.model');
         $baseUrl = rtrim(config('candidboys.ai.openai_base_url'), '/');

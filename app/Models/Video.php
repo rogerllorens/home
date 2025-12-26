@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Laravel\Scout\Searchable;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Video extends Model
 {
@@ -71,6 +72,23 @@ class Video extends Model
     public function viewsDaily(): HasMany
     {
         return $this->hasMany(VideoViewDaily::class);
+    }
+
+    public function likes(): HasMany
+    {
+        return $this->hasMany(VideoLike::class);
+    }
+
+    public function collections(): BelongsToMany
+    {
+        return $this->belongsToMany(Collection::class, 'collection_video')
+            ->withTimestamps();
+    }
+
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(Category::class, 'category_video')
+            ->withTimestamps();
     }
 
     public function takedowns(): HasMany
@@ -162,6 +180,16 @@ class Video extends Model
             if (is_numeric($value) && (int) $value > 0) {
                 return (int) $value;
             }
+        }
+
+        return null;
+    }
+
+    public function getDisplayLikesAttribute(): ?int
+    {
+        $value = $this->getAttribute('likes_count');
+        if (is_numeric($value) && (int) $value >= 0) {
+            return (int) $value;
         }
 
         return null;

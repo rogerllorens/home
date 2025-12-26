@@ -28,6 +28,10 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
+        URL::defaults([
+            'locale' => config('app.locale'),
+        ]);
+
         if ($this->app->environment('testing')) {
             Vite::useBuildDirectory('tests');
             Video::disableSearchSyncing();

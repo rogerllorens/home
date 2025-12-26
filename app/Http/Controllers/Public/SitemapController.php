@@ -28,6 +28,11 @@ class SitemapController extends Controller
         return $this->serveFile("sitemaps/tags-{$file}");
     }
 
+    public function discover(string $file): Response
+    {
+        return $this->serveFile("sitemaps/discover-{$file}");
+    }
+
     private function serveFile(string $path): Response
     {
         $fullPath = public_path($path);

@@ -14,9 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin.auth' => \App\Http\Middleware\AdminAuth::class,
             'csp.headers' => \App\Http\Middleware\CspHeaders::class,
+            'locale' => \App\Http\Middleware\SetLocaleFromRoute::class,
+            'device.hash' => \App\Http\Middleware\EnsureDeviceHash::class,
         ]);
         $middleware->prepend(\App\Http\Middleware\TrustProxies::class);
         $middleware->appendToGroup('web', \App\Http\Middleware\CspHeaders::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\RequestMetrics::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\EnsureDeviceHash::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

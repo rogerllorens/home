@@ -7,7 +7,7 @@
         <x-seo-head
             title="Takedown | Candid Boys"
             description="Takedown requests and rights verification for Candid Boys."
-            canonical="{{ url('/takedown') }}"
+            canonical="{{ route('public.takedown') }}"
         />
         @if ($captchaEnabled)
             <script src="https://www.google.com/recaptcha/api.js" async defer></script>
@@ -24,11 +24,26 @@
 
     <section class="space-y-6">
         <h1 class="text-2xl font-semibold text-white">Takedown Requests</h1>
-        <div class="space-y-3 text-sm text-slate-300">
-            <!-- TODO: Adjust this procedure to match the legal framework in your jurisdiction. -->
-            <p>If you believe content infringes your rights, submit the URL and information that confirms your relationship to the material.</p>
-            <p>We respond as quickly as possible and remove or restrict content when requests are valid.</p>
-            <p>Email: <a class="text-red-300 hover:text-red-200" href="mailto:legal@candidboys.example">legal@candidboys.example</a></p>
+        <div class="space-y-5 text-sm text-slate-300">
+            <p class="text-xs uppercase tracking-wide text-slate-500">{{ __('ui.legal.placeholder_notice') }}</p>
+            <p>{{ __('ui.legal.placeholder_copy') }}</p>
+
+            <div>
+                <h2 class="text-base font-semibold text-white">{{ __('ui.legal.takedown.report') }}</h2>
+                <p class="mt-2">Puedes reportar contenido que consideres inapropiado o que no deba mostrarse.</p>
+            </div>
+            <div>
+                <h2 class="text-base font-semibold text-white">{{ __('ui.legal.takedown.info') }}</h2>
+                <p class="mt-2">Incluye la URL del contenido, un correo de contacto y cualquier detalle relevante.</p>
+            </div>
+            <div>
+                <h2 class="text-base font-semibold text-white">{{ __('ui.legal.takedown.response') }}</h2>
+                <p class="mt-2">Revisamos cada solicitud y retiramos o restringimos contenido válido tan pronto como sea posible.</p>
+            </div>
+            <div>
+                <h2 class="text-base font-semibold text-white">{{ __('ui.legal.takedown.contact') }}</h2>
+                <p class="mt-2">Email: <a class="text-red-300 hover:text-red-200" href="mailto:legal@candidboys.example">legal@candidboys.example</a></p>
+            </div>
         </div>
     </section>
 

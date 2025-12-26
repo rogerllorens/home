@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Enums\VideoStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Video;
+use App\Models\VideoView;
 use App\Services\Embeds\EmbedDomainMatcher;
 use App\Services\Embeds\EmbedSanitizer;
 use App\Services\Embeds\EmbedUrlCanonicalizer;
@@ -12,6 +13,7 @@ use App\Services\Videos\CtaPresenter;
 use App\Services\Videos\RelatedVideosService;
 use App\Services\Videos\VideoAvailabilityPolicy;
 use App\Services\Videos\VideoSeoService;
+use App\Support\DeviceHash;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Arr;
 use Illuminate\View\View;
@@ -21,6 +23,7 @@ class VideoController extends Controller
     public function __invoke(
         string $slug,
         int $id,
+        \Illuminate\Http\Request $request,
         EmbedSanitizer $sanitizer,
         EmbedUrlCanonicalizer $canonicalizer,
         EmbedDomainMatcher $domainMatcher,
@@ -44,9 +47,39 @@ class VideoController extends Controller
         }
 
         $video->loadSum('viewsDaily', 'views');
-        $related = $relatedService->related($video);
+        $video->loadCount('likes');
+        $deviceHash = DeviceHash::ensure($request);
+        $video->setAttribute('liked_by_device', false);
+        $video->setAttribute(
+            'liked_by_device',
+            $video->likes()->where('device_hash', $deviceHash)->exists()
+        );
+
+        $rateLimitMinutes = (int) config('videos.view_rate_limit_minutes', 30);
+        $recentViewExists = VideoView::query()
+            ->where('video_id', $video->id)
+            ->where('device_hash', $deviceHash)
+            ->where('viewed_at', '>=', now()->subMinutes($rateLimitMinutes))
+            ->exists();
+
+        if (!$recentViewExists) {
+            VideoView::create([
+                'video_id' => $video->id,
+                'device_hash' => $deviceHash,
+                'viewed_at' => now(),
+            ]);
+        }
+        $related = $relatedService->recommended($video);
         $nextVideo = $related->first();
         $shuffleVideo = $related->count() > 1 ? $related->random() : $related->first();
+        $categoryShuffle = null;
+        if ($video->category_slug) {
+            $categoryShuffle = Video::published()
+                ->where('category_slug', $video->category_slug)
+                ->whereKeyNot($video->id)
+                ->inRandomOrder()
+                ->first();
+        }
 
         $ctas = $ctaPresenter->present($video, 'video_detail');
         $robots = $seoService->robots($video, $availabilityPolicy);
@@ -84,6 +117,7 @@ class VideoController extends Controller
             'embedUrl' => $embedUrl,
             'sanitizedEmbed' => $sanitizedEmbed,
             'isUnavailable' => $isUnavailable,
+            'categoryShuffle' => $categoryShuffle,
         ]);
     }
 }

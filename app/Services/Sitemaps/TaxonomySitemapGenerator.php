@@ -4,6 +4,7 @@ namespace App\Services\Sitemaps;
 
 use App\Casts\PostgresTextArray;
 use App\Enums\VideoStatus;
+use App\Models\Category;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -17,7 +18,7 @@ class TaxonomySitemapGenerator
     {
         $sitemapFiles = [];
 
-        $categoryEntries = DB::table('videos')
+        $categoryRows = DB::table('videos')
             ->select('category_slug', DB::raw('max(updated_at) as lastmod'))
             ->whereNotNull('category_slug')
             ->where('status', VideoStatus::Published->value)
@@ -26,13 +27,21 @@ class TaxonomySitemapGenerator
             ->where('embed_ok', true)
             ->groupBy('category_slug')
             ->get()
-            ->map(function ($row) {
-                $loc = route('public.category', $row->category_slug);
-                $lastmod = $row->lastmod ? Carbon::parse($row->lastmod)->toAtomString() : null;
-                $lastmodTag = $lastmod ? "<lastmod>{$lastmod}</lastmod>" : '';
-                return "<url><loc>{$loc}</loc>{$lastmodTag}</url>";
-            })
-            ->implode('');
+            ->mapWithKeys(fn ($row) => [$row->category_slug => $row->lastmod]);
+
+        $dbCategories = Category::query()
+            ->where('is_public', true)
+            ->get(['slug', 'updated_at'])
+            ->mapWithKeys(fn (Category $category) => [$category->slug => $category->updated_at]);
+
+        $mergedCategories = $categoryRows->merge($dbCategories);
+
+        $categoryEntries = $mergedCategories->map(function ($lastmod, $slug) {
+            $loc = route('public.category', $slug);
+            $lastmod = $lastmod ? Carbon::parse($lastmod)->toAtomString() : null;
+            $lastmodTag = $lastmod ? "<lastmod>{$lastmod}</lastmod>" : '';
+            return "<url><loc>{$loc}</loc>{$lastmodTag}</url>";
+        })->implode('');
 
         if ($categoryEntries !== '') {
             $categoryFile = 'categories-1.xml';
