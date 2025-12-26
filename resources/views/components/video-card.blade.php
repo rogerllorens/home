@@ -14,6 +14,8 @@
     $isNew = $publishedAt ? $publishedAt->gt(now()->subHours(48)) : false;
     $viewsTotal = $video->display_views;
     $formattedViews = $viewsTotal ? format_views($viewsTotal) : null;
+    $likesTotal = $video->display_likes;
+    $formattedLikes = $likesTotal !== null ? format_views($likesTotal) : null;
     $durationLabel = null;
     if ($video->duration_seconds) {
         $durationLabel = $video->duration_seconds >= 3600
@@ -64,9 +66,19 @@
             </h3>
             <div class="flex items-center justify-between text-xs text-slate-400">
                 <span>{{ $timeAgo }}</span>
-                @if ($formattedViews)
-                    <span>{{ $formattedViews }} views</span>
-                @endif
+                <div class="flex items-center gap-3">
+                    @if ($formattedViews)
+                        <span>{{ $formattedViews }} views</span>
+                    @endif
+                    @if ($formattedLikes !== null)
+                        <span class="flex items-center gap-1 text-rose-200">
+                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M12 21s-6.7-4.35-9.33-7.5C.6 10.9 1.2 7.8 3.6 6.3c1.9-1.2 4.4-.9 6 1 1.6-1.9 4.1-2.2 6-1 2.4 1.5 3 4.6.93 7.2C18.7 16.65 12 21 12 21z"/>
+                            </svg>
+                            <span>{{ $formattedLikes }}</span>
+                        </span>
+                    @endif
+                </div>
             </div>
             @if ($showCategory || $tags)
                 <div class="flex flex-wrap gap-1 pt-1 text-[11px]">

@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(\App\Http\Middleware\TrustProxies::class);
         $middleware->appendToGroup('web', \App\Http\Middleware\CspHeaders::class);
         $middleware->appendToGroup('web', \App\Http\Middleware\RequestMetrics::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\EnsureDeviceHash::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

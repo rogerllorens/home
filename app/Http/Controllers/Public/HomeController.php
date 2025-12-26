@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Video;
-use App\Models\VideoViewDaily;
 use App\Enums\VideoStatus;
 use App\Support\PublicCache;
 use Illuminate\Http\Request;
@@ -78,26 +77,24 @@ class HomeController extends Controller
 
             $latestVideos = $feedQuery->paginate(24)->withQueryString();
 
-            $trendingIds = VideoViewDaily::query()
-                ->select('video_id', DB::raw('sum(views) as total_views'))
-                ->where('day', '>=', now()->subDays(7)->toDateString())
-                ->groupBy('video_id')
-                ->orderByDesc('total_views')
-                ->limit(12)
-                ->pluck('video_id')
-                ->all();
-
-            $trendingVideos = $trendingIds
-                ? Video::published()
-                    ->whereIn('id', $trendingIds)
-                    ->withSum('viewsDaily', 'views')
-                    ->get()
-                    ->sortBy(fn ($video) => array_search($video->id, $trendingIds, true))
-                    ->values()
-                : collect();
+            $trendingVideos = Video::published()
+                ->withSum('viewsDaily', 'views')
+                ->withCount('likes')
+                ->get()
+                ->sortByDesc(function (Video $video) {
+                    $views = (int) ($video->views_daily_sum_views ?? $video->display_views ?? 0);
+                    $likes = (int) ($video->likes_count ?? 0);
+                    $publishedAt = $video->published_at ?? $video->created_at;
+                    $ageDays = $publishedAt ? max(0, $publishedAt->diffInDays(now())) : 7;
+                    $recentBonus = max(0, 7 - $ageDays);
+                    return ($likes * 3) + $views + $recentBonus;
+                })
+                ->take(12)
+                ->values();
 
             $newThisWeek = Video::published()
                 ->withSum('viewsDaily', 'views')
+                ->withCount('likes')
                 ->where('published_at', '>=', now()->subDays(7))
                 ->orderByDesc('published_at')
                 ->take(12)

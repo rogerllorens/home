@@ -20,6 +20,7 @@ use App\Http\Controllers\Public\TagController;
 use App\Http\Controllers\Public\TaxonomyController;
 use App\Http\Controllers\Public\TakedownRequestController;
 use App\Http\Controllers\Public\VideoEventController;
+use App\Http\Controllers\Public\VideoLikeController;
 use App\Http\Controllers\Public\VideoController as PublicVideoController;
 use Illuminate\Support\Facades\Route;
 
@@ -50,6 +51,7 @@ Route::get('/t/{tag_slug}', TagController::class)->name('public.tag');
 Route::get('/search', SearchController::class)->name('public.search')->middleware('throttle:search');
 Route::get('/r/{video}/{ctaKey}', CtaTrackingController::class)->name('public.cta.track');
 Route::get('/events/video', VideoEventController::class)->middleware('throttle:video_events')->name('public.video.events');
+Route::post('/videos/{video}/like', VideoLikeController::class)->name('public.video.like');
 Route::view('/terms', 'public.legal.terms')->name('public.terms');
 Route::view('/privacy', 'public.legal.privacy')->name('public.privacy');
 Route::get('/takedown', [TakedownRequestController::class, 'show'])->name('public.takedown');

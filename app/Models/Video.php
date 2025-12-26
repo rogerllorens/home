@@ -73,6 +73,11 @@ class Video extends Model
         return $this->hasMany(VideoViewDaily::class);
     }
 
+    public function likes(): HasMany
+    {
+        return $this->hasMany(VideoLike::class);
+    }
+
     public function takedowns(): HasMany
     {
         return $this->hasMany(Takedown::class);
@@ -162,6 +167,16 @@ class Video extends Model
             if (is_numeric($value) && (int) $value > 0) {
                 return (int) $value;
             }
+        }
+
+        return null;
+    }
+
+    public function getDisplayLikesAttribute(): ?int
+    {
+        $value = $this->getAttribute('likes_count');
+        if (is_numeric($value) && (int) $value >= 0) {
+            return (int) $value;
         }
 
         return null;

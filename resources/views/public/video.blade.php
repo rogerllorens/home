@@ -166,6 +166,14 @@
                         @if ($formattedViews)
                             <span>• {{ $formattedViews }} views</span>
                         @endif
+                        @if ($video->display_likes !== null)
+                            <span class="flex items-center gap-1 text-rose-200">
+                                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path d="M12 21s-6.7-4.35-9.33-7.5C.6 10.9 1.2 7.8 3.6 6.3c1.9-1.2 4.4-.9 6 1 1.6-1.9 4.1-2.2 6-1 2.4 1.5 3 4.6.93 7.2C18.7 16.65 12 21 12 21z"/>
+                                </svg>
+                                <span>{{ format_views($video->display_likes) }}</span>
+                            </span>
+                        @endif
                         @if ($timeAgo)
                             <span>• {{ $timeAgo }}</span>
                         @endif
@@ -174,6 +182,24 @@
                             <span>• {{ \Illuminate\Support\Str::headline($video->category_slug) }}</span>
                         @endif
                     </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-full border border-rose-500/60 px-3 py-1 text-xs font-semibold text-rose-100 hover:border-rose-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                        data-like-button
+                        data-video-id="{{ $video->id }}"
+                        data-liked="{{ $video->liked_by_device ? 'true' : 'false' }}"
+                        aria-pressed="{{ $video->liked_by_device ? 'true' : 'false' }}"
+                        aria-label="Like video"
+                    >
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M12 21s-6.7-4.35-9.33-7.5C.6 10.9 1.2 7.8 3.6 6.3c1.9-1.2 4.4-.9 6 1 1.6-1.9 4.1-2.2 6-1 2.4 1.5 3 4.6.93 7.2C18.7 16.65 12 21 12 21z"/>
+                        </svg>
+                        <span data-like-count>{{ $video->display_likes ?? 0 }}</span>
+                        <span class="text-[11px] uppercase tracking-wide">Like</span>
+                    </button>
                 </div>
 
                 @if ($ctas)
@@ -383,5 +409,38 @@
                 sendEvent('scroll_50');
             }
         }, { passive: true });
+
+        const likeButton = document.querySelector('[data-like-button]');
+        if (likeButton) {
+            const initialLiked = likeButton.getAttribute('data-liked') === 'true';
+            if (initialLiked) {
+                likeButton.classList.add('bg-rose-500/20');
+            }
+            likeButton.addEventListener('click', async () => {
+                const videoIdValue = likeButton.getAttribute('data-video-id');
+                if (!videoIdValue) return;
+
+                try {
+                    const response = await fetch(`/videos/${videoIdValue}/like`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': @json(csrf_token()),
+                            'Accept': 'application/json',
+                        },
+                    });
+                    if (!response.ok) return;
+                    const payload = await response.json();
+                    const countEl = likeButton.querySelector('[data-like-count]');
+                    if (countEl && typeof payload.likes_count !== 'undefined') {
+                        countEl.textContent = payload.likes_count;
+                    }
+                    likeButton.setAttribute('aria-pressed', payload.liked ? 'true' : 'false');
+                    likeButton.classList.toggle('bg-rose-500/20', payload.liked);
+                } catch (error) {
+                    // no-op
+                }
+            });
+        }
     </script>
 @endpush
