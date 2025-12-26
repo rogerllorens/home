@@ -34,6 +34,7 @@
     <section class="mb-6">
         <h1 class="text-2xl font-semibold text-white">{{ $heading }}</h1>
         <p class="mt-2 text-sm text-slate-300">{{ $description }}</p>
+        <p class="mt-2 text-sm text-slate-400">Selección cuidada para explorar con calma y encontrar tu próximo favorito.</p>
         @if ($videos->isEmpty())
             <p class="mt-4 text-sm text-slate-400">Explore other categories or check back later for new videos.</p>
             <a class="mt-3 inline-flex rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500" href="{{ route('public.home') }}">
@@ -51,7 +52,7 @@
         @endforelse
     </x-video-grid>
 
-    <div class="mt-6">
+    <div class="mt-6 rounded-md border border-white/10 bg-white/5 px-4 py-3">
         {{ $videos->links() }}
     </div>
 </x-layouts.public>

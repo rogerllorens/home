@@ -11,6 +11,7 @@
     $tags = $showTags ? array_slice($video->raw_tags ?? [], 0, 2) : [];
     $publishedAt = $video->published_at ?? $video->created_at;
     $timeAgo = $publishedAt ? time_ago($publishedAt) : '';
+    $isNew = $publishedAt ? $publishedAt->gt(now()->subHours(48)) : false;
     $viewsTotal = $video->display_views;
     $formattedViews = $viewsTotal ? format_views($viewsTotal) : null;
     $durationLabel = null;
@@ -22,10 +23,10 @@
 
     $wrapperClasses = $variant === 'hero'
         ? 'rounded-lg border border-red-600/40 bg-black/80'
-        : 'h-full rounded-md border border-red-600/30 bg-slate-950';
+        : 'h-full rounded-md border border-white/10 bg-slate-950';
 @endphp
 
-<article class="overflow-hidden shadow-sm transition hover:border-red-500/70 {{ $wrapperClasses }}">
+<article class="group overflow-hidden transition hover:border-red-500/70 hover:shadow-lg hover:shadow-black/40 focus-within:border-red-400/70 focus-within:shadow-lg focus-within:shadow-black/40 {{ $wrapperClasses }}">
     <a
         class="flex h-full flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]) }}"
@@ -51,9 +52,14 @@
                     {{ $durationLabel }}
                 </span>
             @endif
+            @if ($isNew)
+                <span class="absolute left-2 top-2 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-950">
+                    New
+                </span>
+            @endif
         </div>
         <div class="flex flex-1 flex-col gap-1 px-2 py-2">
-            <h3 class="line-clamp-2 text-sm font-semibold text-white">
+            <h3 class="line-clamp-2 text-sm font-semibold text-white" title="{{ $video->seo_title ?: $video->title }}">
                 {{ $video->seo_title ?: $video->title }}
             </h3>
             <div class="flex items-center justify-between text-xs text-slate-400">

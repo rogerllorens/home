@@ -47,6 +47,14 @@ class VideoController extends Controller
         $related = $relatedService->related($video);
         $nextVideo = $related->first();
         $shuffleVideo = $related->count() > 1 ? $related->random() : $related->first();
+        $categoryShuffle = null;
+        if ($video->category_slug) {
+            $categoryShuffle = Video::published()
+                ->where('category_slug', $video->category_slug)
+                ->whereKeyNot($video->id)
+                ->inRandomOrder()
+                ->first();
+        }
 
         $ctas = $ctaPresenter->present($video, 'video_detail');
         $robots = $seoService->robots($video, $availabilityPolicy);
@@ -84,6 +92,7 @@ class VideoController extends Controller
             'embedUrl' => $embedUrl,
             'sanitizedEmbed' => $sanitizedEmbed,
             'isUnavailable' => $isUnavailable,
+            'categoryShuffle' => $categoryShuffle,
         ]);
     }
 }

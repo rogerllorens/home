@@ -23,6 +23,7 @@ class CtaTrackingController extends Controller
 
         $clickId = (string) Str::uuid();
         $placement = $request->string('placement')->toString() ?: 'video_detail';
+        $variant = $request->string('variant')->toString() ?: null;
         $referrer = $request->headers->get('referer');
         $hashSalt = (string) config('app.key', 'candidboys');
 
@@ -43,6 +44,7 @@ class CtaTrackingController extends Controller
                 'video_id' => $video->id,
                 'cta_key' => $ctaKey,
                 'placement' => $placement,
+                'cta_variant' => $variant,
                 'category_slug' => $video->category_slug,
                 'referrer' => $referrer,
                 'ip_hash' => $ipHash,

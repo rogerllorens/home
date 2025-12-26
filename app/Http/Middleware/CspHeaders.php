@@ -27,17 +27,20 @@ class CspHeaders
         $assetSource = $assetCdn ? ["https://{$assetCdn}"] : [];
         $captchaSources = $this->captchaSources();
         $analyticsSources = $this->analyticsSources();
+        $adsSources = $this->adsSources();
         $cspConfig = config('candidboys.security.csp', []);
 
         $imgSources = $this->formatSources(array_merge(
             $assetSource,
             $analyticsSources,
+            $adsSources,
             $captchaSources,
             $cspConfig['img'] ?? []
         ));
         $scriptSources = $this->formatSources(array_merge(
             $assetSource,
             $analyticsSources,
+            $adsSources,
             $captchaSources,
             $cspConfig['script'] ?? []
         ));
@@ -48,16 +51,17 @@ class CspHeaders
         ));
         $connectSources = $this->formatSources(array_merge(
             $analyticsSources,
+            $adsSources,
             $captchaSources,
             $cspConfig['connect'] ?? []
         ));
 
         $frameDirective = $frameSources === 'none'
-            ? "frame-src 'self'{$this->formatSources(array_merge($captchaSources, $cspConfig['frame'] ?? []))}"
-            : "frame-src 'self'{$frameSources}{$this->formatSources(array_merge($captchaSources, $cspConfig['frame'] ?? []))}";
+            ? "frame-src 'self'{$this->formatSources(array_merge($adsSources, $captchaSources, $cspConfig['frame'] ?? []))}"
+            : "frame-src 'self'{$frameSources}{$this->formatSources(array_merge($adsSources, $captchaSources, $cspConfig['frame'] ?? []))}";
         $childDirective = $frameSources === 'none'
-            ? "child-src 'self'{$this->formatSources(array_merge($captchaSources, $cspConfig['child'] ?? []))}"
-            : "child-src 'self'{$frameSources}{$this->formatSources(array_merge($captchaSources, $cspConfig['child'] ?? []))}";
+            ? "child-src 'self'{$this->formatSources(array_merge($adsSources, $captchaSources, $cspConfig['child'] ?? []))}"
+            : "child-src 'self'{$frameSources}{$this->formatSources(array_merge($adsSources, $captchaSources, $cspConfig['child'] ?? []))}";
 
         $policy = implode('; ', [
             "default-src 'self'",
@@ -95,6 +99,11 @@ class CspHeaders
     private function analyticsSources(): array
     {
         return config('candidboys.security.analytics_hosts', []);
+    }
+
+    private function adsSources(): array
+    {
+        return config('candidboys.security.ads_hosts', []);
     }
 
     private function resolveFrameSources(Request $request): string

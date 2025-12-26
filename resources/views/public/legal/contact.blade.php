@@ -24,11 +24,12 @@
 
     <section class="space-y-6">
         <h1 class="text-2xl font-semibold text-white">Contact</h1>
-        <div class="space-y-3 text-sm text-slate-300">
-            <!-- TODO: Customize this text with official response times and channels. -->
-            <p>For support, advertising, or general inquiries, reach out by email.</p>
+        <div class="space-y-4 text-sm text-slate-300">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Placeholder notice</p>
+            <p>Este contenido es un ejemplo estructural y debe ser reemplazado por un abogado o asesor legal. No constituye asesoría legal.</p>
+            <p>Para soporte o consultas generales, escríbenos a los canales oficiales.</p>
             <p>Email: <a class="text-red-300 hover:text-red-200" href="mailto:support@candidboys.example">support@candidboys.example</a></p>
-            <p>Please allow up to 48 hours for a response.</p>
+            <p>Tiempo de respuesta estimado: 24-48 horas.</p>
         </div>
     </section>
 

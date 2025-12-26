@@ -11,6 +11,7 @@ class CtaClick extends Model
         'video_id',
         'cta_key',
         'placement',
+        'cta_variant',
         'referrer',
         'ip_hash',
         'user_agent_hash',
