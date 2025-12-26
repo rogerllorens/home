@@ -16,7 +16,7 @@ class OllamaAiClient implements AiClientInterface
     ) {
     }
 
-    public function generateVideoSeo(array $input): array
+    public function generateVideoSeo(array $input): ?array
     {
         $payload = $this->client->generateSeoPayload($input, (int) ($input['video_id'] ?? 0));
         if (!$payload) {

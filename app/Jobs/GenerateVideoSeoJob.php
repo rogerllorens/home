@@ -63,6 +63,13 @@ class GenerateVideoSeoJob implements ShouldQueue
             return;
         }
 
+        if (!$validated) {
+            Log::info('AI SEO generation skipped', [
+                'video_id' => $video->id,
+            ]);
+            return;
+        }
+
         $video->fill([
             'seo_title' => $video->seo_title ?: $validated['seo_title'],
             'seo_description' => $video->seo_description ?: $validated['seo_description'],
