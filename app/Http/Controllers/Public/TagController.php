@@ -7,6 +7,7 @@ use App\Models\Video;
 use App\Support\PublicCache;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class TagController extends Controller
@@ -17,14 +18,21 @@ class TagController extends Controller
         $cacheKey = PublicCache::key("tag:{$tagSlug}:page:{$page}");
 
         $payload = Cache::remember($cacheKey, now()->addMinutes(15), function () use ($tagSlug) {
-            $videos = Video::published()
-                ->whereRaw('? = ANY(raw_tags)', [$tagSlug])
-                ->orderByDesc('published_at')
+            $query = Video::published();
+
+            if (DB::getDriverName() === 'sqlite') {
+                $query->whereRaw('raw_tags LIKE ?', ["%{$tagSlug}%"]);
+            } else {
+                $query->whereRaw('? = ANY(raw_tags)', [$tagSlug]);
+            }
+
+            $videos = $query->orderByDesc('published_at')
                 ->paginate(18)
                 ->withQueryString();
 
             $heading = Str::headline($tagSlug);
-            $description = "Videos destacados con el tag {$heading}.";
+            $introMap = config('candidboys.taxonomy_intros.tags', []);
+            $description = $introMap[$tagSlug] ?? "Videos destacados con el tag {$heading}.";
 
             return compact('videos', 'heading', 'description');
         });

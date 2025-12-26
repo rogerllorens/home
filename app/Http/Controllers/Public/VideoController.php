@@ -21,6 +21,7 @@ class VideoController extends Controller
     public function __invoke(
         string $slug,
         int $id,
+        \Illuminate\Http\Request $request,
         EmbedSanitizer $sanitizer,
         EmbedUrlCanonicalizer $canonicalizer,
         EmbedDomainMatcher $domainMatcher,
@@ -44,9 +45,26 @@ class VideoController extends Controller
         }
 
         $video->loadSum('viewsDaily', 'views');
-        $related = $relatedService->related($video);
+        $video->loadCount('likes');
+        $deviceHash = \App\Support\DeviceHash::fromRequest($request);
+        $video->setAttribute('liked_by_device', false);
+        if ($deviceHash) {
+            $video->setAttribute(
+                'liked_by_device',
+                $video->likes()->where('device_hash', $deviceHash)->exists()
+            );
+        }
+        $related = $relatedService->recommended($video);
         $nextVideo = $related->first();
         $shuffleVideo = $related->count() > 1 ? $related->random() : $related->first();
+        $categoryShuffle = null;
+        if ($video->category_slug) {
+            $categoryShuffle = Video::published()
+                ->where('category_slug', $video->category_slug)
+                ->whereKeyNot($video->id)
+                ->inRandomOrder()
+                ->first();
+        }
 
         $ctas = $ctaPresenter->present($video, 'video_detail');
         $robots = $seoService->robots($video, $availabilityPolicy);
@@ -84,6 +102,7 @@ class VideoController extends Controller
             'embedUrl' => $embedUrl,
             'sanitizedEmbed' => $sanitizedEmbed,
             'isUnavailable' => $isUnavailable,
+            'categoryShuffle' => $categoryShuffle,
         ]);
     }
 }

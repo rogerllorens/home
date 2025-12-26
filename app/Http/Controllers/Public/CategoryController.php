@@ -25,7 +25,8 @@ class CategoryController extends Controller
                 ->withQueryString();
 
             $heading = Str::headline($categorySlug);
-            $description = "Últimos videos en la categoría {$heading}.";
+            $introMap = config('candidboys.taxonomy_intros.categories', []);
+            $description = $introMap[$categorySlug] ?? "Últimos videos en la categoría {$heading}.";
 
             return compact('videos', 'heading', 'description');
         });

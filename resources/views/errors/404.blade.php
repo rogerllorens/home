@@ -1,6 +1,11 @@
 <x-layouts.public title="Page not found | Candid Boys">
     @push('head')
-        <meta name="description" content="Page not found. Explore the latest videos and categories on Candid Boys.">
+        <x-seo-head
+            title="Page not found | Candid Boys"
+            description="Page not found. Explore the latest videos and categories on Candid Boys."
+            canonical="{{ url()->current() }}"
+            robots="noindex,follow"
+        />
     @endpush
 
     <section class="space-y-6">
