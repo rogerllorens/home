@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\TakedownStatus;
+use App\Enums\VideoModerationStatus;
+use App\Enums\VideoStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
 use App\Models\Takedown;
@@ -60,6 +62,15 @@ class TakedownController extends Controller
     {
         $data = $this->validateTakedown($request);
         $takedown->update($data);
+
+        if ($takedown->status === TakedownStatus::Removed && $takedown->video) {
+            $takedown->video->update([
+                'moderation_status' => VideoModerationStatus::RemovedByRequest,
+                'status' => $takedown->video->status === VideoStatus::Published ? VideoStatus::Ready : $takedown->video->status,
+                'moderation_reviewed_at' => now(),
+                'moderation_reviewed_by' => auth()->id(),
+            ]);
+        }
 
         AdminAuditLog::record('takedown_update', [
             'takedown_id' => $takedown->id,

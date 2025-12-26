@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\VideoStatus;
+use App\Enums\VideoModerationStatus;
 use App\Models\Source;
 use App\Models\Video;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -25,6 +26,7 @@ class VideoFactory extends Factory
             'thumbnail_url' => $this->faker->imageUrl(1280, 720, 'abstract'),
             'duration_seconds' => $this->faker->numberBetween(30, 720),
             'status' => VideoStatus::Ready,
+            'moderation_status' => VideoModerationStatus::Approved,
             'category_slug' => 'featured',
             'raw_title' => $this->faker->sentence,
             'raw_description' => $this->faker->paragraph,

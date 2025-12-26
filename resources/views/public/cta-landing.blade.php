@@ -1,12 +1,14 @@
 @php
-    $pageTitle = ($copy['title'] ?? 'Explore') . ' | Candid Boys';
+    $brand = config('app.name', __('ui.brand'));
+    $ctaTitle = $copy['title'] ?? __('ui.cta.fallback_title');
+    $pageTitle = __('ui.meta.title_with_brand', ['title' => $ctaTitle, 'brand' => $brand]);
 @endphp
 
 <x-layouts.public title="{{ $pageTitle }}">
     @push('head')
         <x-seo-head
             title="{{ $pageTitle }}"
-            description="Descubre opciones seleccionadas y continúa con el enlace seguro."
+            description="{{ __('ui.meta.cta_landing_description', ['brand' => $brand]) }}"
             canonical="{{ url()->current() }}"
             robots="noindex,follow"
         />
@@ -14,8 +16,8 @@
 
     <section class="space-y-6">
         <div class="rounded-xl border border-red-600/40 bg-black/80 p-6">
-            <p class="text-xs uppercase tracking-wide text-red-300">Recommended</p>
-            <h1 class="mt-2 text-3xl font-semibold text-white">{{ $copy['title'] ?? 'Continue' }}</h1>
+            <p class="text-xs uppercase tracking-wide text-red-300">{{ __('ui.cta.recommended') }}</p>
+            <h1 class="mt-2 text-3xl font-semibold text-white">{{ $copy['title'] ?? __('ui.cta.continue') }}</h1>
             <ul class="mt-4 space-y-2 text-sm text-slate-300">
                 @foreach ($copy['bullets'] ?? [] as $bullet)
                     <li class="flex items-start gap-2">
@@ -29,10 +31,12 @@
                 href="{{ $trackUrl ?: $affiliateUrl }}"
                 target="_blank"
                 rel="sponsored noopener"
+                data-cta-id="{{ $ctaId ?? '' }}"
+                data-cta-origin="prelander"
             >
-                Continue
+                {{ __('ui.cta.continue') }}
             </a>
-            <p class="mt-3 text-xs text-slate-500">You will be redirected to our partner.</p>
+            <p class="mt-3 text-xs text-slate-500">{{ __('ui.cta.partner_notice') }}</p>
         </div>
     </section>
 </x-layouts.public>

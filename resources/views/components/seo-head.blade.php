@@ -33,16 +33,38 @@
 @endif
 @php
     $currentLocale = request()->route('locale');
-    $alternateLocales = ['en', 'es'];
+    $alternateLocales = config('candidboys.locales', ['en', 'es']);
+    $route = request()->route();
+    $routeName = $route?->getName();
+    $routeParams = $route?->parameters() ?? [];
+    $queryString = request()->getQueryString();
+    $defaultLocale = config('candidboys.default_language', config('app.locale'));
 @endphp
 @if ($currentLocale && in_array($currentLocale, $alternateLocales, true))
     @foreach ($alternateLocales as $locale)
         @php
-            $alternateUrl = preg_replace('#^/(en|es)/#', "/{$locale}/", request()->getRequestUri());
-            $alternateHref = url($alternateUrl);
+            $params = array_merge($routeParams, ['locale' => $locale]);
+            $alternateHref = $routeName
+                ? route($routeName, $params)
+                : url(preg_replace('#^/([a-z-]{2,5})/#', "/{$locale}/", request()->getRequestUri()));
+            if ($queryString) {
+                $alternateHref .= '?' . $queryString;
+            }
         @endphp
         <link rel="alternate" hreflang="{{ $locale }}" href="{{ $alternateHref }}">
     @endforeach
+    @if ($defaultLocale)
+        @php
+            $defaultParams = array_merge($routeParams, ['locale' => $defaultLocale]);
+            $defaultHref = $routeName
+                ? route($routeName, $defaultParams)
+                : url(preg_replace('#^/([a-z-]{2,5})/#', "/{$defaultLocale}/", request()->getRequestUri()));
+            if ($queryString) {
+                $defaultHref .= '?' . $queryString;
+            }
+        @endphp
+        <link rel="alternate" hreflang="x-default" href="{{ $defaultHref }}">
+    @endif
 @endif
 <meta name="robots" content="{{ $resolvedRobots }}">
 <meta property="og:title" content="{{ $resolvedTitle }}">

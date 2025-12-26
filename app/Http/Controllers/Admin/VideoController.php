@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\VideoStatus;
+use App\Enums\VideoModerationStatus;
 use App\Http\Controllers\Controller;
 use App\Jobs\GenerateVideoSeoJob;
 use App\Models\AdminAuditLog;
@@ -21,6 +22,10 @@ class VideoController extends Controller
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
+        }
+
+        if ($request->filled('moderation_status')) {
+            $query->where('moderation_status', $request->string('moderation_status'));
         }
 
         if ($request->filled('source')) {
@@ -50,7 +55,8 @@ class VideoController extends Controller
             'videos' => $query->paginate(20)->withQueryString(),
             'sources' => Source::orderBy('name')->get(),
             'statuses' => VideoStatus::cases(),
-            'filters' => $request->only(['status', 'source', 'category_slug', 'q', 'sort']),
+            'moderationStatuses' => VideoModerationStatus::cases(),
+            'filters' => $request->only(['status', 'moderation_status', 'source', 'category_slug', 'q', 'sort']),
         ]);
     }
 
@@ -65,6 +71,10 @@ class VideoController extends Controller
     {
         if ($video->status !== VideoStatus::Ready) {
             return back()->with('status', 'El video no está listo para publicar.');
+        }
+
+        if ($video->moderation_status !== VideoModerationStatus::Approved) {
+            return back()->with('status', 'El video debe estar aprobado para publicarse.');
         }
 
         $video->update([
@@ -126,5 +136,62 @@ class VideoController extends Controller
         PublicCache::bust();
 
         return back()->with('status', 'Video marcado como roto.');
+    }
+
+    public function approve(Video $video): RedirectResponse
+    {
+        $video->update([
+            'moderation_status' => VideoModerationStatus::Approved,
+            'moderation_reviewed_at' => now(),
+            'moderation_reviewed_by' => auth()->id(),
+        ]);
+
+        AdminAuditLog::record('video_moderation_approved', [
+            'video_id' => $video->id,
+        ]);
+
+        return back()->with('status', 'Video aprobado.');
+    }
+
+    public function reject(Video $video): RedirectResponse
+    {
+        $video->update([
+            'moderation_status' => VideoModerationStatus::Rejected,
+            'moderation_reviewed_at' => now(),
+            'moderation_reviewed_by' => auth()->id(),
+            'status' => VideoStatus::Ready,
+        ]);
+
+        AdminAuditLog::record('video_moderation_rejected', [
+            'video_id' => $video->id,
+        ]);
+
+        return back()->with('status', 'Video rechazado.');
+    }
+
+    public function feature(Video $video): RedirectResponse
+    {
+        $video->update([
+            'is_featured' => true,
+        ]);
+
+        AdminAuditLog::record('video_featured', [
+            'video_id' => $video->id,
+        ]);
+
+        return back()->with('status', 'Video marcado como destacado.');
+    }
+
+    public function unfeature(Video $video): RedirectResponse
+    {
+        $video->update([
+            'is_featured' => false,
+        ]);
+
+        AdminAuditLog::record('video_unfeatured', [
+            'video_id' => $video->id,
+        ]);
+
+        return back()->with('status', 'Video desmarcado como destacado.');
     }
 }

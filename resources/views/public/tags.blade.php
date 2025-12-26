@@ -1,8 +1,9 @@
 @php
     $titleMax = (int) config('candidboys.seo.title_max', 70);
     $descMax = (int) config('candidboys.seo.desc_max', 160);
-    $pageTitle = \Illuminate\Support\Str::limit('Tags | Candid Boys', $titleMax, '');
-    $pageDescription = \Illuminate\Support\Str::limit('Browse popular tags on Candid Boys.', $descMax, '');
+    $brand = config('app.name', __('ui.brand'));
+    $pageTitle = \Illuminate\Support\Str::limit(__('ui.meta.tags_title', ['brand' => $brand]), $titleMax, '');
+    $pageDescription = \Illuminate\Support\Str::limit(__('ui.meta.tags_description', ['brand' => $brand]), $descMax, '');
 @endphp
 
 <x-layouts.public title="{{ $pageTitle }}">
@@ -15,8 +16,8 @@
     @endpush
 
     <section class="mb-8">
-        <h1 class="text-2xl font-semibold text-white">Popular tags</h1>
-        <p class="mt-2 text-sm text-slate-400">Etiquetas que más se están viendo esta semana.</p>
+        <h1 class="text-2xl font-semibold text-white">{{ __('ui.tags.title') }}</h1>
+        <p class="mt-2 text-sm text-slate-400">{{ __('ui.tags.intro') }}</p>
     </section>
 
     <div class="flex flex-wrap gap-2">
@@ -28,7 +29,7 @@
                 #{{ $tag->tag }}
             </a>
         @empty
-            <p class="text-sm text-slate-400">No tags available.</p>
+            <p class="text-sm text-slate-400">{{ __('ui.empty.no_tags') }}</p>
         @endforelse
     </div>
 </x-layouts.public>

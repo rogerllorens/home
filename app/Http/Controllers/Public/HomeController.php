@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Collection;
 use App\Models\Video;
-use App\Models\VideoView;
+use App\Models\VideoViewHistory;
 use App\Enums\VideoStatus;
 use App\Support\PublicCache;
 use App\Support\DeviceHash;
@@ -23,14 +23,17 @@ class HomeController extends Controller
         $sort = $request->query('sort', 'recent');
         $duration = $request->query('duration');
         $durationFilter = in_array($duration, ['short', 'medium', 'long'], true) ? $duration : null;
+        $date = $request->query('date');
+        $dateFilter = in_array($date, ['24h', 'week', 'month', 'all'], true) ? $date : 'all';
         $page = (int) $request->query('page', 1);
 
         $durationKey = $durationFilter ?? 'all';
-        $cacheKey = PublicCache::key("home:sort:{$sort}:duration:{$durationKey}:page:{$page}");
+        $cacheKey = PublicCache::key("home:sort:{$sort}:duration:{$durationKey}:date:{$dateFilter}:page:{$page}");
 
-        $payload = Cache::remember($cacheKey, now()->addMinutes(15), function () use ($sort, $durationFilter) {
+        $payload = Cache::remember($cacheKey, now()->addMinutes(15), function () use ($sort, $durationFilter, $dateFilter) {
             $scoreService = app(VideoScoreService::class);
             $heroVideos = Video::published()
+                ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
                 ->withSum('viewsDaily', 'views')
                 ->orderByDesc('published_at')
                 ->take(3)
@@ -47,6 +50,7 @@ class HomeController extends Controller
             $categorySections = collect($categorySlugs)
                 ->mapWithKeys(function (string $slug) {
                     $videos = Video::published()
+                        ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
                         ->withSum('viewsDaily', 'views')
                         ->where('category_slug', $slug)
                         ->orderByDesc('published_at')
@@ -57,12 +61,21 @@ class HomeController extends Controller
                 })
                 ->filter(fn ($videos) => $videos->isNotEmpty());
 
-            $feedQuery = Video::published()->withSum('viewsDaily', 'views');
+            $feedQuery = Video::published()
+                ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
+                ->withSum('viewsDaily', 'views');
 
             $feedQuery = match ($durationFilter) {
                 'short' => $feedQuery->whereBetween('duration_seconds', [1, 300]),
                 'medium' => $feedQuery->whereBetween('duration_seconds', [301, 900]),
                 'long' => $feedQuery->where('duration_seconds', '>=', 901),
+                default => $feedQuery,
+            };
+
+            $feedQuery = match ($dateFilter) {
+                '24h' => $feedQuery->where('published_at', '>=', now()->subDay()),
+                'week' => $feedQuery->where('published_at', '>=', now()->subDays(7)),
+                'month' => $feedQuery->where('published_at', '>=', now()->subDays(30)),
                 default => $feedQuery,
             };
 
@@ -77,9 +90,34 @@ class HomeController extends Controller
             $trendingVideos = $scoreService->getTrending(7, 12);
 
             $newThisWeek = Video::published()
+                ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
                 ->withSum('viewsDaily', 'views')
                 ->withCount('likes')
                 ->where('published_at', '>=', now()->subDays(7))
+                ->orderByDesc('published_at')
+                ->take(12)
+                ->get();
+
+            $recentlyAddedVideos = Video::published()
+                ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
+                ->withSum('viewsDaily', 'views')
+                ->orderByDesc('published_at')
+                ->take(12)
+                ->get();
+
+            $mostViewedVideos = Video::published()
+                ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
+                ->withSum('viewsDaily', 'views')
+                ->orderByDesc('views_daily_sum_views')
+                ->orderByDesc('published_at')
+                ->take(12)
+                ->get();
+
+            $reelsVideos = Video::published()
+                ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
+                ->withSum('viewsDaily', 'views')
+                ->whereNotNull('duration_seconds')
+                ->where('duration_seconds', '<=', 120)
                 ->orderByDesc('published_at')
                 ->take(12)
                 ->get();
@@ -112,7 +150,33 @@ class HomeController extends Controller
                     ->get();
             }
 
-            return compact('heroVideos', 'categorySections', 'latestVideos', 'popularTags', 'trendingVideos', 'newThisWeek', 'featuredCollections');
+            $quickCategories = collect(config('candidboys.categories_controlled', []))
+                ->take(6)
+                ->map(fn (string $slug) => [
+                    'slug' => $slug,
+                    'label' => \Illuminate\Support\Str::headline($slug),
+                ])
+                ->values();
+
+            $quickTags = collect($popularTags)
+                ->take(6)
+                ->map(fn ($tag) => (object) ['tag' => $tag->tag])
+                ->values();
+
+            return compact(
+                'heroVideos',
+                'categorySections',
+                'latestVideos',
+                'popularTags',
+                'trendingVideos',
+                'newThisWeek',
+                'recentlyAddedVideos',
+                'mostViewedVideos',
+                'reelsVideos',
+                'featuredCollections',
+                'quickCategories',
+                'quickTags'
+            );
         });
 
         $continueWatching = collect();
@@ -120,9 +184,9 @@ class HomeController extends Controller
         $deviceHash = DeviceHash::fromRequest($request);
         if ($deviceHash) {
             $continueLimit = (int) config('videos.continue_watching_limit', 10);
-            $continueIds = VideoView::query()
+            $continueIds = VideoViewHistory::query()
                 ->where('device_hash', $deviceHash)
-                ->orderByDesc('viewed_at')
+                ->orderByDesc('last_watched_at')
                 ->limit($continueLimit)
                 ->pluck('video_id')
                 ->unique()
@@ -131,6 +195,8 @@ class HomeController extends Controller
 
             if (!empty($continueIds)) {
                 $continueWatching = Video::published()
+                    ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
+                    ->withSum('viewsDaily', 'views')
                     ->whereIn('id', $continueIds)
                     ->get()
                     ->sortBy(fn ($video) => array_search($video->id, $continueIds, true))
@@ -138,13 +204,14 @@ class HomeController extends Controller
             }
 
             $recommendations = app(RecommendationsService::class);
-            $recommendedVideos = $recommendations->recommended($deviceHash);
+            $recommendedVideos = $recommendations->recommended($deviceHash, 12, [], false);
         }
 
         return view('public.home', [
             ...$payload,
             'sort' => $sort,
             'duration' => $durationFilter,
+            'date' => $dateFilter,
             'continueWatching' => $continueWatching,
             'recommendedVideos' => $recommendedVideos,
             'featuredCollections' => $payload['featuredCollections'] ?? collect(),

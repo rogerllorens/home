@@ -18,6 +18,8 @@ class EnsureDeviceHash
         }
 
         $deviceHash = DeviceHash::ensure($request);
+        $secure = (bool) config('session.secure', false);
+        $sameSite = config('session.same_site', 'Lax') ?? 'Lax';
 
         return $response->withCookie(cookie(
             DeviceHash::cookieName(),
@@ -25,10 +27,10 @@ class EnsureDeviceHash
             60 * 24 * 365,
             null,
             null,
-            false,
+            $secure,
             true,
             false,
-            'Lax'
+            $sameSite
         ));
     }
 }

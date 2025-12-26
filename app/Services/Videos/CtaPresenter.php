@@ -31,19 +31,22 @@ class CtaPresenter
                 $cta = $this->resolver->applyVariant($cta, $key, $variant);
                 $cta['key'] = $key;
                 $cta['variant'] = $variant;
+                $cta['origin_page'] = $placement;
+                $cta['impression_url'] = route('public.cta.impression');
                 if ($placement === 'video_detail' && $index === 0 && in_array($key, $prelanders, true)) {
-                    $cta['track_url'] = route('public.cta.landing', ['ctaKey' => $key]).'?'.http_build_query([
+                    $cta['track_url'] = route('public.cta.landing', ['cta' => $cta['public_id']]).'?'.http_build_query([
                         'video' => $video->id,
                         'placement' => $placement,
                         'variant' => $variant,
                     ]);
                 } else {
-                    $cta['track_url'] = route('public.cta.track', [
-                        'video' => $video->id,
-                        'ctaKey' => $key,
+                    $cta['track_url'] = route('public.cta.redirect', [
+                        'cta' => $cta['public_id'],
+                        'origin' => $placement,
                         'placement' => $placement,
                         'variant' => $variant,
                         'landing_type' => 'direct',
+                        'video' => $video->id,
                     ]);
                 }
                 return $cta;

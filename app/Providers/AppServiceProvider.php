@@ -64,6 +64,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('video_events', function () {
             return Limit::perMinute($this->rateLimitValue('video_events'));
         });
+
+        RateLimiter::for('favorites', function () {
+            return Limit::perMinute($this->rateLimitValue('favorites'));
+        });
     }
 
     private function rateLimitValue(string $key): int

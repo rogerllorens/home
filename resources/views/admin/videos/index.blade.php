@@ -1,5 +1,5 @@
 <x-layouts.admin title="Admin | Videos" heading="Videos" subheading="Listado con filtros">
-    <form class="grid gap-4 rounded-xl border border-white/10 bg-white/5 p-4 lg:grid-cols-5" method="GET" action="{{ route('admin.videos.index') }}">
+    <form class="grid gap-4 rounded-xl border border-white/10 bg-white/5 p-4 lg:grid-cols-6" method="GET" action="{{ route('admin.videos.index') }}">
         <div>
             <label class="text-xs uppercase text-slate-400" for="status">Status</label>
             <select id="status" name="status" class="mt-2 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm">
@@ -7,6 +7,17 @@
                 @foreach ($statuses as $status)
                     <option value="{{ $status->value }}" @selected(($filters['status'] ?? '') === $status->value)>
                         {{ strtoupper($status->value) }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label class="text-xs uppercase text-slate-400" for="moderation_status">Moderación</label>
+            <select id="moderation_status" name="moderation_status" class="mt-2 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm">
+                <option value="">Todos</option>
+                @foreach ($moderationStatuses as $moderationStatus)
+                    <option value="{{ $moderationStatus->value }}" @selected(($filters['moderation_status'] ?? '') === $moderationStatus->value)>
+                        {{ strtoupper($moderationStatus->value) }}
                     </option>
                 @endforeach
             </select>
@@ -64,6 +75,7 @@
                     <th class="px-4 py-3">Título</th>
                     <th class="px-4 py-3">Source</th>
                     <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3">Moderación</th>
                     <th class="px-4 py-3">Category</th>
                     <th class="px-4 py-3">Acciones</th>
                 </tr>
@@ -76,6 +88,9 @@
                         <td class="px-4 py-3">
                             <span class="rounded-full bg-white/10 px-2 py-1 text-xs uppercase">{{ $video->status->value }}</span>
                         </td>
+                        <td class="px-4 py-3">
+                            <span class="rounded-full bg-indigo-500/10 px-2 py-1 text-xs uppercase text-indigo-100">{{ $video->moderation_status?->value ?? '-' }}</span>
+                        </td>
                         <td class="px-4 py-3">{{ $video->category_slug ?? '-' }}</td>
                         <td class="px-4 py-3">
                             <a class="text-indigo-300 hover:text-indigo-200" href="{{ route('admin.videos.show', $video) }}">Detalle</a>
@@ -83,7 +98,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td class="px-4 py-6 text-center text-sm text-slate-400" colspan="5">No hay videos disponibles.</td>
+                        <td class="px-4 py-6 text-center text-sm text-slate-400" colspan="6">No hay videos disponibles.</td>
                     </tr>
                 @endforelse
             </tbody>

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Casts\PostgresTextArray;
+use App\Enums\VideoModerationStatus;
 use App\Enums\VideoStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -48,6 +49,10 @@ class Video extends Model
         'embed_checked_at',
         'embed_last_ok_at',
         'embed_next_check_at',
+        'moderation_status',
+        'moderation_reviewed_at',
+        'moderation_reviewed_by',
+        'is_featured',
     ];
 
     protected $casts = [
@@ -62,6 +67,10 @@ class Video extends Model
         'embed_checked_at' => 'datetime',
         'embed_last_ok_at' => 'datetime',
         'embed_next_check_at' => 'datetime',
+        'moderation_status' => VideoModerationStatus::class,
+        'moderation_reviewed_at' => 'datetime',
+        'moderation_reviewed_by' => 'integer',
+        'is_featured' => 'boolean',
     ];
 
     public function source(): BelongsTo
@@ -98,7 +107,9 @@ class Video extends Model
 
     public function scopePublished(Builder $query): Builder
     {
-        return $query->where('status', VideoStatus::Published->value);
+        return $query
+            ->where('status', VideoStatus::Published->value)
+            ->where('moderation_status', VideoModerationStatus::Approved->value);
     }
 
     public function scopeReady(Builder $query): Builder
@@ -125,6 +136,7 @@ class Video extends Model
     public function shouldBeSearchable(): bool
     {
         return $this->status === VideoStatus::Published
+            && $this->moderation_status === VideoModerationStatus::Approved
             && !app()->environment('testing');
     }
 
