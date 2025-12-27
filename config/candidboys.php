@@ -61,6 +61,8 @@ return [
             'slug' => 'how-affiliate-links-work',
             'title' => 'How affiliate links work on this site',
             'summary' => 'A short overview of how affiliate links support Candid Boys.',
+            'image' => 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=80',
+            'is_discover_candidate' => true,
             'sections' => [
                 [
                     'title' => 'What affiliate links are',
@@ -76,6 +78,8 @@ return [
             'slug' => 'how-content-removal-works',
             'title' => 'How we handle content removal requests',
             'summary' => 'Información general sobre el proceso de retirada de contenidos.',
+            'image' => 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1200&q=80',
+            'is_discover_candidate' => false,
             'sections' => [
                 [
                     'title' => 'Requesting removal',
@@ -91,6 +95,8 @@ return [
             'slug' => 'privacy-basics',
             'title' => 'Basic privacy tips for adult content viewers',
             'summary' => 'Consejos generales para navegar de forma más privada y segura.',
+            'image' => 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+            'is_discover_candidate' => true,
             'sections' => [
                 [
                     'title' => 'Use trusted devices',

@@ -12,23 +12,7 @@
             description="{{ $pageDescription }}"
             canonical="{{ request()->fullUrl() }}"
         />
-        <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
-            {!! json_encode([
-                '@context' => 'https://schema.org',
-                '@type' => 'ItemList',
-                'itemListElement' => $videos->map(function ($video, $index) {
-                    return [
-                        '@type' => 'ListItem',
-                        'position' => $index + 1,
-                        'url' => route('public.video', [
-                            'slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title),
-                            'id' => $video->id,
-                        ]),
-                        'name' => $video->seo_title ?: $video->title,
-                    ];
-                })->values()->all(),
-            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
-        </script>
+        <x-schema.item-list :videos="$videos" />
     @endpush
 
     <section class="mb-6">

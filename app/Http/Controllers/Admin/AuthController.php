@@ -7,6 +7,7 @@ use App\Http\Requests\AdminLoginRequest;
 use App\Models\AdminAuditLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -21,6 +22,7 @@ class AuthController extends Controller
     public function login(AdminLoginRequest $request): RedirectResponse
     {
         $credentials = $request->validated();
+        $authCredentials = Arr::only($credentials, ['email', 'password']);
 
         if ($this->isLockedOut($request)) {
             return back()
@@ -29,7 +31,7 @@ class AuthController extends Controller
                 ->setStatusCode(429);
         }
 
-        if (!Auth::attempt($credentials, true)) {
+        if (!Auth::attempt($authCredentials, true)) {
             $this->recordFailedAttempt($request);
             AdminAuditLog::record('admin_login_failed', [
                 'email' => $credentials['email'],

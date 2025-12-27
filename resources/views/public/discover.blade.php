@@ -1,8 +1,8 @@
 @php
     $titleMax = (int) config('candidboys.seo.title_max', 70);
     $descMax = (int) config('candidboys.seo.desc_max', 160);
-    $pageTitle = \Illuminate\Support\Str::limit("{$landing->title} | Candid Boys", $titleMax, '');
-    $pageDescription = \Illuminate\Support\Str::limit($landing->description, $descMax, '');
+    $pageTitle = $pageTitle ?? \Illuminate\Support\Str::limit("{$landing->title} | Candid Boys", $titleMax, '');
+    $pageDescription = $pageDescription ?? \Illuminate\Support\Str::limit($landing->description, $descMax, '');
 @endphp
 
 <x-layouts.public title="{{ $pageTitle }}">
@@ -12,28 +12,12 @@
             description="{{ $pageDescription }}"
             canonical="{{ route('public.discover', $landing->slug) }}"
         />
-        <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
-            {!! json_encode([
-                '@context' => 'https://schema.org',
-                '@type' => 'ItemList',
-                'itemListElement' => $videos->map(function ($video, $index) {
-                    return [
-                        '@type' => 'ListItem',
-                        'position' => $index + 1,
-                        'url' => route('public.video', [
-                            'slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title),
-                            'id' => $video->id,
-                        ]),
-                        'name' => $video->seo_title ?: $video->title,
-                    ];
-                })->values()->all(),
-            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
-        </script>
+        <x-schema.item-list :videos="$videos" />
     @endpush
 
     <section class="mb-8">
         <h1 class="text-2xl font-semibold">{{ $landing->title }}</h1>
-        <p class="mt-2 text-sm text-slate-400">{{ $landing->description }}</p>
+        <p class="mt-2 text-sm text-slate-400">{!! $linkedDescription ?? $landing->description !!}</p>
     </section>
 
     @if ($landing->collection)

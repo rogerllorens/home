@@ -22,7 +22,7 @@ class CollectionController extends Controller
         ]);
     }
 
-    public function show(string $slug): View
+    public function show(string $locale, string $slug): View
     {
         $collection = Collection::query()
             ->where('slug', $slug)

@@ -33,6 +33,16 @@ class SitemapController extends Controller
         return $this->serveFile("sitemaps/discover-{$file}");
     }
 
+    public function seoLandings(string $file): Response
+    {
+        return $this->serveFile("sitemaps/seo-landings-{$file}");
+    }
+
+    public function themes(string $file): Response
+    {
+        return $this->serveFile("sitemaps/themes-{$file}");
+    }
+
     private function serveFile(string $path): Response
     {
         $fullPath = public_path($path);

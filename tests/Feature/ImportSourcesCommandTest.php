@@ -25,7 +25,11 @@ class ImportSourcesCommandTest extends TestCase
             ],
         ]);
 
-        $fakeAdapter = new class {
+        $fakeAdapter = new class extends FeedJsonAdapter {
+            public function __construct()
+            {
+            }
+
             public function fetchCandidates(Source $source): array
             {
                 return [

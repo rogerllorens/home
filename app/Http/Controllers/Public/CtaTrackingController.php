@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 
 class CtaTrackingController extends Controller
 {
-    public function __invoke(Request $request, Video $video, string $ctaKey, CtaResolver $resolver): RedirectResponse
+    public function __invoke(Request $request, string $locale, Video $video, string $ctaKey, CtaResolver $resolver): RedirectResponse
     {
         $destination = $resolver->destination($video, $ctaKey);
 

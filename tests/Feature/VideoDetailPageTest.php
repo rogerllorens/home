@@ -37,7 +37,7 @@ class VideoDetailPageTest extends TestCase
         $response->assertOk();
         $response->assertSee($video->title);
         $response->assertSee('Featured offers');
-        $response->assertSee('Related videos');
+        $response->assertSee('Basado en lo que has visto');
         $response->assertSee($related->title);
     }
 
@@ -80,5 +80,28 @@ class VideoDetailPageTest extends TestCase
         $response->assertSee('01:30');
         $response->assertSee('1.2K views');
         $response->assertSee('#focus');
+    }
+
+    public function test_video_page_shows_play_next_and_category_section(): void
+    {
+        $video = Video::factory()->create([
+            'status' => VideoStatus::Published,
+            'category_slug' => 'featured',
+        ]);
+
+        $next = Video::factory()->create([
+            'status' => VideoStatus::Published,
+            'category_slug' => 'featured',
+        ]);
+
+        $response = $this->get(route('public.video', [
+            'slug' => Str::slug($video->title),
+            'id' => $video->id,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Siguiente recomendado');
+        $response->assertSee('Más de esta categoría');
+        $response->assertSee($next->title);
     }
 }

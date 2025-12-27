@@ -21,7 +21,10 @@
             @foreach ($articles as $article)
                 <a class="rounded-xl border border-white/10 bg-white/5 p-5 transition hover:border-red-500/60 hover:bg-white/10" href="{{ route('public.articles.show', $article['slug']) }}">
                     <h2 class="text-lg font-semibold text-white">{{ $article['title'] }}</h2>
-                    <p class="mt-2 text-sm text-slate-300">{{ $article['summary'] }}</p>
+                    @if (!empty($article['image']))
+                        <img class="mt-3 w-full rounded-lg border border-white/10 object-cover" src="{{ $article['image'] }}" alt="{{ $article['title'] }}">
+                    @endif
+                    <p class="mt-2 text-sm text-slate-300">{!! $article['linked_summary'] ?? $article['summary'] !!}</p>
                     <span class="mt-3 inline-flex text-xs text-red-300">{{ __('ui.articles.read') }}</span>
                 </a>
             @endforeach

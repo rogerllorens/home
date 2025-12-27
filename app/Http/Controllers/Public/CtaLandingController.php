@@ -10,7 +10,7 @@ use Illuminate\View\View;
 
 class CtaLandingController extends Controller
 {
-    public function __invoke(Request $request, string $ctaKey, CtaResolver $resolver): View
+    public function __invoke(Request $request, string $locale, string $ctaKey, CtaResolver $resolver): View
     {
         $copy = config("cta.prelanders.copy.{$ctaKey}");
         $affiliateUrl = $resolver->defaultDestination($ctaKey);
