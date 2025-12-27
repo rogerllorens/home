@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CtaClick;
 use App\Models\Video;
+use App\Services\Monetization\CtaResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,16 +17,20 @@ class CtaTrackingTest extends TestCase
         config()->set('candidboys.monetization.partner_links.cams.url', 'https://partner.example.com/offer');
 
         $video = Video::factory()->create();
+        $cta = app(CtaResolver::class)->ctaForKey('cams');
 
-        $response = $this->get(route('public.cta.track', [
+        $response = $this->get(route('public.cta.redirect', [
+            'locale' => 'en',
+            'cta' => $cta->public_id,
             'video' => $video->id,
-            'ctaKey' => 'cams',
+            'origin' => 'video_detail',
             'placement' => 'video_detail',
         ]));
 
         $response->assertRedirect();
         $this->assertDatabaseHas('cta_clicks', [
             'video_id' => $video->id,
+            'cta_id' => $cta->id,
             'cta_key' => 'cams',
             'placement' => 'video_detail',
         ]);
@@ -36,11 +41,9 @@ class CtaTrackingTest extends TestCase
 
     public function test_cta_tracking_returns_404_for_invalid_key(): void
     {
-        $video = Video::factory()->create();
-
-        $response = $this->get(route('public.cta.track', [
-            'video' => $video->id,
-            'ctaKey' => 'invalid',
+        $response = $this->get(route('public.cta.redirect', [
+            'locale' => 'en',
+            'cta' => 'invalid-id',
         ]));
 
         $response->assertNotFound();
@@ -48,9 +51,11 @@ class CtaTrackingTest extends TestCase
 
     public function test_cta_tracking_returns_404_for_invalid_video(): void
     {
-        $response = $this->get(route('public.cta.track', [
+        $cta = app(CtaResolver::class)->ctaForKey('cams');
+        $response = $this->get(route('public.cta.redirect', [
+            'locale' => 'en',
+            'cta' => $cta->public_id,
             'video' => 9999,
-            'ctaKey' => 'cams',
         ]));
 
         $response->assertNotFound();
@@ -67,10 +72,13 @@ class CtaTrackingTest extends TestCase
         ]);
 
         $video = Video::factory()->create();
+        $cta = app(CtaResolver::class)->ctaForKey('cams');
 
-        $response = $this->get(route('public.cta.track', [
+        $response = $this->get(route('public.cta.redirect', [
+            'locale' => 'en',
+            'cta' => $cta->public_id,
             'video' => $video->id,
-            'ctaKey' => 'cams',
+            'origin' => 'home',
             'placement' => 'home',
         ]));
 
@@ -94,10 +102,13 @@ class CtaTrackingTest extends TestCase
         config()->set('candidboys.monetization.utm.medium', 'banner');
 
         $video = Video::factory()->create();
+        $cta = app(CtaResolver::class)->ctaForKey('cams');
 
-        $response = $this->get(route('public.cta.track', [
+        $response = $this->get(route('public.cta.redirect', [
+            'locale' => 'en',
+            'cta' => $cta->public_id,
             'video' => $video->id,
-            'ctaKey' => 'cams',
+            'origin' => 'video_detail',
         ]));
 
         $response->assertRedirect();

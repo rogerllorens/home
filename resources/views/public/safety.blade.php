@@ -1,12 +1,13 @@
 @php
-    $pageTitle = 'Safety tips | Candid Boys';
+    $brand = config('app.name', __('ui.brand'));
+    $pageTitle = __('ui.meta.safety_title', ['brand' => $brand]);
 @endphp
 
 <x-layouts.public title="{{ $pageTitle }}">
     @push('head')
         <x-seo-head
             title="{{ $pageTitle }}"
-            description="General safety and privacy tips for browsing adult content."
+            description="{{ __('ui.meta.safety_description', ['brand' => $brand]) }}"
             canonical="{{ route('public.safety') }}"
         />
     @endpush

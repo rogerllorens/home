@@ -63,10 +63,12 @@ class CspHeaders
             ? "child-src 'self'{$this->formatSources(array_merge($adsSources, $captchaSources, $cspConfig['child'] ?? []))}"
             : "child-src 'self'{$frameSources}{$this->formatSources(array_merge($adsSources, $captchaSources, $cspConfig['child'] ?? []))}";
 
+        $styleUnsafeInline = !empty($cspConfig['allow_unsafe_inline_styles']) ? " 'unsafe-inline'" : '';
+
         $policy = implode('; ', [
             "default-src 'self'",
             "img-src 'self' data:{$imgSources}",
-            "style-src 'self' 'unsafe-inline'{$styleSources}",
+            "style-src 'self'{$styleUnsafeInline}{$styleSources}",
             "script-src 'self' 'nonce-{$nonce}'{$scriptSources}",
             "connect-src 'self'{$connectSources}",
             $frameDirective,

@@ -28,7 +28,7 @@
         : 'h-full rounded-md border border-white/10 bg-slate-950';
 @endphp
 
-<article class="group overflow-hidden transition hover:border-red-500/70 hover:shadow-lg hover:shadow-black/40 focus-within:border-red-400/70 focus-within:shadow-lg focus-within:shadow-black/40 {{ $wrapperClasses }}">
+<article class="group overflow-hidden transition duration-200 hover:-translate-y-0.5 hover:border-red-500/70 hover:shadow-lg hover:shadow-black/40 focus-within:-translate-y-0.5 focus-within:border-red-400/70 focus-within:shadow-lg focus-within:shadow-black/40 {{ $wrapperClasses }}">
     <a
         class="flex h-full flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]) }}"
@@ -49,6 +49,11 @@
                 />
             </div>
             <div class="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent"></div>
+            <div class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+                <span class="rounded-full bg-black/70 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
+                    Play
+                </span>
+            </div>
             @if ($durationLabel)
                 <span class="absolute bottom-2 right-2 rounded bg-black/80 px-2 py-0.5 text-[11px] font-semibold text-white">
                     {{ $durationLabel }}

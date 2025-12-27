@@ -16,36 +16,78 @@
 
     <div class="grid gap-6 lg:grid-cols-2">
         <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-            <h2 class="text-sm font-semibold text-white">Clicks por CTA</h2>
-            <div class="mt-3 space-y-2 text-sm text-slate-300">
-                @forelse ($summary as $row)
-                    <div class="flex items-center justify-between">
-                        <span class="uppercase">{{ $row->cta_key }}</span>
-                        <span class="font-semibold text-white">{{ $row->total }}</span>
-                    </div>
-                @empty
-                    <p class="text-slate-400">Sin clicks aún.</p>
-                @endforelse
+            <h2 class="text-sm font-semibold text-white">Rendimiento por CTA</h2>
+            <div class="mt-3 overflow-x-auto">
+                <table class="min-w-full text-sm text-slate-300">
+                    <thead class="text-xs uppercase text-slate-400">
+                        <tr>
+                            <th class="px-3 py-2 text-left">CTA</th>
+                            <th class="px-3 py-2 text-left">Tipo</th>
+                            <th class="px-3 py-2 text-left">Posiciones</th>
+                            <th class="px-3 py-2 text-right">Impresiones</th>
+                            <th class="px-3 py-2 text-right">Clicks</th>
+                            <th class="px-3 py-2 text-right">CTR</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($ctaStats as $row)
+                            <tr class="border-t border-white/5">
+                                <td class="px-3 py-2 uppercase">{{ $row['cta']->key }}</td>
+                                <td class="px-3 py-2">{{ $row['cta']->type }}</td>
+                                <td class="px-3 py-2 text-xs text-slate-400">
+                                    {{ implode(', ', $row['cta']->positions ?? []) ?: '—' }}
+                                </td>
+                                <td class="px-3 py-2 text-right">{{ $row['impressions'] }}</td>
+                                <td class="px-3 py-2 text-right">{{ $row['clicks'] }}</td>
+                                <td class="px-3 py-2 text-right">{{ number_format($row['ctr'], 2) }}%</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td class="px-3 py-2 text-slate-400" colspan="6">Sin datos aún.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
 
         <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-            <h2 class="text-sm font-semibold text-white">Clicks by category</h2>
-            <div class="mt-3 space-y-2 text-sm text-slate-300">
-                @forelse ($byCategory as $row)
-                    <div class="flex items-center justify-between">
-                        <span>{{ $row->category_slug ?? 'N/A' }} · {{ strtoupper($row->cta_key) }}</span>
-                        <span class="font-semibold text-white">{{ $row->total }}</span>
+            <h2 class="text-sm font-semibold text-white">Rendimiento por origen</h2>
+            @php
+                $originClickMap = $byOriginClicks->groupBy('origin_page');
+                $originImpressionMap = $byOriginImpressions->groupBy('origin_page');
+                $origins = collect([$originClickMap->keys(), $originImpressionMap->keys()])
+                    ->flatten()
+                    ->unique()
+                    ->filter()
+                    ->values();
+            @endphp
+            <div class="mt-3 space-y-3 text-sm text-slate-300">
+                @forelse ($origins as $origin)
+                    @php
+                        $originClicks = $originClickMap->get($origin, collect())->sum('total');
+                        $originImpressions = $originImpressionMap->get($origin, collect())->sum('total');
+                        $originCtr = $originImpressions > 0 ? round(($originClicks / $originImpressions) * 100, 2) : 0;
+                    @endphp
+                    <div class="rounded-lg border border-white/10 px-3 py-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-semibold uppercase">{{ $origin }}</span>
+                            <span class="text-xs text-slate-400">CTR {{ number_format($originCtr, 2) }}%</span>
+                        </div>
+                        <div class="mt-1 flex items-center justify-between text-xs text-slate-400">
+                            <span>Impresiones: {{ $originImpressions }}</span>
+                            <span>Clicks: {{ $originClicks }}</span>
+                        </div>
                     </div>
                 @empty
-                    <p class="text-slate-400">Sin datos.</p>
+                    <p class="text-slate-400">Sin datos aún.</p>
                 @endforelse
             </div>
         </div>
     </div>
 
     <div class="mt-6 rounded-xl border border-white/10 bg-white/5 p-4">
-        <h2 class="text-sm font-semibold text-white">Latest clicks</h2>
+        <h2 class="text-sm font-semibold text-white">Últimos clicks</h2>
         <div class="mt-3 overflow-x-auto">
             <table class="min-w-full text-sm text-slate-300">
                 <thead class="text-xs uppercase text-slate-400">
@@ -53,8 +95,9 @@
                         <th class="px-3 py-2 text-left">Fecha</th>
                         <th class="px-3 py-2 text-left">Video</th>
                         <th class="px-3 py-2 text-left">CTA</th>
+                        <th class="px-3 py-2 text-left">Origen</th>
                         <th class="px-3 py-2 text-left">Placement</th>
-                        <th class="px-3 py-2 text-left">Referrer</th>
+                        <th class="px-3 py-2 text-left">Página</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -62,13 +105,14 @@
                         <tr class="border-t border-white/5">
                             <td class="px-3 py-2">{{ $click->created_at?->format('d/m/Y H:i') }}</td>
                             <td class="px-3 py-2">#{{ $click->video_id }}</td>
-                            <td class="px-3 py-2 uppercase">{{ $click->cta_key }}</td>
+                            <td class="px-3 py-2 uppercase">{{ $click->cta?->key ?? $click->cta_key }}</td>
+                            <td class="px-3 py-2">{{ $click->origin_page ?? '-' }}</td>
                             <td class="px-3 py-2">{{ $click->placement ?? '-' }}</td>
-                            <td class="px-3 py-2 truncate max-w-xs">{{ $click->referrer ?? '-' }}</td>
+                            <td class="px-3 py-2 truncate max-w-xs">{{ $click->page_url ?? '-' }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td class="px-3 py-2 text-slate-400" colspan="5">Sin clicks registrados.</td>
+                            <td class="px-3 py-2 text-slate-400" colspan="6">Sin clicks registrados.</td>
                         </tr>
                     @endforelse
                 </tbody>

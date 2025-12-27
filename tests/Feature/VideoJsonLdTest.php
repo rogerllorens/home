@@ -30,5 +30,7 @@ class VideoJsonLdTest extends TestCase
         $response->assertOk();
         $response->assertSee('"interactionStatistic"', false);
         $response->assertSee('"userInteractionCount":123', false);
+        $response->assertSee('"contentUrl"', false);
+        $response->assertSee('"keywords"', false);
     }
 }

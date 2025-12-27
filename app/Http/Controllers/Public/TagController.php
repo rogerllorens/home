@@ -14,11 +14,20 @@ class TagController extends Controller
 {
     public function __invoke(string $tagSlug): View
     {
+        $duration = request()->query('duration');
+        $durationFilter = in_array($duration, ['short', 'medium', 'long'], true) ? $duration : null;
+        $date = request()->query('date');
+        $dateFilter = in_array($date, ['24h', 'week', 'month', 'all'], true) ? $date : 'all';
+        $sort = request()->query('sort', 'recent');
+        $sortFilter = in_array($sort, ['recent', 'popular'], true) ? $sort : 'recent';
         $page = (int) request()->query('page', 1);
-        $cacheKey = PublicCache::key("tag:{$tagSlug}:page:{$page}");
+        $durationKey = $durationFilter ?? 'all';
+        $cacheKey = PublicCache::key("tag:{$tagSlug}:duration:{$durationKey}:date:{$dateFilter}:sort:{$sortFilter}:page:{$page}");
 
-        $payload = Cache::remember($cacheKey, now()->addMinutes(15), function () use ($tagSlug) {
-            $query = Video::published();
+        $payload = Cache::remember($cacheKey, now()->addMinutes(15), function () use ($tagSlug, $durationFilter, $dateFilter, $sortFilter) {
+            $query = Video::published()
+                ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
+                ->withSum('viewsDaily', 'views');
 
             if (DB::getDriverName() === 'sqlite') {
                 $query->whereRaw('raw_tags LIKE ?', ["%{$tagSlug}%"]);
@@ -26,13 +35,14 @@ class TagController extends Controller
                 $query->whereRaw('? = ANY(raw_tags)', [$tagSlug]);
             }
 
-            $videos = $query->orderByDesc('published_at')
+            $videos = $query
+                ->tap(fn ($builder) => $this->applyFilters($builder, $durationFilter, $dateFilter, $sortFilter))
                 ->paginate(18)
                 ->withQueryString();
 
             $heading = Str::headline($tagSlug);
-            $introMap = config('candidboys.taxonomy_intros.tags', []);
-            $description = $introMap[$tagSlug] ?? "Videos destacados con el tag {$heading}.";
+            $introMap = (array) trans('taxonomy.tags');
+            $description = $introMap[$tagSlug] ?? __('ui.tag.description', ['tag' => $heading]);
 
             return compact('videos', 'heading', 'description');
         });
@@ -40,6 +50,28 @@ class TagController extends Controller
         return view('public.tag', [
             ...$payload,
             'tagSlug' => $tagSlug,
+            'duration' => $durationFilter,
+            'date' => $dateFilter,
+            'sort' => $sortFilter,
         ]);
+    }
+
+    private function applyFilters($query, ?string $durationFilter, string $dateFilter, string $sortFilter)
+    {
+        $query->when($durationFilter === 'short', fn ($q) => $q->whereBetween('duration_seconds', [1, 300]))
+            ->when($durationFilter === 'medium', fn ($q) => $q->whereBetween('duration_seconds', [301, 900]))
+            ->when($durationFilter === 'long', fn ($q) => $q->where('duration_seconds', '>=', 901));
+
+        match ($dateFilter) {
+            '24h' => $query->where('published_at', '>=', now()->subDay()),
+            'week' => $query->where('published_at', '>=', now()->subDays(7)),
+            'month' => $query->where('published_at', '>=', now()->subDays(30)),
+            default => null,
+        };
+
+        return match ($sortFilter) {
+            'popular' => $query->orderByDesc('views_daily_sum_views')->orderByDesc('published_at'),
+            default => $query->orderByDesc('published_at'),
+        };
     }
 }

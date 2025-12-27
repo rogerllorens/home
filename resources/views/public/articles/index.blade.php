@@ -1,12 +1,13 @@
 @php
-    $pageTitle = 'Articles | Candid Boys';
+    $brand = config('app.name', __('ui.brand'));
+    $pageTitle = __('ui.meta.articles_title', ['brand' => $brand]);
 @endphp
 
 <x-layouts.public title="{{ $pageTitle }}">
     @push('head')
         <x-seo-head
             title="{{ $pageTitle }}"
-            description="Short guides about content, privacy, and affiliate links."
+            description="{{ __('ui.meta.articles_description', ['brand' => $brand]) }}"
             canonical="{{ route('public.articles') }}"
         />
     @endpush

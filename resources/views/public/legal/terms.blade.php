@@ -1,33 +1,38 @@
-<x-layouts.public title="Terms | Candid Boys">
+@php
+    $brand = config('app.name', __('ui.brand'));
+    $pageTitle = __('ui.meta.terms_title', ['brand' => $brand]);
+@endphp
+
+<x-layouts.public title="{{ $pageTitle }}">
     @push('head')
         <x-seo-head
-            title="Terms | Candid Boys"
-            description="Terms of use, 18+ notice, and general guidelines for Candid Boys."
+            title="{{ $pageTitle }}"
+            description="{{ __('ui.meta.terms_description', ['brand' => $brand]) }}"
             canonical="{{ route('public.terms') }}"
         />
     @endpush
 
     <section class="space-y-6">
-        <h1 class="text-2xl font-semibold text-white">Terms of Service</h1>
+        <h1 class="text-2xl font-semibold text-white">{{ __('ui.legal.terms.title') }}</h1>
         <div class="space-y-5 text-sm text-slate-300">
             <p class="text-xs uppercase tracking-wide text-slate-500">{{ __('ui.legal.placeholder_notice') }}</p>
             <p>{{ __('ui.legal.placeholder_copy') }}</p>
 
             <div>
-                <h2 class="text-base font-semibold text-white">Eligibility & age</h2>
-                <p class="mt-2">El sitio está destinado a mayores de edad. Al continuar confirmas que cumples la edad mínima en tu jurisdicción.</p>
+                <h2 class="text-base font-semibold text-white">{{ __('ui.legal.terms.eligibility') }}</h2>
+                <p class="mt-2">{{ __('ui.legal.terms.eligibility_body') }}</p>
             </div>
             <div>
-                <h2 class="text-base font-semibold text-white">Permitted use</h2>
-                <p class="mt-2">El contenido se ofrece para visualización personal. No redistribuyas ni alojes el material sin autorización.</p>
+                <h2 class="text-base font-semibold text-white">{{ __('ui.legal.terms.permitted') }}</h2>
+                <p class="mt-2">{{ __('ui.legal.terms.permitted_body') }}</p>
             </div>
             <div>
-                <h2 class="text-base font-semibold text-white">Moderation</h2>
-                <p class="mt-2">Podemos restringir o retirar contenido cuando sea necesario por seguridad o cumplimiento.</p>
+                <h2 class="text-base font-semibold text-white">{{ __('ui.legal.terms.moderation') }}</h2>
+                <p class="mt-2">{{ __('ui.legal.terms.moderation_body') }}</p>
             </div>
             <div>
-                <h2 class="text-base font-semibold text-white">Contact</h2>
-                <p class="mt-2">Para consultas sobre términos, usa la página de contacto.</p>
+                <h2 class="text-base font-semibold text-white">{{ __('ui.legal.terms.contact') }}</h2>
+                <p class="mt-2">{{ __('ui.legal.terms.contact_body') }}</p>
             </div>
         </div>
     </section>

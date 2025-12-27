@@ -11,6 +11,7 @@ return [
         'massage',
         'kink-soft',
     ],
+    'locales' => ['en', 'es'],
     'default_language' => 'es',
     'embed_check' => [
         'timeout_seconds' => 5,
@@ -51,7 +52,7 @@ return [
         'show_adult_warning' => env('SHOW_ADULT_WARNING', false),
         'adult_warning_text' => env('ADULT_WARNING_TEXT', 'Adult content. 18+ only.'),
         'affiliate_notice_text' => env('AFFILIATE_NOTICE_TEXT', 'Some links on this site are affiliate links and may generate commissions.'),
-        'cookie_banner_enabled' => env('COOKIE_BANNER_ENABLED', false),
+        'cookie_banner_enabled' => env('COOKIE_BANNER_ENABLED', env('APP_ENV') === 'production'),
         'cookie_banner_cookie' => env('COOKIE_BANNER_COOKIE', 'cookie_consent'),
         'cookie_notice_text' => env('COOKIE_NOTICE_TEXT', 'Usamos cookies y analítica básica para mejorar la experiencia. Puedes aceptar para continuar.'),
         'cookie_ads_notice_text' => env('COOKIE_ADS_NOTICE_TEXT', 'Este sitio puede incluir contenido patrocinado o anuncios.'),
@@ -122,6 +123,20 @@ return [
         'cta_templates' => [
             'default' => 'Descubre más contenido y ofertas exclusivas.',
         ],
+        'ctas' => [
+            'cams' => [
+                'type' => 'banner',
+                'positions' => ['video_detail', 'video_footer', 'live'],
+            ],
+            'membership' => [
+                'type' => 'button',
+                'positions' => ['video_detail', 'video_sidebar'],
+            ],
+            'dating' => [
+                'type' => 'link',
+                'positions' => ['video_detail', 'reels'],
+            ],
+        ],
         'utm' => [
             'source' => env('CTA_UTM_SOURCE', 'candidboys'),
             'medium' => env('CTA_UTM_MEDIUM', 'cta'),
@@ -169,6 +184,7 @@ return [
             'connect' => array_values(array_filter(explode(',', (string) env('CSP_CONNECT_HOSTS', '')))),
             'frame' => array_values(array_filter(explode(',', (string) env('CSP_FRAME_HOSTS', '')))),
             'child' => array_values(array_filter(explode(',', (string) env('CSP_CHILD_HOSTS', '')))),
+            'allow_unsafe_inline_styles' => env('CSP_ALLOW_UNSAFE_INLINE_STYLES', false),
         ],
         'rate_limits' => [
             'search' => '30/min',
@@ -178,6 +194,7 @@ return [
             'public_contact' => '5/min',
             'public_takedown' => '3/min',
             'video_events' => '60/min',
+            'favorites' => '30/min',
         ],
     ],
 ];

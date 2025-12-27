@@ -1,7 +1,8 @@
 @php
     $titleMax = (int) config('candidboys.seo.title_max', 70);
     $descMax = (int) config('candidboys.seo.desc_max', 160);
-    $pageTitle = \Illuminate\Support\Str::limit("{$heading} | Candid Boys", $titleMax, '');
+    $brand = config('app.name', __('ui.brand'));
+    $pageTitle = \Illuminate\Support\Str::limit(__('ui.meta.title_with_brand', ['title' => $heading, 'brand' => $brand]), $titleMax, '');
     $pageDescription = \Illuminate\Support\Str::limit($description, $descMax, '');
 @endphp
 
@@ -40,7 +41,7 @@
         @forelse ($videos as $video)
             <x-video-card :video="$video" />
         @empty
-            <p class="text-sm text-slate-400">No videos available right now.</p>
+            <p class="text-sm text-slate-400">{{ __('ui.empty.no_videos') }}</p>
         @endforelse
     </x-video-grid>
 </x-layouts.public>

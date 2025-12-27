@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use App\Models\Category;
+use Illuminate\Http\JsonResponse;
 
 class SearchController extends Controller
 {
@@ -20,8 +22,9 @@ class SearchController extends Controller
     {
         $query = $request->string('q')->trim()->toString();
         $normalizedQuery = $this->normalizeQuery($query);
+        [$durationFilter, $dateFilter, $sortFilter] = $this->filtersFromRequest($request);
 
-        $videos = $this->searchWithFallback($query);
+        $videos = $this->searchWithFallback($query, $durationFilter, $dateFilter, $sortFilter);
         $resultsCount = $this->resultsCount($videos);
 
         if ($query !== '') {
@@ -50,12 +53,39 @@ class SearchController extends Controller
             'searchSuggestions' => $searchSuggestions,
             'categorySuggestion' => $categorySuggestion,
             'tagSuggestion' => $tagSuggestion,
+            'duration' => $durationFilter,
+            'date' => $dateFilter,
+            'sort' => $sortFilter,
         ]);
     }
 
-    private function searchWithFallback(string $query)
+    public function suggestions(Request $request): JsonResponse
     {
-        if ($query !== '' && $this->meiliAvailable() && config('scout.driver') === 'meilisearch') {
+        $query = $request->string('q')->trim()->toString();
+        if (mb_strlen($query) < 2) {
+            return response()->json([
+                'tags' => [],
+                'categories' => [],
+                'videos' => [],
+            ]);
+        }
+
+        $normalized = $this->normalizeQuery($query);
+        $tags = $this->suggestTags($normalized);
+        $categories = $this->suggestCategories($normalized);
+        $videos = $this->suggestVideos($query);
+
+        return response()->json([
+            'tags' => $tags,
+            'categories' => $categories,
+            'videos' => $videos,
+        ]);
+    }
+
+    private function searchWithFallback(string $query, ?string $durationFilter, string $dateFilter, string $sortFilter)
+    {
+        $hasFilters = $durationFilter || $dateFilter !== 'all' || $sortFilter !== 'recent';
+        if ($query !== '' && !$hasFilters && $this->meiliAvailable() && config('scout.driver') === 'meilisearch') {
             try {
                 return Video::search($query)
                     ->where('status', VideoStatus::Published->value)
@@ -67,7 +97,9 @@ class SearchController extends Controller
         }
 
         return Video::query()
+            ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
             ->where('status', VideoStatus::Published->value)
+            ->withSum('viewsDaily', 'views')
             ->when($query !== '', function ($builder) use ($query) {
                 $operator = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
                 $builder->where(function ($subQuery) use ($query, $operator) {
@@ -77,7 +109,7 @@ class SearchController extends Controller
                         ->orWhere('description', $operator, "%{$query}%");
                 });
             })
-            ->orderByDesc('published_at')
+            ->tap(fn ($builder) => $this->applyFilters($builder, $durationFilter, $dateFilter, $sortFilter))
             ->paginate(18)
             ->withQueryString();
     }
@@ -196,5 +228,139 @@ class SearchController extends Controller
             ->exists();
 
         return $exists ? $normalizedQuery : null;
+    }
+
+    private function filtersFromRequest(Request $request): array
+    {
+        $duration = $request->query('duration');
+        $durationFilter = in_array($duration, ['short', 'medium', 'long'], true) ? $duration : null;
+        $date = $request->query('date');
+        $dateFilter = in_array($date, ['24h', 'week', 'month', 'all'], true) ? $date : 'all';
+        $sort = $request->query('sort', 'recent');
+        $sortFilter = in_array($sort, ['recent', 'popular'], true) ? $sort : 'recent';
+
+        return [$durationFilter, $dateFilter, $sortFilter];
+    }
+
+    private function applyFilters($query, ?string $durationFilter, string $dateFilter, string $sortFilter)
+    {
+        $query->when($durationFilter === 'short', fn ($q) => $q->whereBetween('duration_seconds', [1, 300]))
+            ->when($durationFilter === 'medium', fn ($q) => $q->whereBetween('duration_seconds', [301, 900]))
+            ->when($durationFilter === 'long', fn ($q) => $q->where('duration_seconds', '>=', 901));
+
+        match ($dateFilter) {
+            '24h' => $query->where('published_at', '>=', now()->subDay()),
+            'week' => $query->where('published_at', '>=', now()->subDays(7)),
+            'month' => $query->where('published_at', '>=', now()->subDays(30)),
+            default => null,
+        };
+
+        return match ($sortFilter) {
+            'popular' => $query->orderByDesc('views_daily_sum_views')->orderByDesc('published_at'),
+            default => $query->orderByDesc('published_at'),
+        };
+    }
+
+    private function suggestTags(string $normalized): array
+    {
+        if ($normalized === '') {
+            return [];
+        }
+
+        if (DB::getDriverName() === 'sqlite') {
+            $tags = Video::query()
+                ->where('status', VideoStatus::Published->value)
+                ->whereNotNull('raw_tags')
+                ->get(['raw_tags'])
+                ->flatMap(fn (Video $video) => $video->raw_tags ?? [])
+                ->filter(fn ($tag) => str_starts_with((string) $tag, $normalized))
+                ->unique()
+                ->take(6)
+                ->values()
+                ->all();
+
+            return collect($tags)
+                ->map(fn ($tag) => [
+                    'label' => $tag,
+                    'url' => route('public.tag', $tag),
+                ])
+                ->values()
+                ->all();
+        }
+
+        $rows = DB::select(
+            'select distinct tag from videos, unnest(raw_tags) as tag where status = ? and raw_tags is not null and tag ilike ? limit 6',
+            [VideoStatus::Published->value, $normalized.'%']
+        );
+        $tags = collect($rows)->pluck('tag')->all();
+
+        return collect($tags)
+            ->map(fn ($tag) => [
+                'label' => $tag,
+                'url' => route('public.tag', $tag),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function suggestCategories(string $normalized): array
+    {
+        $configCategories = collect(config('candidboys.categories_controlled', []))
+            ->map(fn (string $slug) => [
+                'slug' => $slug,
+                'label' => Str::headline($slug),
+            ]);
+
+        $dbCategories = Category::query()
+            ->where('is_public', true)
+            ->get(['slug', 'name'])
+            ->map(fn (Category $category) => [
+                'slug' => $category->slug,
+                'label' => $category->name,
+            ]);
+
+        return $configCategories
+            ->merge($dbCategories)
+            ->unique('slug')
+            ->filter(function ($category) use ($normalized) {
+                return $normalized === ''
+                    || str_starts_with(Str::lower($category['slug']), $normalized)
+                    || str_starts_with(Str::lower($category['label']), $normalized);
+            })
+            ->take(6)
+            ->values()
+            ->map(fn ($category) => [
+                'label' => $category['label'],
+                'url' => route('public.category', $category['slug']),
+            ])
+            ->all();
+    }
+
+    private function suggestVideos(string $query): array
+    {
+        if ($query === '') {
+            return [];
+        }
+
+        $operator = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+        return Video::query()
+            ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
+            ->where('status', VideoStatus::Published->value)
+            ->where(function ($builder) use ($query, $operator) {
+                $builder->where('seo_title', $operator, "%{$query}%")
+                    ->orWhere('title', $operator, "%{$query}%");
+            })
+            ->orderByDesc('published_at')
+            ->limit(5)
+            ->get()
+            ->map(fn (Video $video) => [
+                'title' => $video->seo_title ?: $video->title,
+                'url' => route('public.video', [
+                    'slug' => Str::slug($video->seo_title ?: $video->title),
+                    'id' => $video->id,
+                ]),
+            ])
+            ->values()
+            ->all();
     }
 }

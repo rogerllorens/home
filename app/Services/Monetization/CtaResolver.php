@@ -2,7 +2,9 @@
 
 namespace App\Services\Monetization;
 
+use App\Models\Cta;
 use App\Models\Video;
+use Illuminate\Support\Str;
 
 class CtaResolver
 {
@@ -14,21 +16,25 @@ class CtaResolver
         $sourceOverrides = $video->source?->settings['partner_links'] ?? [];
         $partnerLinks = array_replace_recursive($ctaConfig['partner_links'] ?? [], $sourceOverrides);
         $ctaTemplate = $ctaConfig['cta_templates'][$video->category_slug] ?? $ctaConfig['cta_templates']['default'] ?? '';
+        $ctas = $this->ensureCtas();
 
         return [
             'cams' => [
+                ...$this->basePayload($ctas['cams'] ?? null, 'cams'),
                 'title' => 'Cam en vivo',
                 'label' => $partnerLinks['cams']['label'] ?? 'Watch live',
                 'url' => $partnerLinks['cams']['url'] ?? null,
                 'description' => $partnerLinks['cams']['template'] ?? $ctaTemplate,
             ],
             'membership' => [
+                ...$this->basePayload($ctas['membership'] ?? null, 'membership'),
                 'title' => 'Membresía',
                 'label' => $partnerLinks['membership']['label'] ?? 'Watch full scene',
                 'url' => $partnerLinks['membership']['url'] ?? null,
                 'description' => $partnerLinks['membership']['template'] ?? $ctaTemplate,
             ],
             'dating' => [
+                ...$this->basePayload($ctas['dating'] ?? null, 'dating'),
                 'title' => 'Dating',
                 'label' => $partnerLinks['dating']['label'] ?? 'Meet guys',
                 'url' => $partnerLinks['dating']['url'] ?? null,
@@ -113,5 +119,54 @@ class CtaResolver
         $partnerLinks = config('candidboys.monetization.partner_links', []);
 
         return $partnerLinks[$ctaKey]['url'] ?? null;
+    }
+
+    public function ctaForKey(string $ctaKey): ?Cta
+    {
+        $ctas = $this->ensureCtas();
+
+        return $ctas[$ctaKey] ?? null;
+    }
+
+    public function defaultDestinationForCta(Cta $cta): ?string
+    {
+        return $cta->destination_url ?: null;
+    }
+
+    private function ensureCtas(): array
+    {
+        $catalog = config('candidboys.monetization.ctas', []);
+        $partnerLinks = config('candidboys.monetization.partner_links', []);
+
+        $ctas = [];
+        foreach (self::CTA_KEYS as $key) {
+            $definition = $catalog[$key] ?? [];
+            $destinationUrl = $partnerLinks[$key]['url'] ?? null;
+
+            $cta = Cta::firstOrNew(['key' => $key]);
+            if (!$cta->public_id) {
+                $cta->public_id = (string) Str::uuid();
+            }
+            $cta->type = $definition['type'] ?? 'link';
+            $cta->positions = $definition['positions'] ?? [];
+            $cta->destination_url = $destinationUrl;
+            $cta->is_active = true;
+            $cta->save();
+
+            $ctas[$key] = $cta;
+        }
+
+        return $ctas;
+    }
+
+    private function basePayload(?Cta $cta, string $key): array
+    {
+        return [
+            'id' => $cta?->id,
+            'public_id' => $cta?->public_id,
+            'key' => $key,
+            'type' => $cta?->type ?? 'link',
+            'positions' => $cta?->positions ?? [],
+        ];
     }
 }

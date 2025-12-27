@@ -8,11 +8,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CtaClick extends Model
 {
     protected $fillable = [
+        'cta_id',
         'video_id',
         'cta_key',
         'placement',
         'cta_variant',
         'landing_type',
+        'origin_page',
+        'page_url',
+        'device_hash',
         'referrer',
         'ip_hash',
         'user_agent_hash',
@@ -20,6 +24,11 @@ class CtaClick extends Model
         'destination_url',
         'category_slug',
     ];
+
+    public function cta(): BelongsTo
+    {
+        return $this->belongsTo(Cta::class);
+    }
 
     public function video(): BelongsTo
     {

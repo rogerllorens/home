@@ -1,5 +1,7 @@
 @php
-    $pageTitle = ($article['title'] ?? 'Article') . ' | Candid Boys';
+    $brand = config('app.name', __('ui.brand'));
+    $articleTitle = $article['title'] ?? __('ui.articles.fallback_title');
+    $pageTitle = __('ui.meta.title_with_brand', ['title' => $articleTitle, 'brand' => $brand]);
 @endphp
 
 <x-layouts.public title="{{ $pageTitle }}">

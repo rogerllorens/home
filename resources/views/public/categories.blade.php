@@ -1,8 +1,9 @@
 @php
     $titleMax = (int) config('candidboys.seo.title_max', 70);
     $descMax = (int) config('candidboys.seo.desc_max', 160);
-    $pageTitle = \Illuminate\Support\Str::limit('Categories | Candid Boys', $titleMax, '');
-    $pageDescription = \Illuminate\Support\Str::limit('Browse curated categories on Candid Boys.', $descMax, '');
+    $brand = config('app.name', __('ui.brand'));
+    $pageTitle = \Illuminate\Support\Str::limit(__('ui.meta.categories_title', ['brand' => $brand]), $titleMax, '');
+    $pageDescription = \Illuminate\Support\Str::limit(__('ui.meta.categories_description', ['brand' => $brand]), $descMax, '');
 @endphp
 
 <x-layouts.public title="{{ $pageTitle }}">
@@ -15,8 +16,8 @@
     @endpush
 
     <section class="mb-8">
-        <h1 class="text-2xl font-semibold text-white">Categories</h1>
-        <p class="mt-2 text-sm text-slate-400">Explora colecciones curadas para encontrar escenas que encajan con tu ritmo.</p>
+        <h1 class="text-2xl font-semibold text-white">{{ __('ui.nav.categories') }}</h1>
+        <p class="mt-2 text-sm text-slate-400">{{ __('ui.categories.intro') }}</p>
     </section>
 
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -26,10 +27,10 @@
                 href="{{ route('public.category', $category['slug']) }}"
             >
                 <span>{{ $category['label'] }}</span>
-                <span class="text-xs text-slate-400">View →</span>
+                <span class="text-xs text-slate-400">{{ __('ui.links.view') }}</span>
             </a>
         @empty
-            <p class="text-sm text-slate-400">No categories available.</p>
+            <p class="text-sm text-slate-400">{{ __('ui.empty.no_categories') }}</p>
         @endforelse
     </div>
 </x-layouts.public>
