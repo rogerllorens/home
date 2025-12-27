@@ -23,6 +23,7 @@
         'all' => __('ui.filters.date_all'),
     ];
     $activeDate = $date ?? 'all';
+    $currentIntent = $intent ?? null;
 @endphp
 
 <x-layouts.public title="{{ $pageTitle }}">
@@ -59,6 +60,27 @@
                 <p class="text-xs uppercase tracking-[0.35em] text-indigo-300">{{ __('ui.home.hero_label') }}</p>
                 <h1 class="text-3xl font-semibold text-white sm:text-4xl lg:text-5xl">{{ __('ui.home.hero_title_a') }}</h1>
                 <p class="text-sm text-slate-200 sm:text-base">{{ __('ui.home.hero_body_a') }}</p>
+                <div class="space-y-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('ui.home.intent_label') }}</p>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($intentOptions as $option)
+                            @php
+                                $isActive = $currentIntent === $option['key'];
+                                $baseClasses = 'rounded-full px-4 py-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
+                                $activeClasses = $isActive ? 'bg-indigo-500 text-white' : 'border border-white/10 bg-white/5 text-slate-200 hover:border-white/30';
+                            @endphp
+                            <button
+                                type="button"
+                                class="{{ $baseClasses }} {{ $activeClasses }}"
+                                data-intent-chip
+                                data-intent-value="{{ $option['key'] }}"
+                                aria-pressed="{{ $isActive ? 'true' : 'false' }}"
+                            >
+                                {{ $option['label'] }}
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
                 <form class="rounded-2xl border border-white/10 bg-white/5 p-3 shadow-lg shadow-black/30" method="GET" action="{{ route('public.search') }}" data-track-submit="search.submit" data-track-context="home_hero">
                     <label class="sr-only" for="hero-search">{{ __('ui.home.hero_search_label') }}</label>
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -132,6 +154,27 @@
                 <p class="text-xs uppercase tracking-[0.35em] text-red-300">{{ __('ui.home.hero_label') }}</p>
                 <h1 class="text-3xl font-semibold text-white sm:text-4xl lg:text-5xl">{{ __('ui.home.hero_title_b') }}</h1>
                 <p class="text-sm text-slate-200 sm:text-base">{{ __('ui.home.hero_body_b') }}</p>
+                <div class="space-y-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('ui.home.intent_label') }}</p>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($intentOptions as $option)
+                            @php
+                                $isActive = $currentIntent === $option['key'];
+                                $baseClasses = 'rounded-full px-4 py-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
+                                $activeClasses = $isActive ? 'bg-red-600 text-white' : 'border border-white/10 bg-white/5 text-slate-200 hover:border-white/30';
+                            @endphp
+                            <button
+                                type="button"
+                                class="{{ $baseClasses }} {{ $activeClasses }}"
+                                data-intent-chip
+                                data-intent-value="{{ $option['key'] }}"
+                                aria-pressed="{{ $isActive ? 'true' : 'false' }}"
+                            >
+                                {{ $option['label'] }}
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
                 <form class="rounded-2xl border border-white/10 bg-white/5 p-3 shadow-lg shadow-black/30" method="GET" action="{{ route('public.search') }}" data-track-submit="search.submit" data-track-context="home_hero">
                     <label class="sr-only" for="hero-search">{{ __('ui.home.hero_search_label') }}</label>
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -417,6 +460,24 @@
                     variant,
                 });
             }
+
+            const chips = document.querySelectorAll('[data-intent-chip]');
+            if (chips.length === 0) return;
+
+            chips.forEach((chip) => {
+                chip.addEventListener('click', () => {
+                    const intent = chip.getAttribute('data-intent-value');
+                    if (!intent) return;
+                    try {
+                        localStorage.setItem('home_intent', intent);
+                    } catch (error) {
+                        // ignore storage failures
+                    }
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('intent', intent);
+                    window.location.assign(url.toString());
+                });
+            });
         });
     </script>
 @endpush

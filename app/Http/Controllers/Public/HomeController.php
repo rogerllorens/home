@@ -9,6 +9,7 @@ use App\Models\VideoViewHistory;
 use App\Enums\VideoStatus;
 use App\Support\PublicCache;
 use App\Support\DeviceHash;
+use App\Enums\HomeIntent;
 use App\Services\Personalization\HomeFeedService;
 use App\Services\Videos\RecommendationsService;
 use App\Services\Videos\VideoScoreService;
@@ -19,8 +20,9 @@ use Illuminate\View\View;
 
 class HomeController extends Controller
 {
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request)
     {
+        $intent = $this->resolveIntent($request);
         $sort = $request->query('sort', 'recent');
         $duration = $request->query('duration');
         $durationFilter = in_array($duration, ['short', 'medium', 'long'], true) ? $duration : null;
@@ -186,7 +188,7 @@ class HomeController extends Controller
         $hasPersonalizedSections = false;
         $deviceHash = DeviceHash::fromRequest($request);
         if ($deviceHash) {
-            $personalization = app(HomeFeedService::class)->build($deviceHash);
+            $personalization = app(HomeFeedService::class)->build($deviceHash, $intent);
             $personalizedSections = collect($personalization['sections'] ?? []);
             $hasPersonalizedSections = (bool) ($personalization['has_history'] ?? false);
         }
@@ -216,7 +218,7 @@ class HomeController extends Controller
             $recommendedVideos = $recommendations->recommended($deviceHash, 12, [], false);
         }
 
-        return view('public.home', [
+        $response = response()->view('public.home', [
             ...$payload,
             'sort' => $sort,
             'duration' => $durationFilter,
@@ -225,7 +227,51 @@ class HomeController extends Controller
             'recommendedVideos' => $recommendedVideos,
             'personalizedSections' => $personalizedSections,
             'hasPersonalizedSections' => $hasPersonalizedSections,
+            'intent' => $intent?->value,
+            'intentOptions' => $this->intentOptions(),
             'featuredCollections' => $payload['featuredCollections'] ?? collect(),
         ]);
+
+        if ($intent) {
+            $response->withCookie(cookie('home_intent', $intent->value, 60 * 24 * 30));
+        }
+
+        return $response;
+    }
+
+    private function resolveIntent(Request $request): ?HomeIntent
+    {
+        $intentValue = $request->string('intent')->toString();
+        $intent = HomeIntent::normalize($intentValue)
+            ?? HomeIntent::normalize($request->session()->get('home_intent'))
+            ?? HomeIntent::normalize($request->cookie('home_intent'));
+
+        if ($intentValue !== '' && $intent) {
+            $request->session()->put('home_intent', $intent->value);
+        }
+
+        return $intent;
+    }
+
+    private function intentOptions(): array
+    {
+        return [
+            [
+                'key' => HomeIntent::Quick->value,
+                'label' => __('ui.home.intents.quick'),
+            ],
+            [
+                'key' => HomeIntent::Explore->value,
+                'label' => __('ui.home.intents.explore'),
+            ],
+            [
+                'key' => HomeIntent::Usual->value,
+                'label' => __('ui.home.intents.usual'),
+            ],
+            [
+                'key' => HomeIntent::Soft->value,
+                'label' => __('ui.home.intents.soft'),
+            ],
+        ];
     }
 }

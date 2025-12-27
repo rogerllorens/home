@@ -2,6 +2,7 @@
 
 namespace App\Services\Personalization;
 
+use App\Enums\HomeIntent;
 use App\Models\Favorite;
 use App\Models\Video;
 use App\Models\VideoLike;
@@ -16,7 +17,7 @@ class HomeFeedService
     private const SECTION_LIMIT = 12;
     private const CONTINUE_LIMIT = 10;
 
-    public function build(?string $deviceHash): array
+    public function build(?string $deviceHash, ?HomeIntent $intent = null): array
     {
         if (!$deviceHash) {
             return [
@@ -35,6 +36,33 @@ class HomeFeedService
 
         $sections = collect();
         $excludedIds = [];
+        $intent = $intent ?? null;
+
+        if ($intent === HomeIntent::Quick) {
+            $quickPicks = $this->quickPicks($excludedIds);
+            if ($quickPicks->isNotEmpty()) {
+                $sections->push([
+                    'id' => 'quick_picks',
+                    'title' => __('ui.home.quick_picks_title'),
+                    'subtitle' => __('ui.home.quick_picks_subtitle'),
+                    'videos' => $quickPicks,
+                ]);
+                $excludedIds = array_merge($excludedIds, $quickPicks->pluck('id')->all());
+            }
+        }
+
+        if ($intent === HomeIntent::Explore) {
+            $fresh = $this->freshDiscoveries($signalVideos, $excludedIds);
+            if ($fresh->isNotEmpty()) {
+                $sections->push([
+                    'id' => 'fresh_discoveries',
+                    'title' => __('ui.home.explore_title'),
+                    'subtitle' => __('ui.home.explore_subtitle'),
+                    'videos' => $fresh,
+                ]);
+                $excludedIds = array_merge($excludedIds, $fresh->pluck('id')->all());
+            }
+        }
 
         $continueWatching = $this->continueWatching($deviceHash);
         if ($continueWatching->isNotEmpty()) {
@@ -60,6 +88,15 @@ class HomeFeedService
 
         $topCategories = $this->topCategories($signalVideos);
         $topTags = $this->topTags($signalVideos);
+
+        if ($intent === HomeIntent::Soft) {
+            $topCategories = $this->prioritizeValue($topCategories, 'romantic');
+            $topTags = $this->prioritizeValue($topTags, 'romantic');
+        }
+
+        if ($intent === HomeIntent::Usual) {
+            $topCategories = $this->prioritizeValues($topCategories, ['couples', 'romantic', 'playful', 'massage']);
+        }
 
         if (!empty($topCategories)) {
             $category = $topCategories[0];
@@ -306,5 +343,52 @@ class HomeFeedService
             ->sortByDesc('published_at')
             ->values()
             ->take(self::SECTION_LIMIT);
+    }
+
+    private function quickPicks(array $excludedIds): Collection
+    {
+        return Video::published()
+            ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
+            ->withSum('viewsDaily', 'views')
+            ->whereBetween('duration_seconds', [1, 300])
+            ->when(!empty($excludedIds), fn ($query) => $query->whereNotIn('id', $excludedIds))
+            ->orderByDesc('published_at')
+            ->limit(self::SECTION_LIMIT)
+            ->get();
+    }
+
+    private function freshDiscoveries(Collection $signalVideos, array $excludedIds): Collection
+    {
+        $signalIds = $signalVideos->pluck('id')->filter()->values()->all();
+        $exclude = array_values(array_unique(array_merge($signalIds, $excludedIds)));
+
+        return Video::published()
+            ->select(['id', 'title', 'seo_title', 'thumbnail_url', 'duration_seconds', 'published_at', 'category_slug', 'raw_tags'])
+            ->withSum('viewsDaily', 'views')
+            ->when(!empty($exclude), fn ($query) => $query->whereNotIn('id', $exclude))
+            ->orderByDesc('published_at')
+            ->limit(self::SECTION_LIMIT)
+            ->get();
+    }
+
+    private function prioritizeValue(array $values, string $needle): array
+    {
+        if (!in_array($needle, $values, true)) {
+            return $values;
+        }
+
+        return array_values(array_unique([$needle, ...$values]));
+    }
+
+    private function prioritizeValues(array $values, array $needles): array
+    {
+        $ordered = $values;
+        foreach (array_reverse($needles) as $needle) {
+            if (in_array($needle, $ordered, true)) {
+                $ordered = array_values(array_unique([$needle, ...$ordered]));
+            }
+        }
+
+        return $ordered;
     }
 }
