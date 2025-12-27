@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Laravel\Scout\Searchable;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Models\Journey;
 
 class Video extends Model
 {
@@ -96,6 +97,12 @@ class Video extends Model
     {
         return $this->belongsToMany(Collection::class, 'collection_video')
             ->withTimestamps();
+    }
+
+    public function journeys(): BelongsToMany
+    {
+        return $this->belongsToMany(Journey::class, 'journey_video')
+            ->withPivot('position');
     }
 
     public function categories(): BelongsToMany

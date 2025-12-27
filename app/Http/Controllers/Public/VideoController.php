@@ -15,6 +15,7 @@ use App\Services\Videos\CtaPresenter;
 use App\Services\Videos\RelatedVideosService;
 use App\Services\Videos\VideoAvailabilityPolicy;
 use App\Services\Videos\RecommendationsService;
+use App\Enums\JourneyStatus;
 use App\Services\Videos\VideoSeoService;
 use App\Support\DeviceHash;
 use Illuminate\Http\RedirectResponse;
@@ -51,7 +52,9 @@ class VideoController extends Controller
             return redirect()->route('public.video', ['slug' => $canonicalSlug, 'id' => $video->id], 301);
         }
 
-        $video->load(['source']);
+        $video->load(['source', 'journeys' => function ($query) {
+            $query->where('status', JourneyStatus::Published->value);
+        }]);
         $video->loadSum('viewsDaily', 'views');
         $video->loadCount('likes');
         $deviceHash = DeviceHash::ensure($request);
@@ -194,6 +197,24 @@ class VideoController extends Controller
 
         $isUnavailable = $availabilityPolicy->isUnavailable($video);
 
+        $journeyContext = null;
+        $journeyNextVideo = null;
+        $journeyParam = $request->query('journey');
+        if ($journeyParam) {
+            $journeyContext = $video->journeys()
+                ->where('slug', $journeyParam)
+                ->where('status', JourneyStatus::Published->value)
+                ->first();
+
+            if ($journeyContext) {
+                $journeyVideos = $journeyContext->videos()->withPivot('position')->get();
+                $currentIndex = $journeyVideos->search(fn ($journeyVideo) => $journeyVideo->id === $video->id);
+                if ($currentIndex !== false && $journeyVideos->count() > $currentIndex + 1) {
+                    $journeyNextVideo = $journeyVideos[$currentIndex + 1];
+                }
+            }
+        }
+
         return view('public.video', [
             'video' => $video,
             'related' => $related,
@@ -209,6 +230,8 @@ class VideoController extends Controller
             'categoryRelatedVideos' => $categoryRelatedVideos,
             'tagRelatedVideos' => $tagRelatedVideos,
             'transparencyTags' => $video->transparencyTagKeys(),
+            'journeyContext' => $journeyContext,
+            'journeyNextVideo' => $journeyNextVideo,
         ]);
     }
 }

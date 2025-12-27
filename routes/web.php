@@ -30,6 +30,7 @@ use App\Http\Controllers\Public\FavoriteController;
 use App\Http\Controllers\Public\HistoryController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\CtaImpressionController;
+use App\Http\Controllers\Public\JourneyController as PublicJourneyController;
 use App\Http\Controllers\Public\ReelsController;
 use App\Http\Controllers\Public\SearchController;
 use App\Http\Controllers\Public\SitemapController;
@@ -99,6 +100,8 @@ Route::prefix('{locale}')
             ->where('slug', '[A-Za-z0-9-]+')
             ->name('public.video')
             ->middleware(['throttle:video', 'device.hash']);
+        Route::get('/journeys/{slug}', [PublicJourneyController::class, 'show'])
+            ->name('public.journeys.show');
         Route::get('/c/{category_slug}', CategoryController::class)->name('public.category');
         Route::get('/t/{tag_slug}', TagController::class)->name('public.tag');
         Route::get('/search', SearchController::class)->name('public.search')->middleware('throttle:search');
@@ -159,6 +162,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('videos/{video}/feature', [VideoController::class, 'feature'])->name('videos.feature');
         Route::post('videos/{video}/unfeature', [VideoController::class, 'unfeature'])->name('videos.unfeature');
         Route::post('videos/{video}/transparency', [VideoController::class, 'updateTransparency'])->name('videos.transparency');
+        Route::get('journeys', [\App\Http\Controllers\Admin\JourneyController::class, 'index'])->name('journeys.index');
+        Route::get('journeys/create', [\App\Http\Controllers\Admin\JourneyController::class, 'create'])->name('journeys.create');
+        Route::post('journeys', [\App\Http\Controllers\Admin\JourneyController::class, 'store'])->name('journeys.store');
+        Route::get('journeys/{journey}/edit', [\App\Http\Controllers\Admin\JourneyController::class, 'edit'])->name('journeys.edit');
+        Route::put('journeys/{journey}', [\App\Http\Controllers\Admin\JourneyController::class, 'update'])->name('journeys.update');
+        Route::delete('journeys/{journey}', [\App\Http\Controllers\Admin\JourneyController::class, 'destroy'])->name('journeys.destroy');
 
         Route::get('takedowns', [TakedownController::class, 'index'])->name('takedowns.index');
         Route::get('takedowns/create', [TakedownController::class, 'create'])->name('takedowns.create');

@@ -343,6 +343,13 @@ return [
         'shuffle_pick' => 'Selección aleatoria',
         'featured_offer_single' => 'Oferta destacada',
         'more_content_context' => 'Más contenido como este en :context.',
+        'journey' => [
+            'title' => 'Parte de un journey',
+            'context' => 'Parte del journey “:journey”.',
+            'part_of' => 'Este vídeo aparece en estos journeys:',
+            'view' => 'Ver journey',
+            'next' => 'Siguiente del journey',
+        ],
         'transparency' => [
             'title' => 'Transparencia',
             'description' => 'Detalles sobre el origen, revisión y cómo se añadió este vídeo.',
@@ -378,6 +385,16 @@ return [
         'recommended' => 'Recomendado',
         'continue' => 'Continuar',
         'partner_notice' => 'Serás redirigido a nuestro partner.',
+    ],
+    'journeys' => [
+        'label' => 'Journeys',
+        'recommended_title' => 'Journeys guiados para ti',
+        'recommended_subtitle' => 'Rutas curadas basadas en lo que ves.',
+        'view' => 'Ver journey',
+        'start' => 'Empezar journey',
+        'play' => 'Reproducir',
+        'videos_title' => 'Videos del journey',
+        'videos_subtitle' => 'Sigue la ruta en orden para una mejor experiencia.',
     ],
     'empty' => [
         'no_videos' => 'No hay vídeos disponibles por ahora.',

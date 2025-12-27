@@ -264,6 +264,27 @@
         @endforeach
     @endif
 
+    @if ($journeySuggestions->isNotEmpty())
+        <section class="mb-10">
+            <div class="mb-4 space-y-1">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('ui.journeys.label') }}</p>
+                <h2 class="text-xl font-semibold text-white">{{ __('ui.journeys.recommended_title') }}</h2>
+                <p class="text-sm text-slate-400">{{ __('ui.journeys.recommended_subtitle') }}</p>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                @foreach ($journeySuggestions as $journey)
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <h3 class="text-lg font-semibold text-white">{{ $journey->title }}</h3>
+                        <p class="mt-2 text-sm text-slate-300">{{ $journey->description }}</p>
+                        <a class="mt-4 inline-flex items-center rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/30" href="{{ route('public.journeys.show', $journey->slug) }}">
+                            {{ __('ui.journeys.view') }}
+                        </a>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     @if (!$hasPersonalizedSections && $continueWatching->isNotEmpty())
         <section class="mb-10">
             <div class="mb-4 flex items-center justify-between">

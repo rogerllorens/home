@@ -333,8 +333,12 @@
                             {{ __('ui.video.back_to', ['category' => $categoryLabel]) }}
                         </a>
                     @endif
-                    @if ($nextVideo)
-                        <a class="rounded-md border border-red-500/60 px-3 py-2 font-semibold text-red-100 hover:border-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($nextVideo->seo_title ?: $nextVideo->title), 'id' => $nextVideo->id]) }}" data-autoplay-next>
+                    @php
+                        $autoplayNext = $journeyNextVideo ?: $nextVideo;
+                        $autoplayParams = $journeyContext ? ['journey' => $journeyContext->slug] : [];
+                    @endphp
+                    @if ($autoplayNext)
+                        <a class="rounded-md border border-red-500/60 px-3 py-2 font-semibold text-red-100 hover:border-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($autoplayNext->seo_title ?: $autoplayNext->title), 'id' => $autoplayNext->id] + $autoplayParams) }}" data-autoplay-next>
                             {{ __('ui.buttons.play_next') }}
                         </a>
                     @endif
@@ -344,6 +348,34 @@
                         </a>
                     @endif
                 </div>
+
+                @if ($journeyContext || $video->journeys->isNotEmpty())
+                    <div class="rounded-md border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('ui.video.journey.title') }}</p>
+                        @if ($journeyContext)
+                            <p class="mt-2 text-sm text-slate-300">{{ __('ui.video.journey.context', ['journey' => $journeyContext->title]) }}</p>
+                            <div class="mt-3 flex flex-wrap gap-2 text-sm">
+                                <a class="rounded-md bg-white/5 px-3 py-2 font-semibold text-slate-100 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="{{ route('public.journeys.show', $journeyContext->slug) }}">
+                                    {{ __('ui.video.journey.view') }}
+                                </a>
+                                @if ($journeyNextVideo)
+                                    <a class="rounded-md border border-white/10 px-3 py-2 font-semibold text-slate-100 hover:border-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($journeyNextVideo->seo_title ?: $journeyNextVideo->title), 'id' => $journeyNextVideo->id, 'journey' => $journeyContext->slug]) }}">
+                                        {{ __('ui.video.journey.next') }}
+                                    </a>
+                                @endif
+                            </div>
+                        @else
+                            <p class="mt-2 text-sm text-slate-300">{{ __('ui.video.journey.part_of') }}</p>
+                            <div class="mt-3 flex flex-wrap gap-2 text-sm">
+                                @foreach ($video->journeys as $journey)
+                                    <a class="rounded-md border border-white/10 px-3 py-2 font-semibold text-slate-100 hover:border-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="{{ route('public.journeys.show', $journey->slug) }}">
+                                        {{ $journey->title }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                @endif
             </div>
 
             <aside class="space-y-6">

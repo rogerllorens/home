@@ -11,6 +11,7 @@ use App\Support\PublicCache;
 use App\Support\DeviceHash;
 use App\Enums\HomeIntent;
 use App\Services\Personalization\HomeFeedService;
+use App\Services\Journeys\JourneyRecommendationService;
 use App\Services\Videos\RecommendationsService;
 use App\Services\Videos\VideoScoreService;
 use Illuminate\Http\Request;
@@ -186,11 +187,13 @@ class HomeController extends Controller
         $recommendedVideos = collect();
         $personalizedSections = collect();
         $hasPersonalizedSections = false;
+        $journeySuggestions = collect();
         $deviceHash = DeviceHash::fromRequest($request);
         if ($deviceHash) {
             $personalization = app(HomeFeedService::class)->build($deviceHash, $intent);
             $personalizedSections = collect($personalization['sections'] ?? []);
             $hasPersonalizedSections = (bool) ($personalization['has_history'] ?? false);
+            $journeySuggestions = app(JourneyRecommendationService::class)->suggestForDevice($deviceHash, 3);
         }
 
         if ($deviceHash && !$hasPersonalizedSections) {
@@ -229,6 +232,7 @@ class HomeController extends Controller
             'hasPersonalizedSections' => $hasPersonalizedSections,
             'intent' => $intent?->value,
             'intentOptions' => $this->intentOptions(),
+            'journeySuggestions' => $journeySuggestions,
             'featuredCollections' => $payload['featuredCollections'] ?? collect(),
         ]);
 

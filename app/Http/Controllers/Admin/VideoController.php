@@ -63,7 +63,7 @@ class VideoController extends Controller
     public function show(Video $video): View
     {
         return view('admin.videos.show', [
-            'video' => $video->load('source', 'takedowns'),
+            'video' => $video->load('source', 'takedowns', 'journeys'),
         ]);
     }
 

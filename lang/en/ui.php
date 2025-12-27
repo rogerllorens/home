@@ -343,6 +343,13 @@ return [
         'shuffle_pick' => 'Shuffle pick',
         'featured_offer_single' => 'Featured offer',
         'more_content_context' => 'More content like this in :context.',
+        'journey' => [
+            'title' => 'Part of a journey',
+            'context' => 'Part of the “:journey” journey.',
+            'part_of' => 'This video appears in these journeys:',
+            'view' => 'View journey',
+            'next' => 'Next in journey',
+        ],
         'transparency' => [
             'title' => 'Transparency',
             'description' => 'Details about source, review status, and how this video was added.',
@@ -378,6 +385,16 @@ return [
         'recommended' => 'Recommended',
         'continue' => 'Continue',
         'partner_notice' => 'You will be redirected to our partner.',
+    ],
+    'journeys' => [
+        'label' => 'Journeys',
+        'recommended_title' => 'Guided journeys for you',
+        'recommended_subtitle' => 'Curated paths based on what you have been watching.',
+        'view' => 'View journey',
+        'start' => 'Start journey',
+        'play' => 'Play',
+        'videos_title' => 'Journey videos',
+        'videos_subtitle' => 'Follow the route in order for the best experience.',
     ],
     'empty' => [
         'no_videos' => 'No videos available right now.',
