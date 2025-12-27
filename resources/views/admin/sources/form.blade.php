@@ -63,16 +63,28 @@
                 />
             </div>
             <div class="flex items-end">
-                <label class="flex items-center gap-2 text-sm text-slate-300">
-                    <input
-                        type="checkbox"
-                        name="is_active"
-                        value="1"
-                        class="rounded border-white/10 bg-slate-950"
-                        @checked(old('is_active', $source->is_active ?? true))
-                    />
-                    Fuente activa
-                </label>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-2 text-sm text-slate-300">
+                        <input
+                            type="checkbox"
+                            name="is_active"
+                            value="1"
+                            class="rounded border-white/10 bg-slate-950"
+                            @checked(old('is_active', $source->is_active ?? true))
+                        />
+                        Fuente activa
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-slate-300">
+                        <input
+                            type="checkbox"
+                            name="is_verified"
+                            value="1"
+                            class="rounded border-white/10 bg-slate-950"
+                            @checked(old('is_verified', $source->is_verified ?? false))
+                        />
+                        Fuente verificada
+                    </label>
+                </div>
             </div>
         </div>
 

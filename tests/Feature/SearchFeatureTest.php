@@ -18,7 +18,7 @@ class SearchFeatureTest extends TestCase
             'seo_title' => 'Unique Search Title',
         ]);
 
-        $response = $this->get(route('public.search', ['q' => 'Unique Search']));
+        $response = $this->get(route('public.search', ['locale' => 'en', 'q' => 'Unique Search']));
 
         $response->assertOk();
         $response->assertSee($video->title);
@@ -26,9 +26,34 @@ class SearchFeatureTest extends TestCase
 
     public function test_search_returns_empty_state(): void
     {
-        $response = $this->get(route('public.search', ['q' => 'NoMatch']));
+        $response = $this->get(route('public.search', ['locale' => 'en', 'q' => 'NoMatch']));
 
         $response->assertOk();
-        $response->assertSee('No results found.');
+        $response->assertSee(trans('ui.search.no_results', [], 'en'));
+    }
+
+    public function test_search_filters_by_duration(): void
+    {
+        $short = Video::factory()->create([
+            'status' => VideoStatus::Published,
+            'seo_title' => 'Filter Short',
+            'duration_seconds' => 120,
+        ]);
+
+        $long = Video::factory()->create([
+            'status' => VideoStatus::Published,
+            'seo_title' => 'Filter Long',
+            'duration_seconds' => 1200,
+        ]);
+
+        $response = $this->get(route('public.search', [
+            'locale' => 'en',
+            'q' => 'Filter',
+            'duration' => 'short',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee($short->title);
+        $response->assertDontSee($long->title);
     }
 }

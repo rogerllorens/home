@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 
 class SitemapController extends Controller
@@ -41,7 +42,12 @@ class SitemapController extends Controller
             abort(404);
         }
 
-        return response(File::get($fullPath), 200, [
+        $cacheKey = 'sitemap:'.md5($path).':'.File::lastModified($fullPath);
+        $contents = Cache::remember($cacheKey, now()->addMinutes(30), function () use ($fullPath) {
+            return File::get($fullPath);
+        });
+
+        return response($contents, 200, [
             'Content-Type' => 'application/xml',
         ]);
     }

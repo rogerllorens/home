@@ -27,6 +27,7 @@
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.metrics.collections') }}">Metrics: collections</a>
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.metrics.landings') }}">Metrics: landings</a>
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.takedowns.index') }}">Takedowns</a>
+                <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.public-takedowns.index') }}">Takedowns públicos</a>
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.cta-clicks.index') }}">CTA clicks</a>
             </nav>
         </aside>

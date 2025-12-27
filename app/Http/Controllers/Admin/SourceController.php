@@ -96,6 +96,7 @@ class SourceController extends Controller
             'auth_header' => ['nullable', 'string', 'max:255'],
             'import_schedule_cron' => ['required', 'string', 'max:255'],
             'is_active' => ['nullable', 'boolean'],
+            'is_verified' => ['nullable', 'boolean'],
             'settings' => ['nullable', 'string'],
         ]);
     }

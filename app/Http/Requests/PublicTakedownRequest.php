@@ -13,8 +13,8 @@ class PublicTakedownRequest extends FormRequest
         return [
             'url' => ['required', 'url', 'max:500'],
             'email' => ['required', 'email', 'max:190'],
-            'requester_name' => ['nullable', 'string', 'max:120'],
-            'reason' => ['nullable', 'string', 'max:2000'],
+            'requester_name' => ['required', 'string', 'max:120'],
+            'reason' => ['required', 'string', 'max:2000'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'website' => ['nullable', 'size:0'],
             'captcha' => [

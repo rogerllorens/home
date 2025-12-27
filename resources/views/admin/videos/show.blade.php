@@ -9,12 +9,20 @@
                     <p class="mt-1 font-semibold">{{ $video->status->value }}</p>
                 </div>
                 <div>
+                    <p class="text-xs uppercase text-slate-400">Moderación</p>
+                    <p class="mt-1 font-semibold">{{ $video->moderation_status?->value ?? '-' }}</p>
+                </div>
+                <div>
                     <p class="text-xs uppercase text-slate-400">Source</p>
                     <p class="mt-1">{{ $video->source?->name ?? '-' }}</p>
                 </div>
                 <div>
                     <p class="text-xs uppercase text-slate-400">Category</p>
                     <p class="mt-1">{{ $video->category_slug ?? '-' }}</p>
+                </div>
+                <div>
+                    <p class="text-xs uppercase text-slate-400">Featured</p>
+                    <p class="mt-1">{{ $video->is_featured ? 'Sí' : 'No' }}</p>
                 </div>
                 <div>
                     <p class="text-xs uppercase text-slate-400">Embed OK</p>
@@ -30,6 +38,25 @@
         <div class="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
             <p class="text-xs uppercase text-slate-400">Acciones</p>
             <div class="mt-3 space-y-2">
+                <form method="POST" action="{{ route('admin.videos.approve', $video) }}">
+                    @csrf
+                    <button class="w-full rounded-lg bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-100" type="submit">Aprobar</button>
+                </form>
+                <form method="POST" action="{{ route('admin.videos.reject', $video) }}" onsubmit="return confirm('¿Rechazar video?');">
+                    @csrf
+                    <button class="w-full rounded-lg bg-rose-500/20 px-3 py-2 text-xs font-semibold text-rose-100" type="submit">Rechazar</button>
+                </form>
+                @if (!$video->is_featured)
+                    <form method="POST" action="{{ route('admin.videos.feature', $video) }}">
+                        @csrf
+                        <button class="w-full rounded-lg bg-indigo-500/20 px-3 py-2 text-xs font-semibold text-indigo-100" type="submit">Marcar destacado</button>
+                    </form>
+                @else
+                    <form method="POST" action="{{ route('admin.videos.unfeature', $video) }}">
+                        @csrf
+                        <button class="w-full rounded-lg bg-slate-500/20 px-3 py-2 text-xs font-semibold text-slate-100" type="submit">Quitar destacado</button>
+                    </form>
+                @endif
                 <form method="POST" action="{{ route('admin.videos.publish', $video) }}">
                     @csrf
                     <button class="w-full rounded-lg bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-100" type="submit">Publicar</button>
@@ -62,5 +89,33 @@
                 <p class="text-sm text-slate-400">No hay takedowns asociados.</p>
             @endforelse
         </div>
+    </div>
+
+    <div class="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
+        <h3 class="text-sm font-semibold">Transparencia</h3>
+        <form class="mt-3 space-y-3" method="POST" action="{{ route('admin.videos.transparency', $video) }}">
+            @csrf
+            <label class="flex items-center gap-2 text-sm text-slate-300">
+                <input
+                    type="checkbox"
+                    name="is_manual_upload"
+                    value="1"
+                    class="rounded border-white/10 bg-slate-950"
+                    @checked(old('is_manual_upload', $video->is_manual_upload))
+                />
+                Añadido manualmente
+            </label>
+            <label class="flex items-center gap-2 text-sm text-slate-300">
+                <input
+                    type="checkbox"
+                    name="has_takedown_contact"
+                    value="1"
+                    class="rounded border-white/10 bg-slate-950"
+                    @checked(old('has_takedown_contact', $video->has_takedown_contact))
+                />
+                Canal de takedown rápido disponible
+            </label>
+            <button class="rounded-lg bg-indigo-500 px-4 py-2 text-xs font-semibold text-white" type="submit">Guardar transparencia</button>
+        </form>
     </div>
 </x-layouts.admin>

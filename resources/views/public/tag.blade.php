@@ -1,8 +1,27 @@
 @php
     $titleMax = (int) config('candidboys.seo.title_max', 70);
     $descMax = (int) config('candidboys.seo.desc_max', 160);
-    $pageTitle = \Illuminate\Support\Str::limit($heading . ' | Candid Boys', $titleMax, '');
+    $brand = config('app.name', __('ui.brand'));
+    $pageTitle = \Illuminate\Support\Str::limit(__('ui.meta.title_with_brand', ['title' => $heading, 'brand' => $brand]), $titleMax, '');
     $pageDescription = \Illuminate\Support\Str::limit($description, $descMax, '');
+    $filters = [
+        'recent' => __('ui.filters.sort_recent'),
+        'popular' => __('ui.filters.sort_popular'),
+    ];
+    $durationFilters = [
+        'short' => __('ui.filters.duration_short_label'),
+        'medium' => __('ui.filters.duration_medium_label'),
+        'long' => __('ui.filters.duration_long_label'),
+    ];
+    $dateFilters = [
+        '24h' => __('ui.filters.date_24h_short'),
+        'week' => __('ui.filters.date_week_short'),
+        'month' => __('ui.filters.date_month_short'),
+        'all' => __('ui.filters.date_all_short'),
+    ];
+    $activeSort = $sort ?? 'recent';
+    $activeDuration = $duration ?? null;
+    $activeDate = $date ?? 'all';
 @endphp
 
 <x-layouts.public title="{{ $pageTitle }}">
@@ -44,15 +63,103 @@
     </section>
 
     <h2 class="mb-3 text-lg font-semibold text-white">{{ __('ui.tag.videos', ['tag' => $heading]) }}</h2>
+    <div class="mb-4 space-y-2">
+        <div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-slate-300" role="group" aria-label="{{ __('ui.filters.sort_results_label') }}">
+            <span class="pr-2 font-semibold text-slate-200">{{ __('ui.filters.sort_results_label') }}</span>
+            @foreach ($filters as $key => $label)
+                <a
+                    class="rounded-full px-3 py-1 text-[12px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 {{ $activeSort === $key ? 'bg-red-600 text-white' : 'bg-white/5 text-slate-200 hover:bg-white/10' }}"
+                    href="{{ route('public.tag', array_merge(request()->query(), ['tag_slug' => $tagSlug, 'sort' => $key])) }}"
+                    data-track-event="filter.apply"
+                    data-track-filter="sort"
+                    data-track-value="{{ $key }}"
+                    data-track-context="tag"
+                >
+                    {{ $label }}
+                </a>
+            @endforeach
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-slate-300" role="group" aria-label="{{ __('ui.filters.duration_results_label') }}">
+            <span class="pr-2 font-semibold text-slate-200">{{ __('ui.filters.duration_results_label') }}</span>
+            @foreach ($durationFilters as $key => $label)
+                <a
+                    class="rounded-full px-3 py-1 text-[12px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 {{ $activeDuration === $key ? 'bg-red-600 text-white' : 'bg-white/5 text-slate-200 hover:bg-white/10' }}"
+                    href="{{ route('public.tag', array_merge(request()->query(), ['tag_slug' => $tagSlug, 'duration' => $key])) }}"
+                    data-track-event="filter.apply"
+                    data-track-filter="duration"
+                    data-track-value="{{ $key }}"
+                    data-track-context="tag"
+                >
+                    {{ $label }}
+                </a>
+            @endforeach
+            @if ($activeDuration)
+                <a
+                    class="rounded-full px-3 py-1 text-[12px] font-semibold text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                    href="{{ route('public.tag', array_merge(request()->query(), ['tag_slug' => $tagSlug, 'duration' => null])) }}"
+                >
+                    {{ __('ui.filters.clear') }}
+                </a>
+            @endif
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-slate-300" role="group" aria-label="{{ __('ui.filters.date_results_label') }}">
+            <span class="pr-2 font-semibold text-slate-200">{{ __('ui.filters.date_results_label') }}</span>
+            @foreach ($dateFilters as $key => $label)
+                <a
+                    class="rounded-full px-3 py-1 text-[12px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 {{ $activeDate === $key ? 'bg-red-600 text-white' : 'bg-white/5 text-slate-200 hover:bg-white/10' }}"
+                    href="{{ route('public.tag', array_merge(request()->query(), ['tag_slug' => $tagSlug, 'date' => $key])) }}"
+                    data-track-event="filter.apply"
+                    data-track-filter="date"
+                    data-track-value="{{ $key }}"
+                    data-track-context="tag"
+                >
+                    {{ $label }}
+                </a>
+            @endforeach
+        </div>
+    </div>
     <x-video-grid>
         @forelse ($videos as $video)
             <x-video-card :video="$video" />
         @empty
-            <p class="text-sm text-slate-400">No videos for this tag.</p>
+            <p class="text-sm text-slate-400">{{ __('ui.tag.no_videos') }}</p>
         @endforelse
     </x-video-grid>
 
     <div class="mt-6 rounded-md border border-white/10 bg-white/5 px-4 py-3">
         {{ $videos->links() }}
     </div>
+
+    @php
+        $tagParagraphs = (array) __('seo.tag.paragraphs', [
+            'tag' => $heading,
+            'description' => $description,
+        ]);
+        $tagFaqs = (array) __('seo.tag.faq', [
+            'tag' => $heading,
+            'description' => $description,
+        ]);
+    @endphp
+
+    <section class="mt-8 rounded-2xl border border-white/10 bg-slate-900/60 px-6 py-6 text-sm text-slate-300">
+        <h2 class="text-lg font-semibold text-white">{{ __('seo.tag.heading', ['tag' => $heading]) }}</h2>
+        <div class="mt-3 space-y-3">
+            @foreach ($tagParagraphs as $paragraph)
+                <p>{{ $paragraph }}</p>
+            @endforeach
+        </div>
+        @if (!empty($tagFaqs))
+            <div class="mt-6 space-y-3">
+                <h3 class="text-base font-semibold text-white">{{ __('seo.tag.faq_heading') }}</h3>
+                <div class="space-y-3">
+                    @foreach ($tagFaqs as $faq)
+                        <div>
+                            <p class="font-semibold text-slate-100">{{ $faq['question'] ?? '' }}</p>
+                            <p>{{ $faq['answer'] ?? '' }}</p>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    </section>
 </x-layouts.public>

@@ -1,7 +1,8 @@
 @php
     $titleMax = (int) config('candidboys.seo.title_max', 70);
     $descMax = (int) config('candidboys.seo.desc_max', 160);
-    $pageTitle = \Illuminate\Support\Str::limit("{$landing->title} | Candid Boys", $titleMax, '');
+    $brand = config('app.name', __('ui.brand'));
+    $pageTitle = \Illuminate\Support\Str::limit(__('ui.meta.title_with_brand', ['title' => $landing->title, 'brand' => $brand]), $titleMax, '');
     $pageDescription = \Illuminate\Support\Str::limit($landing->description, $descMax, '');
 @endphp
 
@@ -40,11 +41,11 @@
         <section class="mb-8 rounded-xl border border-white/10 bg-white/5 p-5">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Collection</p>
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{{ __('ui.discover.collection_label') }}</p>
                     <h2 class="text-lg font-semibold text-white">{{ $landing->collection->name }}</h2>
                 </div>
                 <a class="rounded-md border border-red-500/60 px-4 py-2 text-sm font-semibold text-red-100 hover:border-red-400" href="{{ route('public.collections.show', $landing->collection->slug) }}">
-                    View full collection
+                    {{ __('ui.links.view_full_collection') }}
                 </a>
             </div>
             <p class="mt-3 text-sm text-slate-300">{{ $landing->collection->description }}</p>

@@ -1,6 +1,8 @@
 @php
-    $pageTitle = ($collection->name ?? 'Collection') . ' | Candid Boys';
-    $pageDescription = $collection->description ?: "Curated collection of videos about {$collection->name}.";
+    $brand = config('app.name', __('ui.brand'));
+    $collectionName = $collection->name ?? __('ui.meta.collection_title_fallback');
+    $pageTitle = __('ui.meta.title_with_brand', ['title' => $collectionName, 'brand' => $brand]);
+    $pageDescription = $collection->description ?: __('ui.meta.collection_description_fallback', ['collection' => $collectionName]);
 @endphp
 
 <x-layouts.public title="{{ $pageTitle }}">
@@ -38,7 +40,7 @@
         @forelse ($videos as $video)
             <x-video-card :video="$video" />
         @empty
-            <p class="text-sm text-slate-400">No videos in this collection.</p>
+            <p class="text-sm text-slate-400">{{ __('ui.empty.no_videos_collection') }}</p>
         @endforelse
     </x-video-grid>
 </x-layouts.public>
