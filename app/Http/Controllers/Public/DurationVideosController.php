@@ -9,7 +9,7 @@ use Illuminate\View\View;
 
 class DurationVideosController extends Controller
 {
-    public function global(string $range): View
+    public function global(string $locale, string $range): View
     {
         $config = $this->durationConfig($range);
         $videos = $this->queryByDuration($config['min'], $config['max']);
@@ -21,7 +21,7 @@ class DurationVideosController extends Controller
         ]);
     }
 
-    public function category(string $categorySlug, string $range): View
+    public function category(string $locale, string $categorySlug, string $range): View
     {
         if (!in_array($categorySlug, config('candidboys.categories_controlled', []), true)) {
             abort(404);

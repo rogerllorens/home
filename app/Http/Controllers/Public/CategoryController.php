@@ -6,14 +6,27 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\CategoryPageview;
 use App\Models\Video;
+use App\Services\Seo\SeoMetaVariantService;
+use App\Services\Seo\SeoPageTracker;
+use App\Services\Seo\TopicClusterMatcher;
+use App\Services\Seo\InternalLinkingService;
 use App\Support\PublicCache;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class CategoryController extends Controller
 {
-    public function __invoke(string $categorySlug): View
+    public function __invoke(
+        string $locale,
+        string $categorySlug,
+        TopicClusterMatcher $clusterMatcher,
+        SeoPageTracker $pageTracker,
+        SeoMetaVariantService $metaVariants,
+        InternalLinkingService $internalLinking,
+        Request $request
+    ): View
     {
         $page = (int) request()->query('page', 1);
         $cacheKey = PublicCache::key("category:{$categorySlug}:page:{$page}");
@@ -61,9 +74,25 @@ class CategoryController extends Controller
             return compact('videos', 'heading', 'description');
         });
 
+        $defaultTitle = Str::limit($payload['heading'] . ' | Candid Boys', (int) config('candidboys.seo.title_max', 70), '');
+        $defaultDescription = Str::limit($payload['description'], (int) config('candidboys.seo.desc_max', 160), '');
+        $meta = $metaVariants->select('category', $category?->id, $defaultTitle, $defaultDescription, $request);
+
+        if ($category) {
+            $pageTracker->track('category', $category->id, $request);
+        }
+
+        $linkedDescription = $internalLinking->linkify($payload['description'], [
+            'category' => $categorySlug,
+        ]);
+
         return view('public.category', [
             ...$payload,
             'categorySlug' => $categorySlug,
+            'cluster' => $clusterMatcher->forCategory($categorySlug),
+            'pageTitle' => $meta['title'],
+            'pageDescription' => $meta['description'],
+            'linkedDescription' => $linkedDescription,
         ]);
     }
 }

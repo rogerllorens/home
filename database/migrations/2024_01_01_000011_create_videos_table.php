@@ -16,13 +16,14 @@ return new class extends Migration
             $table->string('external_id');
             $table->string('title');
             $table->text('description')->nullable();
-            $table->string('embed_url')->unique();
+            $table->string('embed_url')->nullable()->unique();
             $table->text('embed_html')->nullable();
             $table->string('status')->default(VideoStatus::Draft->value);
             $table->text('raw_tags')->nullable();
             $table->text('seo_tags')->nullable();
             $table->string('language', 5)->default('es');
             $table->unsignedSmallInteger('embed_failures')->default(0);
+            $table->unsignedBigInteger('views_total')->default(0);
             $table->timestamp('published_at')->nullable();
             $table->timestamp('ai_checked_at')->nullable();
             $table->unsignedSmallInteger('ai_quality')->nullable();

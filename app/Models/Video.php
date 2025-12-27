@@ -38,6 +38,7 @@ class Video extends Model
         'seo_tags',
         'language',
         'embed_failures',
+        'views_total',
         'embed_ok',
         'duplicate_count',
         'source_url',
@@ -57,6 +58,7 @@ class Video extends Model
         'embed_ok' => 'boolean',
         'duration_seconds' => 'integer',
         'duplicate_count' => 'integer',
+        'views_total' => 'integer',
         'published_at' => 'datetime',
         'ai_checked_at' => 'datetime',
         'embed_checked_at' => 'datetime',
@@ -88,6 +90,12 @@ class Video extends Model
     public function categories(): BelongsToMany
     {
         return $this->belongsToMany(Category::class, 'category_video')
+            ->withTimestamps();
+    }
+
+    public function entities(): BelongsToMany
+    {
+        return $this->belongsToMany(Entity::class, 'entity_video')
             ->withTimestamps();
     }
 
@@ -158,12 +166,7 @@ class Video extends Model
 
     public function getEmbedLastCheckedAtAttribute(): ?\Illuminate\Support\Carbon
     {
-        return $this->embed_checked_at;
-    }
-
-    public function getEmbedLastOkAtAttribute(): ?\Illuminate\Support\Carbon
-    {
-        return $this->embed_last_ok_at;
+        return $this->getAttribute('embed_checked_at');
     }
 
     public function getDisplayViewsAttribute(): ?int

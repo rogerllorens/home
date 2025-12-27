@@ -13,6 +13,9 @@ class CtaResolver
         $ctaConfig = config('candidboys.monetization');
         $sourceOverrides = $video->source?->settings['partner_links'] ?? [];
         $partnerLinks = array_replace_recursive($ctaConfig['partner_links'] ?? [], $sourceOverrides);
+        $labelLocks = collect(self::CTA_KEYS)
+            ->mapWithKeys(fn ($key) => [$key => !empty($sourceOverrides[$key]['label'])])
+            ->all();
         $ctaTemplate = $ctaConfig['cta_templates'][$video->category_slug] ?? $ctaConfig['cta_templates']['default'] ?? '';
 
         return [
@@ -21,18 +24,21 @@ class CtaResolver
                 'label' => $partnerLinks['cams']['label'] ?? 'Watch live',
                 'url' => $partnerLinks['cams']['url'] ?? null,
                 'description' => $partnerLinks['cams']['template'] ?? $ctaTemplate,
+                'label_locked' => $labelLocks['cams'] ?? false,
             ],
             'membership' => [
                 'title' => 'Membresía',
                 'label' => $partnerLinks['membership']['label'] ?? 'Watch full scene',
                 'url' => $partnerLinks['membership']['url'] ?? null,
                 'description' => $partnerLinks['membership']['template'] ?? $ctaTemplate,
+                'label_locked' => $labelLocks['membership'] ?? false,
             ],
             'dating' => [
                 'title' => 'Dating',
                 'label' => $partnerLinks['dating']['label'] ?? 'Meet guys',
                 'url' => $partnerLinks['dating']['url'] ?? null,
                 'description' => $partnerLinks['dating']['template'] ?? $ctaTemplate,
+                'label_locked' => $labelLocks['dating'] ?? false,
             ],
         ];
     }
@@ -77,15 +83,24 @@ class CtaResolver
         $variants = config('cta.variants', []);
         $copy = $variants[$ctaKey][$variant] ?? null;
 
+        $labelLocked = (bool) ($cta['label_locked'] ?? false);
+        unset($cta['label_locked']);
+
         if (!$copy) {
             return $cta;
         }
 
-        return array_merge($cta, array_filter([
+        $overrides = array_filter([
             'title' => $copy['title'] ?? null,
             'label' => $copy['label'] ?? null,
             'description' => $copy['description'] ?? null,
-        ]));
+        ]);
+
+        if ($labelLocked) {
+            unset($overrides['label']);
+        }
+
+        return array_merge($cta, $overrides);
     }
 
     public function destination(Video $video, string $ctaKey): ?string

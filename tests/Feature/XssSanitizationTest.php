@@ -28,7 +28,7 @@ class XssSanitizationTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertDontSee('<script', false);
+        $response->assertDontSee('alert(1)', false);
         $response->assertDontSee('onerror=', false);
     }
 }

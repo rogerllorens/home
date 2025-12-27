@@ -22,12 +22,16 @@ use App\Http\Controllers\Public\ArticlesController;
 use App\Http\Controllers\Public\CollectionController;
 use App\Http\Controllers\Public\CtaLandingController;
 use App\Http\Controllers\Public\DurationVideosController;
+use App\Http\Controllers\Public\ContentMapController;
 use App\Http\Controllers\Public\DiscoverController;
+use App\Http\Controllers\Public\EntityController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\ReelsController;
 use App\Http\Controllers\Public\SearchController;
+use App\Http\Controllers\Public\SeoLandingController;
 use App\Http\Controllers\Public\SitemapController;
 use App\Http\Controllers\Public\TagController;
+use App\Http\Controllers\Public\TopicClusterController;
 use App\Http\Controllers\Public\TopVideosController;
 use App\Http\Controllers\Public\TaxonomyController;
 use App\Http\Controllers\Public\TakedownRequestController;
@@ -58,6 +62,7 @@ Route::prefix('{locale}')
         Route::get('/top/this-month', [TopVideosController::class, 'global'])->defaults('period', 'this-month')->name('public.top.month');
         Route::get('/top/{categorySlug}/this-week', [TopVideosController::class, 'category'])->defaults('period', 'this-week')->name('public.top.category.week');
         Route::get('/top/{categorySlug}/this-month', [TopVideosController::class, 'category'])->defaults('period', 'this-month')->name('public.top.category.month');
+        Route::get('/top/{category}/{duration}/{timeframe}', [SeoLandingController::class, 'top'])->name('public.seo.top');
         Route::get('/short-videos', [DurationVideosController::class, 'global'])->defaults('range', 'short')->name('public.short');
         Route::get('/long-videos', [DurationVideosController::class, 'global'])->defaults('range', 'long')->name('public.long');
         Route::get('/categories/{categorySlug}/short', [DurationVideosController::class, 'category'])->defaults('range', 'short')->name('public.category.short');
@@ -73,6 +78,9 @@ Route::prefix('{locale}')
         Route::get('/categories', [TaxonomyController::class, 'categories'])->name('public.categories');
         Route::get('/tags', [TaxonomyController::class, 'tags'])->name('public.tags');
         Route::get('/discover/{slug}', DiscoverController::class)->name('public.discover');
+        Route::get('/themes/{slug}', [TopicClusterController::class, 'show'])->name('public.theme');
+        Route::get('/map', [ContentMapController::class, 'show'])->name('public.map');
+        Route::get('/e/{slug}', [EntityController::class, 'show'])->name('public.entity');
         Route::get('/health', [ObservabilityController::class, 'health'])->name('public.health');
         Route::get('/metrics', [ObservabilityController::class, 'metrics'])->name('public.metrics');
         Route::get('/v/{slug}-{id}', PublicVideoController::class)
@@ -101,6 +109,9 @@ Route::get('/sitemaps/videos-{file}', [SitemapController::class, 'videos'])->whe
 Route::get('/sitemaps/categories-{file}', [SitemapController::class, 'categories'])->where('file', '.*\\.xml')->name('public.sitemap.categories');
 Route::get('/sitemaps/tags-{file}', [SitemapController::class, 'tags'])->where('file', '.*\\.xml')->name('public.sitemap.tags');
 Route::get('/sitemaps/discover-{file}', [SitemapController::class, 'discover'])->where('file', '.*\\.xml')->name('public.sitemap.discover');
+Route::get('/sitemaps/seo-landings-{file}', [SitemapController::class, 'seoLandings'])->where('file', '.*\\.xml')->name('public.sitemap.seo-landings');
+Route::get('/sitemaps/themes-{file}', [SitemapController::class, 'themes'])->where('file', '.*\\.xml')->name('public.sitemap.themes');
+Route::get('/api/content-map', [ContentMapController::class, 'data'])->name('public.content-map');
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('login', [AuthController::class, 'showLogin'])->name('login');
@@ -154,5 +165,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('metrics/categories', [CategoryMetricsController::class, 'index'])->name('metrics.categories');
         Route::get('metrics/collections', [CollectionMetricsController::class, 'index'])->name('metrics.collections');
         Route::get('metrics/landings', [LandingMetricsListController::class, 'index'])->name('metrics.landings');
+        Route::get('seo-opportunities', [\App\Http\Controllers\Admin\SeoOpportunitiesController::class, 'index'])->name('seo-opportunities.index');
+        Route::post('seo-opportunities/{normalizedQuery}/mark', [\App\Http\Controllers\Admin\SeoOpportunitiesController::class, 'mark'])->name('seo-opportunities.mark');
+        Route::post('seo-opportunities/{normalizedQuery}/landing', [\App\Http\Controllers\Admin\SeoOpportunitiesController::class, 'createLanding'])->name('seo-opportunities.create-landing');
+        Route::post('seo-opportunities/{normalizedQuery}/tag-landing', [\App\Http\Controllers\Admin\SeoOpportunitiesController::class, 'createTagLanding'])->name('seo-opportunities.create-tag');
+        Route::post('seo-opportunities/{normalizedQuery}/cluster', [\App\Http\Controllers\Admin\SeoOpportunitiesController::class, 'createCluster'])->name('seo-opportunities.create-cluster');
+        Route::get('seo-decay', [\App\Http\Controllers\Admin\SeoDecayController::class, 'index'])->name('seo-decay.index');
+        Route::post('seo-decay/{metric}/refresh', [\App\Http\Controllers\Admin\SeoDecayController::class, 'refresh'])->name('seo-decay.refresh');
+        Route::get('seo-meta-variants', [\App\Http\Controllers\Admin\SeoMetaVariantsController::class, 'index'])->name('seo-meta-variants.index');
+        Route::post('seo-meta-variants/{variant}/winner', [\App\Http\Controllers\Admin\SeoMetaVariantsController::class, 'markWinner'])->name('seo-meta-variants.winner');
+        Route::get('seo-health', [\App\Http\Controllers\Admin\SeoHealthController::class, 'index'])->name('seo-health.index');
+        Route::post('seo-health/{issue}/resolve', [\App\Http\Controllers\Admin\SeoHealthController::class, 'markResolved'])->name('seo-health.resolve');
     });
 });

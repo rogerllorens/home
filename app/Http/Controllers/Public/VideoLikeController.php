@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 
 class VideoLikeController extends Controller
 {
-    public function __invoke(Request $request, Video $video): JsonResponse
+    public function __invoke(Request $request, string $locale, Video $video): JsonResponse
     {
         $deviceHash = DeviceHash::ensure($request);
 

@@ -32,6 +32,40 @@ class HomePageTest extends TestCase
         $response->assertSee($latest->title);
     }
 
+    public function test_home_page_with_history_shows_continue_and_favorites(): void
+    {
+        \Illuminate\Support\Facades\Cache::flush();
+
+        $deviceHash = 'device-test';
+
+        $continue = Video::factory()->create([
+            'status' => VideoStatus::Published,
+        ]);
+
+        $favorite = Video::factory()->create([
+            'status' => VideoStatus::Published,
+        ]);
+
+        \App\Models\VideoView::create([
+            'video_id' => $continue->id,
+            'device_hash' => $deviceHash,
+            'viewed_at' => now(),
+        ]);
+
+        \App\Models\VideoLike::create([
+            'video_id' => $favorite->id,
+            'device_hash' => $deviceHash,
+            'created_at' => now(),
+        ]);
+
+        $response = $this->withCookie(\App\Support\DeviceHash::cookieName(), $deviceHash)
+            ->get(route('public.home'));
+
+        $response->assertOk();
+        $response->assertSee('Continue watching');
+        $response->assertSee('From your favorites');
+    }
+
     public function test_home_page_empty_state(): void
     {
         \Illuminate\Support\Facades\Cache::flush();

@@ -9,7 +9,7 @@ use Illuminate\View\View;
 
 class TopVideosController extends Controller
 {
-    public function global(string $period, VideoScoreService $scorer): View
+    public function global(string $locale, string $period, VideoScoreService $scorer): View
     {
         $periodDays = $this->periodDays($period);
         $videos = $scorer->getTrending($periodDays, 48);
@@ -21,7 +21,7 @@ class TopVideosController extends Controller
         ]);
     }
 
-    public function category(string $categorySlug, string $period, VideoScoreService $scorer): View
+    public function category(string $locale, string $categorySlug, string $period, VideoScoreService $scorer): View
     {
         if (!in_array($categorySlug, config('candidboys.categories_controlled', []), true)) {
             abort(404);

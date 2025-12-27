@@ -40,6 +40,20 @@
     $ctaContext = $video->category_slug
         ? \Illuminate\Support\Str::headline($video->category_slug)
         : ($tags[0] ?? null);
+    $breadcrumbs = array_values(array_filter([
+        [
+            'name' => 'Home',
+            'item' => url('/'),
+        ],
+        $video->category_slug ? [
+            'name' => \Illuminate\Support\Str::headline($video->category_slug),
+            'item' => route('public.category', $video->category_slug),
+        ] : null,
+        [
+            'name' => $video->seo_title ?: $video->title,
+            'item' => route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]),
+        ],
+    ]));
 @endphp
 
 <x-layouts.public title="{{ $pageTitle }}">
@@ -51,52 +65,8 @@
             robots="{{ $robots }}"
             og-image="{{ $thumbnail }}"
         />
-        <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
-            {!! json_encode(array_filter([
-                '@context' => 'https://schema.org',
-                '@type' => 'BreadcrumbList',
-                'itemListElement' => array_values(array_filter([
-                    [
-                        '@type' => 'ListItem',
-                        'position' => 1,
-                        'name' => 'Home',
-                        'item' => url('/'),
-                    ],
-                    $video->category_slug ? [
-                        '@type' => 'ListItem',
-                        'position' => 2,
-                        'name' => \Illuminate\Support\Str::headline($video->category_slug),
-                        'item' => route('public.category', $video->category_slug),
-                    ] : null,
-                    [
-                        '@type' => 'ListItem',
-                        'position' => $video->category_slug ? 3 : 2,
-                        'name' => $video->seo_title ?: $video->title,
-                        'item' => route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]),
-                    ],
-                ])),
-            ]), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
-        </script>
-        <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
-            {!! json_encode(array_filter([
-                '@context' => 'https://schema.org',
-                '@type' => 'VideoObject',
-                'name' => $video->seo_title ?: $video->title,
-                'description' => $video->seo_description ?: strip_tags($video->description ?? ''),
-                'thumbnailUrl' => [$thumbnail],
-                'datePublished' => optional($video->published_at)->toIso8601String(),
-                'uploadDate' => optional($video->published_at)->toIso8601String(),
-                'duration' => $durationIso,
-                'embedUrl' => $video->embed_url ?: null,
-                'url' => route('public.video', ['slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title), 'id' => $video->id]),
-                'interactionCount' => $viewsTotal ? "UserInteractions:{$viewsTotal}" : null,
-                'interactionStatistic' => $viewsTotal ? [
-                    '@type' => 'InteractionCounter',
-                    'interactionType' => 'https://schema.org/WatchAction',
-                    'userInteractionCount' => $viewsTotal,
-                ] : null,
-            ]), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
-        </script>
+        <x-schema.breadcrumbs :items="$breadcrumbs" />
+        <x-schema.video :video="$video" />
     @endpush
 
     <section class="grid gap-8 lg:grid-cols-3 {{ $ctas ? 'pb-24 lg:pb-0' : '' }}">
@@ -119,10 +89,11 @@
                         class="rounded-md bg-white/5 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                         type="button"
                         data-copy-url="{{ request()->fullUrl() }}"
+                        aria-label="Copy video link"
                     >
                         Copy link
                     </button>
-                    <a class="rounded-md bg-white/5 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="mailto:?subject={{ urlencode($video->title) }}&body={{ urlencode(request()->fullUrl()) }}">
+                    <a class="rounded-md bg-white/5 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="mailto:?subject={{ urlencode($video->title) }}&body={{ urlencode(request()->fullUrl()) }}" aria-label="Share video via email">
                         Share by email
                     </a>
                 </div>
@@ -157,9 +128,28 @@
                     @endif
                 </div>
 
-                <div class="space-y-2">
+                <div class="rounded-xl border border-white/10 bg-white/5 p-4">
                     <h1 class="text-3xl font-semibold text-white leading-tight md:text-4xl">{{ $video->title }}</h1>
-                    <div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+                    <p class="mt-2 text-sm text-slate-300">Reproduce este video con claridad total y sigue explorando contenido relacionado.</p>
+                    <div class="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2">
+                        <div class="rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2">
+                            <p class="text-[11px] uppercase tracking-wide text-slate-500">Views</p>
+                            <p class="mt-1 text-sm font-semibold text-white">{{ $formattedViews ?? '—' }}</p>
+                        </div>
+                        <div class="rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2">
+                            <p class="text-[11px] uppercase tracking-wide text-slate-500">Duration</p>
+                            <p class="mt-1 text-sm font-semibold text-white">{{ $durationLabel ?? '-' }}</p>
+                        </div>
+                        <div class="rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2">
+                            <p class="text-[11px] uppercase tracking-wide text-slate-500">Published</p>
+                            <p class="mt-1 text-sm font-semibold text-white">{{ $video->published_at?->format('d/m/Y') ?? '-' }}</p>
+                        </div>
+                        <div class="rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2">
+                            <p class="text-[11px] uppercase tracking-wide text-slate-500">Quality</p>
+                            <p class="mt-1 text-sm font-semibold text-white">{{ $video->quality_score ?? '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
                         @if ($durationLabel)
                             <span class="rounded bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white">{{ $durationLabel }}</span>
                         @endif
@@ -177,7 +167,6 @@
                         @if ($timeAgo)
                             <span>• {{ $timeAgo }}</span>
                         @endif
-                        <span>• {{ $video->published_at?->format('M d, Y') ?? '-' }}</span>
                         @if ($video->category_slug)
                             <span>• {{ \Illuminate\Support\Str::headline($video->category_slug) }}</span>
                         @endif
@@ -200,6 +189,11 @@
                         <span data-like-count>{{ $video->display_likes ?? 0 }}</span>
                         <span class="text-[11px] uppercase tracking-wide">{{ __('ui.buttons.like') }}</span>
                     </button>
+                    @if ($nextVideo)
+                        <a class="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-red-600/30 hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($nextVideo->seo_title ?: $nextVideo->title), 'id' => $nextVideo->id]) }}">
+                            Siguiente recomendado
+                        </a>
+                    @endif
                 </div>
 
                 @if ($ctas)
@@ -243,17 +237,20 @@
                             <span class="text-slate-400">No tags yet.</span>
                         @endif
                     </div>
+                    @if (!empty($cluster))
+                        <div class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                            Ver más vídeos del tema
+                            <a class="font-semibold text-white hover:text-emerald-200" href="{{ route('public.theme', $cluster->slug) }}">
+                                {{ $cluster->name }}
+                            </a>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="flex flex-wrap items-center gap-3 text-sm">
                     @if ($video->category_slug)
                         <a class="rounded-md bg-white/5 px-3 py-2 font-semibold text-slate-100 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="{{ route('public.category', $video->category_slug) }}">
                             Back to {{ \Illuminate\Support\Str::headline($video->category_slug) }}
-                        </a>
-                    @endif
-                    @if ($nextVideo)
-                        <a class="rounded-md border border-red-500/60 px-3 py-2 font-semibold text-red-100 hover:border-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="{{ route('public.video', ['slug' => \Illuminate\Support\Str::slug($nextVideo->seo_title ?: $nextVideo->title), 'id' => $nextVideo->id]) }}" data-autoplay-next>
-                            {{ __('ui.buttons.play_next') }}
                         </a>
                     @endif
                     @if ($categoryShuffle)
@@ -277,6 +274,9 @@
                     <p>Status: {{ $video->status->value }}</p>
                     <p>Category: {{ $video->category_slug ? \Illuminate\Support\Str::headline($video->category_slug) : 'N/A' }}</p>
                     <p>Published: {{ $video->published_at?->format('d/m/Y') ?? '-' }}</p>
+                    @if ($video->source?->name)
+                        <p>Source: {{ $video->source->name }}</p>
+                    @endif
                 </div>
             </div>
             @if ($ctas)
@@ -297,43 +297,61 @@
         </aside>
     </section>
 
-    <section class="mt-10">
-        <div class="mb-3 flex items-center justify-between">
+    <section class="mt-10 space-y-8">
+        @if ($categoryVideos->isNotEmpty())
             <div>
-                <h2 class="text-lg font-semibold text-white">More like this</h2>
-                <p class="mt-1 text-sm text-slate-400">Sugerencias similares para seguir viendo sin interrupciones.</p>
-            </div>
-        </div>
-        @if ($ctas)
-            <div class="mb-6 rounded-md border border-white/10 bg-white/5 p-4">
-                <p class="text-sm font-semibold text-white">More options for you</p>
-                <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                    @foreach ($ctas as $cta)
-                        <a class="rounded-md border border-red-500/50 px-3 py-2 text-sm text-red-100 hover:border-red-400" href="{{ $cta['track_url'] }}" target="_blank" rel="sponsored noopener">
-                            {{ $cta['label'] }}
-                        </a>
-                    @endforeach
-                </div>
-            </div>
-        @endif
-        @if ($related->isNotEmpty())
-            <div class="flex gap-4 overflow-x-auto pb-2 sm:hidden">
-                @foreach ($related as $item)
-                            <div class="min-w-[220px] max-w-[220px]">
-                                <x-video-card :video="$item" />
-                            </div>
-                        @endforeach
+                <div class="mb-3 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-white">Más de esta categoría</h2>
+                        <p class="mt-1 text-sm text-slate-400">Explora más contenido dentro de la categoría.</p>
                     </div>
-            <div class="hidden sm:block">
+                </div>
                 <x-video-grid>
-                    @foreach ($related as $item)
+                    @foreach ($categoryVideos as $item)
                         <x-video-card :video="$item" />
                     @endforeach
                 </x-video-grid>
             </div>
-        @else
-            <p class="text-sm text-slate-400">Sin relacionados.</p>
         @endif
+
+        <div>
+            <div class="mb-3 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-white">Basado en lo que has visto</h2>
+                    <p class="mt-1 text-sm text-slate-400">Recomendaciones para seguir viendo sin interrupciones.</p>
+                </div>
+            </div>
+            @if ($ctas)
+                <div class="mb-6 rounded-md border border-white/10 bg-white/5 p-4">
+                    <p class="text-sm font-semibold text-white">More options for you</p>
+                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                        @foreach ($ctas as $cta)
+                            <a class="rounded-md border border-red-500/50 px-3 py-2 text-sm text-red-100 hover:border-red-400" href="{{ $cta['track_url'] }}" target="_blank" rel="sponsored noopener">
+                                {{ $cta['label'] }}
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+            @if ($related->isNotEmpty())
+                <div class="flex gap-4 overflow-x-auto pb-2 sm:hidden">
+                    @foreach ($related as $item)
+                        <div class="min-w-[220px] max-w-[220px]">
+                            <x-video-card :video="$item" />
+                        </div>
+                    @endforeach
+                </div>
+                <div class="hidden sm:block">
+                    <x-video-grid>
+                        @foreach ($related as $item)
+                            <x-video-card :video="$item" />
+                        @endforeach
+                    </x-video-grid>
+                </div>
+            @else
+                <p class="text-sm text-slate-400">Sin relacionados.</p>
+            @endif
+        </div>
     </section>
 
     @if ($ctas)

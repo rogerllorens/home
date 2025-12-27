@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Collection;
 use App\Models\Video;
+use App\Models\VideoLike;
 use App\Models\VideoView;
 use App\Enums\VideoStatus;
 use App\Support\PublicCache;
 use App\Support\DeviceHash;
 use App\Services\Videos\RecommendationsService;
 use App\Services\Videos\VideoScoreService;
+use App\Services\Seo\InternalLinkingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -117,6 +119,7 @@ class HomeController extends Controller
 
         $continueWatching = collect();
         $recommendedVideos = collect();
+        $favoriteVideos = collect();
         $deviceHash = DeviceHash::fromRequest($request);
         if ($deviceHash) {
             $continueLimit = (int) config('videos.continue_watching_limit', 10);
@@ -139,7 +142,27 @@ class HomeController extends Controller
 
             $recommendations = app(RecommendationsService::class);
             $recommendedVideos = $recommendations->recommended($deviceHash);
+
+            $favoriteIds = VideoLike::query()
+                ->where('device_hash', $deviceHash)
+                ->latest('created_at')
+                ->limit(12)
+                ->pluck('video_id')
+                ->unique()
+                ->values()
+                ->all();
+
+            if (!empty($favoriteIds)) {
+                $favoriteVideos = Video::published()
+                    ->whereIn('id', $favoriteIds)
+                    ->get()
+                    ->sortBy(fn ($video) => array_search($video->id, $favoriteIds, true))
+                    ->values();
+            }
         }
+
+        $heroIntro = __('ui.home.hero_intro', [], app()->getLocale()) ?? '';
+        $linkedHeroIntro = app(InternalLinkingService::class)->linkify($heroIntro);
 
         return view('public.home', [
             ...$payload,
@@ -147,7 +170,9 @@ class HomeController extends Controller
             'duration' => $durationFilter,
             'continueWatching' => $continueWatching,
             'recommendedVideos' => $recommendedVideos,
+            'favoriteVideos' => $favoriteVideos,
             'featuredCollections' => $payload['featuredCollections'] ?? collect(),
+            'linkedHeroIntro' => $linkedHeroIntro,
         ]);
     }
 }

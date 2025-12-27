@@ -30,8 +30,9 @@ class RecommendationsService
         $profile = $this->profileFromIds($viewedVideoIds);
         $categories = $profile['categories'];
         $tags = $profile['tags'];
+        $entities = $profile['entities'];
 
-        if (empty($categories) && empty($tags)) {
+        if (empty($categories) && empty($tags) && empty($entities)) {
             return collect();
         }
 
@@ -39,7 +40,7 @@ class RecommendationsService
             ->withSum('viewsDaily', 'views')
             ->withCount('likes')
             ->whereNotIn('id', $viewedVideoIds)
-            ->where(function ($subQuery) use ($categories, $tags) {
+            ->where(function ($subQuery) use ($categories, $tags, $entities) {
                 if (!empty($categories)) {
                     $subQuery->whereIn('category_slug', $categories);
                 }
@@ -53,6 +54,14 @@ class RecommendationsService
                     } else {
                         $subQuery->whereRaw($rawTags, $tags);
                     }
+                }
+
+                if (!empty($entities)) {
+                    $subQuery->orWhereIn('id', function ($entityQuery) use ($entities) {
+                        $entityQuery->select('video_id')
+                            ->from('entity_video')
+                            ->whereIn('entity_id', $entities);
+                    });
                 }
             })
             ->orderByRaw('coalesce(likes_count, 0) + coalesce(views_daily_sum_views, 0) desc')
@@ -69,6 +78,13 @@ class RecommendationsService
                 })
                 ->when(empty($categories) && !empty($tags), function ($subQuery) {
                     $subQuery->whereNotNull('raw_tags');
+                })
+                ->when(!empty($entities), function ($subQuery) use ($entities) {
+                    $subQuery->orWhereIn('id', function ($entityQuery) use ($entities) {
+                        $entityQuery->select('video_id')
+                            ->from('entity_video')
+                            ->whereIn('entity_id', $entities);
+                    });
                 })
                 ->orderByRaw('coalesce(likes_count, 0) + coalesce(views_daily_sum_views, 0) desc')
                 ->orderByDesc('published_at')
@@ -100,7 +116,7 @@ class RecommendationsService
     private function profileFromIds(Collection $viewedVideoIds): array
     {
         if ($viewedVideoIds->isEmpty()) {
-            return ['categories' => [], 'tags' => []];
+            return ['categories' => [], 'tags' => [], 'entities' => []];
         }
 
         $categories = DB::table('videos')
@@ -120,7 +136,21 @@ class RecommendationsService
         return [
             'categories' => $categories,
             'tags' => $tags,
+            'entities' => $this->topEntities($viewedVideoIds),
         ];
+    }
+
+    private function topEntities(Collection $viewedVideoIds): array
+    {
+        return DB::table('entity_video')
+            ->select('entity_id', DB::raw('count(*) as total'))
+            ->whereIn('video_id', $viewedVideoIds)
+            ->groupBy('entity_id')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->pluck('entity_id')
+            ->values()
+            ->all();
     }
 
     private function topTags(Collection $viewedVideoIds): array

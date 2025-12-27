@@ -25,23 +25,7 @@
             description="{{ $pageDescription }}"
             canonical="{{ url('/') }}"
         />
-        <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
-            {!! json_encode([
-                '@context' => 'https://schema.org',
-                '@type' => 'ItemList',
-                'itemListElement' => $latestVideos->map(function ($video, $index) {
-                    return [
-                        '@type' => 'ListItem',
-                        'position' => $index + 1,
-                        'url' => route('public.video', [
-                            'slug' => \Illuminate\Support\Str::slug($video->seo_title ?: $video->title),
-                            'id' => $video->id,
-                        ]),
-                        'name' => $video->seo_title ?: $video->title,
-                    ];
-                })->values()->all(),
-            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
-        </script>
+        <x-schema.item-list :videos="$latestVideos" />
     @endpush
 
     <div class="mb-8">
@@ -52,18 +36,38 @@
         <div class="grid gap-6 lg:grid-cols-[1.1fr,1fr] lg:items-center">
             <div class="space-y-5">
                 <p class="text-xs uppercase tracking-[0.3em] text-red-300">Candid Boys</p>
-                <h1 class="text-3xl font-semibold text-white md:text-4xl">Candid Boys</h1>
-                <p class="text-sm text-slate-300 md:text-base">{{ __('ui.home.hero_intro', [], app()->getLocale()) ?? '' }}</p>
+                <h1 class="text-3xl font-semibold text-white md:text-4xl">Encuentra videos que te enganchan al instante</h1>
+                <p class="text-sm text-slate-300 md:text-base">{!! $linkedHeroIntro ?? '' !!}</p>
+                <form class="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-3 sm:flex-row sm:items-center" method="GET" action="{{ route('public.search') }}">
+                    <label class="sr-only" for="hero-search">Buscar</label>
+                    <div class="flex w-full items-center gap-2 rounded-full border border-white/10 bg-slate-950/80 px-4 py-2 text-sm text-slate-200">
+                        <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <circle cx="11" cy="11" r="7" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        <input id="hero-search" name="q" type="search" placeholder="Buscar categorías, tags o vídeos" class="w-full bg-transparent text-slate-100 placeholder:text-slate-500 focus:outline-none" />
+                    </div>
+                    <button class="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-red-600/30 hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" type="submit">
+                        Explorar
+                    </button>
+                </form>
+                <div class="flex flex-wrap gap-2 text-xs text-slate-200">
+                    @foreach (config('candidboys.categories_controlled', []) as $slug)
+                        <a class="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-100 hover:border-red-400/60" href="{{ route('public.category', $slug) }}">
+                            {{ \Illuminate\Support\Str::headline($slug) }}
+                        </a>
+                    @endforeach
+                </div>
                 <div class="flex flex-wrap gap-3">
                     <a class="rounded-md bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-600/30 hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="{{ $heroPrimary ? route('public.video', ['slug' => \Illuminate\Support\Str::slug($heroPrimary->seo_title ?: $heroPrimary->title), 'id' => $heroPrimary->id]) : '#latest-videos' }}">
-                        {{ __('ui.buttons.watch_featured') }}
+                        Ver destacado
                     </a>
                     <a class="rounded-md border border-red-500/60 px-4 py-2.5 text-sm font-semibold text-red-100 hover:border-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="#latest-videos">
-                        {{ __('ui.buttons.browse_all') }}
+                        Explorar catálogo
                     </a>
                 </div>
                 <div class="text-xs text-slate-400">
-                    Featured picks updated daily • Fast previews • No clutter
+                    Selecciones diarias • Preview rápido • Navegación sin ruido
                 </div>
             </div>
             <div class="grid gap-3 sm:grid-cols-2">
@@ -80,11 +84,11 @@
 
     <section class="mb-8">
         <div class="space-y-4">
-            <div class="-mx-4 flex flex-nowrap items-center gap-2 overflow-x-auto px-4 pb-2 text-xs uppercase tracking-wide text-slate-300 md:mx-0 md:overflow-visible md:px-0" role="group" aria-label="Sort videos">
-                <span class="pr-2 font-semibold text-slate-200">Sort by</span>
+            <div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-slate-300" role="group" aria-label="Sort videos">
+                <span class="pr-2 font-semibold text-slate-200">Ordenar</span>
                 @foreach ($filters as $key => $label)
                     <a
-                        class="whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 {{ $activeSort === $key ? 'bg-red-600 text-white' : 'bg-white/5 text-slate-200 hover:bg-white/10' }}"
+                        class="rounded-full px-4 py-2 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 {{ $activeSort === $key ? 'bg-red-600 text-white' : 'bg-white/5 text-slate-200 hover:bg-white/10' }}"
                         href="{{ route('public.home', ['sort' => $key, 'duration' => $activeDuration]) }}"
                         aria-current="{{ $activeSort === $key ? 'true' : 'false' }}"
                     >
@@ -92,11 +96,11 @@
                     </a>
                 @endforeach
             </div>
-            <div class="-mx-4 flex flex-nowrap items-center gap-2 overflow-x-auto px-4 pb-2 text-xs uppercase tracking-wide text-slate-300 md:mx-0 md:overflow-visible md:px-0" role="group" aria-label="Filter by duration">
-                <span class="pr-2 font-semibold text-slate-200">Duration</span>
+            <div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-slate-300" role="group" aria-label="Filter by duration">
+                <span class="pr-2 font-semibold text-slate-200">Duración</span>
                 @foreach ($durationFilters as $key => $label)
                     <a
-                        class="whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 {{ $activeDuration === $key ? 'bg-red-600 text-white' : 'bg-white/5 text-slate-200 hover:bg-white/10' }}"
+                        class="rounded-full px-4 py-2 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 {{ $activeDuration === $key ? 'bg-red-600 text-white' : 'bg-white/5 text-slate-200 hover:bg-white/10' }}"
                         href="{{ route('public.home', ['sort' => $activeSort, 'duration' => $key]) }}"
                         aria-current="{{ $activeDuration === $key ? 'true' : 'false' }}"
                     >
@@ -105,7 +109,7 @@
                 @endforeach
                 @if ($activeDuration)
                     <a
-                        class="whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-semibold text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                        class="rounded-full px-4 py-2 text-[13px] font-semibold text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                         href="{{ route('public.home', ['sort' => $activeSort]) }}"
                     >
                         Clear
@@ -113,15 +117,28 @@
                 @endif
             </div>
             @if ($popularTags->isNotEmpty())
-                <div class="-mx-4 flex flex-nowrap items-center gap-2 overflow-x-auto px-4 pb-2 text-xs uppercase tracking-wide text-slate-300 md:mx-0 md:overflow-visible md:px-0" role="group" aria-label="Popular tags">
-                    <span class="pr-2 font-semibold text-slate-200">Popular tags</span>
+                <div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-slate-300" role="group" aria-label="Popular tags">
+                    <span class="pr-2 font-semibold text-slate-200">Tags top</span>
                     @foreach ($popularTags as $tag)
-                        <a class="whitespace-nowrap rounded-full bg-white/5 px-4 py-2 text-[13px] font-semibold text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="{{ route('public.tag', $tag->tag) }}">
+                        <a class="rounded-full bg-white/5 px-4 py-2 text-[13px] font-semibold text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="{{ route('public.tag', $tag->tag) }}">
                             #{{ $tag->tag }}
                         </a>
                     @endforeach
                 </div>
             @endif
+        </div>
+    </section>
+
+    <section class="mb-10 rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 via-slate-950 to-slate-950 p-6">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+                <p class="text-xs uppercase tracking-[0.3em] text-indigo-300">Reels destacados</p>
+                <h2 class="mt-2 text-xl font-semibold text-white">Clips cortos para descubrir rápido</h2>
+                <p class="mt-2 text-sm text-slate-300">Explora el feed de reels curado con lo más dinámico del día.</p>
+            </div>
+            <a class="inline-flex items-center justify-center rounded-full bg-indigo-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" href="{{ route('public.reels') }}">
+                Ver reels
+            </a>
         </div>
     </section>
 
@@ -139,10 +156,24 @@
         </section>
     @endif
 
+    @if ($favoriteVideos->isNotEmpty())
+        <section class="mb-10">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-white">From your favorites</h2>
+                <span class="text-xs text-slate-400">Tus favoritos más recientes.</span>
+            </div>
+            <x-video-grid>
+                @foreach ($favoriteVideos as $video)
+                    <x-video-card :video="$video" />
+                @endforeach
+            </x-video-grid>
+        </section>
+    @endif
+
     @if ($recommendedVideos->isNotEmpty())
         <section class="mb-10">
             <div class="mb-3 flex items-center justify-between">
-                <h1 class="text-lg font-semibold text-white">{{ __('ui.sections.recommended') }}</h1>
+                <h2 class="text-lg font-semibold text-white">{{ __('ui.sections.recommended') }}</h2>
                 <span class="text-xs text-slate-400">{{ __('ui.home.recommended_subtitle') }}</span>
             </div>
             <x-video-grid>

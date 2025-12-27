@@ -23,6 +23,10 @@
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.landing-candidates.index') }}">Landing candidates</a>
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.landing-metrics.index') }}">Landing metrics</a>
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.category-candidates.index') }}">Category candidates</a>
+                <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.seo-opportunities.index') }}">SEO opportunities</a>
+                <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.seo-decay.index') }}">SEO decay</a>
+                <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.seo-meta-variants.index') }}">SEO variants</a>
+                <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.seo-health.index') }}">SEO health</a>
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.metrics.categories') }}">Metrics: categories</a>
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.metrics.collections') }}">Metrics: collections</a>
                 <a class="block rounded-lg px-3 py-2 hover:bg-white/10" href="{{ route('admin.metrics.landings') }}">Metrics: landings</a>

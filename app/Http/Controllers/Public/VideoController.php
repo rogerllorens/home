@@ -9,6 +9,7 @@ use App\Models\VideoView;
 use App\Services\Embeds\EmbedDomainMatcher;
 use App\Services\Embeds\EmbedSanitizer;
 use App\Services\Embeds\EmbedUrlCanonicalizer;
+use App\Services\Seo\TopicClusterMatcher;
 use App\Services\Videos\CtaPresenter;
 use App\Services\Videos\RelatedVideosService;
 use App\Services\Videos\VideoAvailabilityPolicy;
@@ -21,6 +22,7 @@ use Illuminate\View\View;
 class VideoController extends Controller
 {
     public function __invoke(
+        string $locale,
         string $slug,
         int $id,
         \Illuminate\Http\Request $request,
@@ -29,6 +31,7 @@ class VideoController extends Controller
         EmbedDomainMatcher $domainMatcher,
         RelatedVideosService $relatedService,
         CtaPresenter $ctaPresenter,
+        TopicClusterMatcher $clusterMatcher,
         VideoAvailabilityPolicy $availabilityPolicy,
         VideoSeoService $seoService
     ): View|RedirectResponse
@@ -73,12 +76,22 @@ class VideoController extends Controller
         $nextVideo = $related->first();
         $shuffleVideo = $related->count() > 1 ? $related->random() : $related->first();
         $categoryShuffle = null;
+        $categoryVideos = collect();
         if ($video->category_slug) {
             $categoryShuffle = Video::published()
                 ->where('category_slug', $video->category_slug)
                 ->whereKeyNot($video->id)
                 ->inRandomOrder()
                 ->first();
+
+            $categoryVideos = Video::published()
+                ->withSum('viewsDaily', 'views')
+                ->withCount('likes')
+                ->where('category_slug', $video->category_slug)
+                ->whereKeyNot($video->id)
+                ->orderByDesc('published_at')
+                ->take(12)
+                ->get();
         }
 
         $ctas = $ctaPresenter->present($video, 'video_detail');
@@ -106,6 +119,8 @@ class VideoController extends Controller
         }
 
         $isUnavailable = $availabilityPolicy->isUnavailable($video);
+        $cluster = $clusterMatcher->forCategory($video->category_slug)
+            ?? $clusterMatcher->forVideoTags($video->raw_tags ?? []);
 
         return view('public.video', [
             'video' => $video,
@@ -118,6 +133,8 @@ class VideoController extends Controller
             'sanitizedEmbed' => $sanitizedEmbed,
             'isUnavailable' => $isUnavailable,
             'categoryShuffle' => $categoryShuffle,
+            'categoryVideos' => $categoryVideos,
+            'cluster' => $cluster,
         ]);
     }
 }

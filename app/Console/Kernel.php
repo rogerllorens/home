@@ -84,6 +84,16 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->onOneServer();
 
+        $schedule->command('seo:detect-decay --refresh')
+            ->dailyAt('07:05')
+            ->withoutOverlapping()
+            ->onOneServer();
+
+        $schedule->command('seo:health-check')
+            ->dailyAt('07:20')
+            ->withoutOverlapping()
+            ->onOneServer();
+
         $schedule->command('seo:soft-prune')
             ->monthlyOn(1, '06:50')
             ->withoutOverlapping()
