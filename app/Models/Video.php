@@ -53,6 +53,8 @@ class Video extends Model
         'moderation_reviewed_at',
         'moderation_reviewed_by',
         'is_featured',
+        'is_manual_upload',
+        'has_takedown_contact',
     ];
 
     protected $casts = [
@@ -71,6 +73,8 @@ class Video extends Model
         'moderation_reviewed_at' => 'datetime',
         'moderation_reviewed_by' => 'integer',
         'is_featured' => 'boolean',
+        'is_manual_upload' => 'boolean',
+        'has_takedown_contact' => 'boolean',
     ];
 
     public function source(): BelongsTo
@@ -138,6 +142,31 @@ class Video extends Model
         return $this->status === VideoStatus::Published
             && $this->moderation_status === VideoModerationStatus::Approved
             && !app()->environment('testing');
+    }
+
+    public function transparencyTagKeys(): array
+    {
+        $tags = [];
+
+        if ($this->source?->is_verified) {
+            $tags[] = 'verified_source';
+        }
+
+        if ($this->moderation_status === VideoModerationStatus::Approved) {
+            $tags[] = 'moderation_reviewed';
+        }
+
+        if ($this->is_manual_upload) {
+            $tags[] = 'manual_upload';
+        } else {
+            $tags[] = 'auto_imported';
+        }
+
+        if ($this->has_takedown_contact) {
+            $tags[] = 'fast_takedown';
+        }
+
+        return $tags;
     }
 
     public function toSearchableArray(): array

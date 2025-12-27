@@ -19,12 +19,14 @@ class Source extends Model
         'settings',
         'import_schedule_cron',
         'is_active',
+        'is_verified',
     ];
 
     protected $casts = [
         'settings' => 'array',
         'is_active' => 'boolean',
         'type' => SourceType::class,
+        'is_verified' => 'boolean',
     ];
 
     public function videos(): HasMany

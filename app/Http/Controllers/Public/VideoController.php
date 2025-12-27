@@ -208,6 +208,7 @@ class VideoController extends Controller
             'categoryShuffle' => $categoryShuffle,
             'categoryRelatedVideos' => $categoryRelatedVideos,
             'tagRelatedVideos' => $tagRelatedVideos,
+            'transparencyTags' => $video->transparencyTagKeys(),
         ]);
     }
 }

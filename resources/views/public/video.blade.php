@@ -244,6 +244,25 @@
                     </div>
                 @endif
 
+                @if (!empty($transparencyTags))
+                    <div class="rounded-md border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('ui.video.transparency.title') }}</p>
+                        <p class="mt-2 text-sm text-slate-300">{{ __('ui.video.transparency.description') }}</p>
+                        <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                            @foreach ($transparencyTags as $tag)
+                                <span class="rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 font-semibold text-slate-200">
+                                    {{ __('ui.video.transparency.tags.' . $tag . '.label') }}
+                                </span>
+                            @endforeach
+                        </div>
+                        <ul class="mt-3 space-y-1 text-xs text-slate-400">
+                            @foreach ($transparencyTags as $tag)
+                                <li>{{ __('ui.video.transparency.tags.' . $tag . '.description') }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 @feature('video_cta_placement', 'B')
                     <div class="rounded-md border border-white/10 bg-white/5 p-4">
                         <p class="text-xs uppercase tracking-wide text-slate-400">{{ __('ui.video.featured_offers') }}</p>

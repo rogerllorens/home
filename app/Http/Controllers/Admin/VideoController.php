@@ -194,4 +194,27 @@ class VideoController extends Controller
 
         return back()->with('status', 'Video desmarcado como destacado.');
     }
+
+    public function updateTransparency(Request $request, Video $video): RedirectResponse
+    {
+        $data = $request->validate([
+            'is_manual_upload' => ['nullable', 'boolean'],
+            'has_takedown_contact' => ['nullable', 'boolean'],
+        ]);
+
+        $video->update([
+            'is_manual_upload' => (bool) ($data['is_manual_upload'] ?? false),
+            'has_takedown_contact' => (bool) ($data['has_takedown_contact'] ?? false),
+        ]);
+
+        AdminAuditLog::record('video_transparency_updated', [
+            'video_id' => $video->id,
+            'is_manual_upload' => $video->is_manual_upload,
+            'has_takedown_contact' => $video->has_takedown_contact,
+        ]);
+
+        PublicCache::bust();
+
+        return back()->with('status', 'Transparencia actualizada.');
+    }
 }

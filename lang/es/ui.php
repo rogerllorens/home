@@ -343,6 +343,32 @@ return [
         'shuffle_pick' => 'Selección aleatoria',
         'featured_offer_single' => 'Oferta destacada',
         'more_content_context' => 'Más contenido como este en :context.',
+        'transparency' => [
+            'title' => 'Transparencia',
+            'description' => 'Detalles sobre el origen, revisión y cómo se añadió este vídeo.',
+            'tags' => [
+                'verified_source' => [
+                    'label' => 'Fuente verificada',
+                    'description' => 'Proviene de un partner de confianza validado.',
+                ],
+                'moderation_reviewed' => [
+                    'label' => 'Revisado por moderación',
+                    'description' => 'Aprobado por el equipo de moderación.',
+                ],
+                'auto_imported' => [
+                    'label' => 'Importado automáticamente',
+                    'description' => 'Añadido automáticamente por el sistema.',
+                ],
+                'manual_upload' => [
+                    'label' => 'Añadido manualmente',
+                    'description' => 'Añadido manualmente por nuestro equipo.',
+                ],
+                'fast_takedown' => [
+                    'label' => 'Canal de takedown rápido',
+                    'description' => 'Incluye una vía directa para solicitudes rápidas.',
+                ],
+            ],
+        ],
     ],
     'discover' => [
         'collection_label' => 'Colección',

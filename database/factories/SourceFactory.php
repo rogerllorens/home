@@ -22,6 +22,7 @@ class SourceFactory extends Factory
             ],
             'import_schedule_cron' => '0 0 * * *',
             'is_active' => true,
+            'is_verified' => false,
         ];
     }
 }

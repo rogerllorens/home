@@ -158,6 +158,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('videos/{video}/reject', [VideoController::class, 'reject'])->name('videos.reject');
         Route::post('videos/{video}/feature', [VideoController::class, 'feature'])->name('videos.feature');
         Route::post('videos/{video}/unfeature', [VideoController::class, 'unfeature'])->name('videos.unfeature');
+        Route::post('videos/{video}/transparency', [VideoController::class, 'updateTransparency'])->name('videos.transparency');
 
         Route::get('takedowns', [TakedownController::class, 'index'])->name('takedowns.index');
         Route::get('takedowns/create', [TakedownController::class, 'create'])->name('takedowns.create');

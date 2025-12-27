@@ -343,6 +343,32 @@ return [
         'shuffle_pick' => 'Shuffle pick',
         'featured_offer_single' => 'Featured offer',
         'more_content_context' => 'More content like this in :context.',
+        'transparency' => [
+            'title' => 'Transparency',
+            'description' => 'Details about source, review status, and how this video was added.',
+            'tags' => [
+                'verified_source' => [
+                    'label' => 'Verified source',
+                    'description' => 'Provided by a trusted partner we validate.',
+                ],
+                'moderation_reviewed' => [
+                    'label' => 'Moderation reviewed',
+                    'description' => 'Approved by our moderation team.',
+                ],
+                'auto_imported' => [
+                    'label' => 'Auto imported',
+                    'description' => 'Added automatically via our ingestion system.',
+                ],
+                'manual_upload' => [
+                    'label' => 'Manually added',
+                    'description' => 'Added manually by our team.',
+                ],
+                'fast_takedown' => [
+                    'label' => 'Fast takedown channel',
+                    'description' => 'Includes a direct path for fast takedown requests.',
+                ],
+            ],
+        ],
     ],
     'discover' => [
         'collection_label' => 'Collection',

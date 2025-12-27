@@ -37,6 +37,8 @@ class VideoFactory extends Factory
             'embed_last_ok_at' => now(),
             'duplicate_count' => 0,
             'source_url' => $this->faker->url,
+            'is_manual_upload' => false,
+            'has_takedown_contact' => false,
         ];
     }
 }
