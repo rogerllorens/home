@@ -9,6 +9,7 @@ use App\Models\VideoViewHistory;
 use App\Enums\VideoStatus;
 use App\Support\PublicCache;
 use App\Support\DeviceHash;
+use App\Services\Personalization\HomeFeedService;
 use App\Services\Videos\RecommendationsService;
 use App\Services\Videos\VideoScoreService;
 use Illuminate\Http\Request;
@@ -181,8 +182,16 @@ class HomeController extends Controller
 
         $continueWatching = collect();
         $recommendedVideos = collect();
+        $personalizedSections = collect();
+        $hasPersonalizedSections = false;
         $deviceHash = DeviceHash::fromRequest($request);
         if ($deviceHash) {
+            $personalization = app(HomeFeedService::class)->build($deviceHash);
+            $personalizedSections = collect($personalization['sections'] ?? []);
+            $hasPersonalizedSections = (bool) ($personalization['has_history'] ?? false);
+        }
+
+        if ($deviceHash && !$hasPersonalizedSections) {
             $continueLimit = (int) config('videos.continue_watching_limit', 10);
             $continueIds = VideoViewHistory::query()
                 ->where('device_hash', $deviceHash)
@@ -214,6 +223,8 @@ class HomeController extends Controller
             'date' => $dateFilter,
             'continueWatching' => $continueWatching,
             'recommendedVideos' => $recommendedVideos,
+            'personalizedSections' => $personalizedSections,
+            'hasPersonalizedSections' => $hasPersonalizedSections,
             'featuredCollections' => $payload['featuredCollections'] ?? collect(),
         ]);
     }

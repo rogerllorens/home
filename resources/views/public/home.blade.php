@@ -202,7 +202,26 @@
         <x-ad-slot slot-name="home_top" />
     </div>
 
-    @if ($continueWatching->isNotEmpty())
+    @if ($hasPersonalizedSections && $personalizedSections->isNotEmpty())
+        @foreach ($personalizedSections as $section)
+            <section class="mb-10" data-home-section="{{ $section['id'] }}">
+                <div class="mb-4 space-y-1">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('ui.home.for_you_label') }}</p>
+                    <h2 class="text-xl font-semibold text-white">{{ $section['title'] }}</h2>
+                    @if (!empty($section['subtitle']))
+                        <p class="text-sm text-slate-400">{{ $section['subtitle'] }}</p>
+                    @endif
+                </div>
+                <x-video-grid>
+                    @foreach ($section['videos'] as $video)
+                        <x-video-card :video="$video" />
+                    @endforeach
+                </x-video-grid>
+            </section>
+        @endforeach
+    @endif
+
+    @if (!$hasPersonalizedSections && $continueWatching->isNotEmpty())
         <section class="mb-10">
             <div class="mb-4 flex items-center justify-between">
                 <h2 class="text-xl font-semibold text-white">{{ __('ui.home.continue_title') }}</h2>
@@ -215,7 +234,7 @@
         </section>
     @endif
 
-    @if ($recommendedVideos->isNotEmpty())
+    @if (!$hasPersonalizedSections && $recommendedVideos->isNotEmpty())
         <section class="mb-10">
             <div class="mb-4 flex items-center justify-between">
                 <h2 class="text-xl font-semibold text-white">{{ __('ui.home.recommended_title') }}</h2>
