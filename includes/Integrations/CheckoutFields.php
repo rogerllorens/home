@@ -35,9 +35,18 @@ class CheckoutFields
             ]);
         }
 
+        $show_taxid_field = (string) get_option('tg_show_taxid_field', 'always');
+        if ($show_taxid_field === 'no') {
+            return;
+        }
+
+        if ($show_taxid_field === 'company' && ! $has_company_checkbox) {
+            $show_taxid_field = 'always';
+        }
+
         $country = $this->detect_customer_country();
         $description = $this->get_dynamic_help($country);
-        if (get_option('tg_show_taxid_field', 'always') === 'company' && $has_company_checkbox) {
+        if ($show_taxid_field === 'company') {
             $description = trim($description . ' ' . __('(Only required if “I am a company” is checked)', 'taxid-guard-for-woocommerce'));
         }
 

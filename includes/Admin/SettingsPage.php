@@ -90,7 +90,7 @@ class SettingsPage
         register_setting($group, 'tg_validate_es', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
         register_setting($group, 'tg_validate_eu_vat', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
         register_setting($group, 'tg_vat_prefix_auto', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
-        register_setting($group, 'tg_required_countries', ['sanitize_callback' => [$this, 'sanitize_array_of_keys']]);
+        register_setting($group, 'tg_required_countries', ['sanitize_callback' => [$this, 'sanitize_iso2_list']]);
 
         register_setting($group, 'tg_taxid_label', ['sanitize_callback' => 'sanitize_text_field']);
         register_setting($group, 'tg_taxid_help', ['sanitize_callback' => 'sanitize_textarea_field']);
@@ -138,24 +138,42 @@ class SettingsPage
         return max($min, min($f, $max));
     }
 
-    public function sanitize_array_of_keys($v): array
+    public function sanitize_iso2_list($v): array
+    {
+        $items = $this->normalize_list_input($v);
+        $out = [];
+        foreach ($items as $item) {
+            $key = strtoupper(sanitize_text_field((string) $item));
+            if (preg_match('/^[A-Z]{2}$/', $key)) {
+                $out[] = $key;
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
+    public function sanitize_slug_list($v): array
+    {
+        $items = $this->normalize_list_input($v);
+        $out = [];
+        foreach ($items as $item) {
+            $key = sanitize_text_field((string) $item);
+            if ($key !== '') {
+                $out[] = $key;
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
+    private function normalize_list_input($v): array
     {
         $v = maybe_unserialize($v);
         if (is_string($v)) {
             $v = trim($v) === '' ? [] : preg_split('/\s*,\s*/', $v);
         }
         if (! is_array($v)) {
-            $v = [];
+            return [];
         }
-
-        $out = [];
-        foreach ($v as $item) {
-            $key = strtoupper(sanitize_text_field((string) $item));
-            if ($key !== '') {
-                $out[] = $key;
-            }
-        }
-        return array_values(array_unique($out));
+        return array_map(static fn($item) => trim((string) $item), $v);
     }
 
     public function sanitize_assoc_map($v): array
@@ -220,7 +238,7 @@ class SettingsPage
         if (! $this->is_pro()) {
             return [];
         }
-        return $this->sanitize_array_of_keys($v);
+        return $this->sanitize_slug_list($v);
     }
 
     public function sanitize_pro_float($v, float $min, float $max, float $default): float
@@ -327,16 +345,16 @@ class SettingsPage
         }
 
         echo '<table class="form-table">';
-        echo '<tr><th>Enable VIES validation</th><td><input type="hidden" name="tg_pro_vies" value="no" /><input type="checkbox" name="tg_pro_vies" value="yes" ' . checked('yes', (string) self::get('tg_pro_vies'), false) . $disabled . ' /></td></tr>';
-        echo '<tr><th>VIES cache hours</th><td><input type="number" min="1" max="168" name="tg_vies_cache_hours" value="' . esc_attr((string) self::get('tg_vies_cache_hours')) . '"' . $disabled . ' /></td></tr>';
-        echo '<tr><th>VIES fail mode</th><td><select name="tg_vies_fail_mode"' . $disabled . '><option value="block"' . selected('block', (string) self::get('tg_vies_fail_mode'), false) . '>block</option><option value="allow"' . selected('allow', (string) self::get('tg_vies_fail_mode'), false) . '>allow</option></select></td></tr>';
-        echo '<tr><th>Required customer roles</th><td><input class="regular-text" type="text" name="tg_required_roles" value="' . esc_attr(implode(',', (array) self::get('tg_required_roles'))) . '"' . $disabled . ' /></td></tr>';
-        echo '<tr><th>Min cart total</th><td><input type="text" name="tg_cart_total_threshold" value="' . esc_attr((string) self::get('tg_cart_total_threshold')) . '"' . $disabled . ' /></td></tr>';
-        echo '<tr><th>Excluded payment methods</th><td><input class="regular-text" type="text" name="tg_exclude_payment_methods" value="' . esc_attr(implode(',', (array) self::get('tg_exclude_payment_methods'))) . '"' . $disabled . ' /></td></tr>';
-        echo '<tr><th>Excluded shipping methods</th><td><input class="regular-text" type="text" name="tg_exclude_shipping_methods" value="' . esc_attr(implode(',', (array) self::get('tg_exclude_shipping_methods'))) . '"' . $disabled . ' /></td></tr>';
-        echo '<tr><th>Exclude virtual orders</th><td><input type="hidden" name="tg_exclude_virtual_orders" value="no" /><input type="checkbox" name="tg_exclude_virtual_orders" value="yes" ' . checked('yes', (string) self::get('tg_exclude_virtual_orders'), false) . $disabled . ' /></td></tr>';
-        echo '<tr><th>Email customer on invalid</th><td><input type="hidden" name="tg_email_customer" value="no" /><input type="checkbox" name="tg_email_customer" value="yes" ' . checked('yes', (string) self::get('tg_email_customer'), false) . $disabled . ' /></td></tr>';
-        echo '<tr><th>Mask customer email</th><td><input type="hidden" name="tg_mask_customer_email" value="no" /><input type="checkbox" name="tg_mask_customer_email" value="yes" ' . checked('yes', (string) self::get('tg_mask_customer_email'), false) . $disabled . ' /></td></tr>';
+        echo '<tr><th>' . esc_html__('Enable VIES validation', 'taxid-guard-for-woocommerce') . '</th><td><input type="hidden" name="tg_pro_vies" value="no" /><input type="checkbox" name="tg_pro_vies" value="yes" ' . checked('yes', (string) self::get('tg_pro_vies'), false) . $disabled . ' /></td></tr>';
+        echo '<tr><th>' . esc_html__('VIES cache hours', 'taxid-guard-for-woocommerce') . '</th><td><input type="number" min="1" max="168" name="tg_vies_cache_hours" value="' . esc_attr((string) self::get('tg_vies_cache_hours')) . '"' . $disabled . ' /></td></tr>';
+        echo '<tr><th>' . esc_html__('VIES fail mode', 'taxid-guard-for-woocommerce') . '</th><td><select name="tg_vies_fail_mode"' . $disabled . '><option value="block"' . selected('block', (string) self::get('tg_vies_fail_mode'), false) . '>' . esc_html__('Block checkout', 'taxid-guard-for-woocommerce') . '</option><option value="allow"' . selected('allow', (string) self::get('tg_vies_fail_mode'), false) . '>' . esc_html__('Allow checkout', 'taxid-guard-for-woocommerce') . '</option></select></td></tr>';
+        echo '<tr><th>' . esc_html__('Required customer roles', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_required_roles" value="' . esc_attr(implode(',', (array) self::get('tg_required_roles'))) . '"' . $disabled . ' /></td></tr>';
+        echo '<tr><th>' . esc_html__('Min cart total', 'taxid-guard-for-woocommerce') . '</th><td><input type="text" name="tg_cart_total_threshold" value="' . esc_attr((string) self::get('tg_cart_total_threshold')) . '"' . $disabled . ' /></td></tr>';
+        echo '<tr><th>' . esc_html__('Excluded payment methods', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_exclude_payment_methods" value="' . esc_attr(implode(',', (array) self::get('tg_exclude_payment_methods'))) . '"' . $disabled . ' /></td></tr>';
+        echo '<tr><th>' . esc_html__('Excluded shipping methods', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_exclude_shipping_methods" value="' . esc_attr(implode(',', (array) self::get('tg_exclude_shipping_methods'))) . '"' . $disabled . ' /></td></tr>';
+        echo '<tr><th>' . esc_html__('Exclude virtual orders', 'taxid-guard-for-woocommerce') . '</th><td><input type="hidden" name="tg_exclude_virtual_orders" value="no" /><input type="checkbox" name="tg_exclude_virtual_orders" value="yes" ' . checked('yes', (string) self::get('tg_exclude_virtual_orders'), false) . $disabled . ' /></td></tr>';
+        echo '<tr><th>' . esc_html__('Email customer on invalid', 'taxid-guard-for-woocommerce') . '</th><td><input type="hidden" name="tg_email_customer" value="no" /><input type="checkbox" name="tg_email_customer" value="yes" ' . checked('yes', (string) self::get('tg_email_customer'), false) . $disabled . ' /></td></tr>';
+        echo '<tr><th>' . esc_html__('Mask customer email', 'taxid-guard-for-woocommerce') . '</th><td><input type="hidden" name="tg_mask_customer_email" value="no" /><input type="checkbox" name="tg_mask_customer_email" value="yes" ' . checked('yes', (string) self::get('tg_mask_customer_email'), false) . $disabled . ' /></td></tr>';
         echo '</table>';
     }
 
