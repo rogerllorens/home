@@ -13,7 +13,7 @@ $options = [
     'tg_pro_vies', 'tg_vies_cache_hours', 'tg_vies_fail_mode', 'tg_required_roles', 'tg_cart_total_threshold',
     'tg_exclude_payment_methods', 'tg_exclude_shipping_methods', 'tg_exclude_virtual_orders',
     'tg_email_customer', 'tg_mask_customer_email',
-    'tg_plugin_version', 'tg_settings_schema_version'
+    'tg_plugin_version', 'tg_settings_schema_version', 'tg_schema_version'
 ];
 
 global $wpdb;

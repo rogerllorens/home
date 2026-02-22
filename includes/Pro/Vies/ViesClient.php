@@ -15,7 +15,7 @@ class ViesClient {
             return $result;
         }
 
-        $timeout = apply_filters( 'tg_vies_timeout', 5 );
+        $timeout = (int) apply_filters( 'tg_vies_timeout', 3 );
 
         try {
             $client = new \SoapClient( $this->wsdl, [
@@ -30,7 +30,9 @@ class ViesClient {
             $result['name']    = $response->name ?? '';
             $result['address'] = $response->address ?? '';
         } catch ( \Throwable $e ) {
-            $result['error'] = $e->getMessage();
+            $message = (string) $e->getMessage();
+            $result['error'] = $message;
+            $result['source'] = stripos($message, 'timeout') !== false ? 'vies_timeout' : 'vies_exception';
         }
 
         return $result;

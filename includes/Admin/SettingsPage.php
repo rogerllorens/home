@@ -285,6 +285,7 @@ class SettingsPage
         $this->render_section_checkout();
         $this->render_section_validation();
         $this->render_section_countries($label_map, $help_map);
+        $this->render_section_diagnostics($is_pro);
         $this->render_section_pro($is_pro, $upgrade_url);
 
         submit_button(__('Save changes', 'taxid-guard-for-woocommerce'));
@@ -295,7 +296,7 @@ class SettingsPage
     {
         echo '<h2>' . esc_html__('General', 'taxid-guard-for-woocommerce') . '</h2><table class="form-table">';
         $this->checkbox_row('tg_enable', __('Enable plugin', 'taxid-guard-for-woocommerce'), __('Master on/off switch.', 'taxid-guard-for-woocommerce'));
-        $this->select_row('tg_mode', __('Mode', 'taxid-guard-for-woocommerce'), ['validate' => 'Validate (block)', 'collect' => 'Collect (no block)'], __('Validation behavior at checkout.', 'taxid-guard-for-woocommerce'));
+        $this->select_row('tg_mode', __('Mode', 'taxid-guard-for-woocommerce'), ['validate' => __('Validate (block)', 'taxid-guard-for-woocommerce'), 'collect' => __('Collect (no block)', 'taxid-guard-for-woocommerce')], __('Validation behavior at checkout.', 'taxid-guard-for-woocommerce'));
         $this->checkbox_row('tg_debug', __('Debug logging', 'taxid-guard-for-woocommerce'), __('Write debug info to WooCommerce logs when enabled.', 'taxid-guard-for-woocommerce'));
         echo '</table>';
     }
@@ -304,7 +305,7 @@ class SettingsPage
     {
         echo '<h2>' . esc_html__('Checkout', 'taxid-guard-for-woocommerce') . '</h2><table class="form-table">';
         $this->checkbox_row('tg_show_company_checkbox', __('Show “I am a company” checkbox', 'taxid-guard-for-woocommerce'), '');
-        $this->select_row('tg_show_taxid_field', __('Show Tax ID field', 'taxid-guard-for-woocommerce'), ['always' => 'Always', 'company' => 'Only for company', 'no' => 'No'], '');
+        $this->select_row('tg_show_taxid_field', __('Show Tax ID field', 'taxid-guard-for-woocommerce'), ['always' => __('Always', 'taxid-guard-for-woocommerce'), 'company' => __('Only for company', 'taxid-guard-for-woocommerce'), 'no' => __('No', 'taxid-guard-for-woocommerce')], '');
         $this->checkbox_row('tg_company_requires_taxid', __('Tax ID required if company', 'taxid-guard-for-woocommerce'), '');
         $this->checkbox_row('tg_save_taxid_profile', __('Save to customer profile', 'taxid-guard-for-woocommerce'), '');
         $this->checkbox_row('tg_show_in_admin', __('Show in admin order', 'taxid-guard-for-woocommerce'), '');
@@ -327,8 +328,29 @@ class SettingsPage
         echo '<h2>' . esc_html__('Countries', 'taxid-guard-for-woocommerce') . '</h2><table class="form-table">';
         echo '<tr><th>' . esc_html__('Default label', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_taxid_label" value="' . esc_attr((string) self::get('tg_taxid_label')) . '" /></td></tr>';
         echo '<tr><th>' . esc_html__('Default help', 'taxid-guard-for-woocommerce') . '</th><td><textarea class="large-text" rows="2" name="tg_taxid_help">' . esc_textarea((string) self::get('tg_taxid_help')) . '</textarea></td></tr>';
-        echo '<tr><th>' . esc_html__('label_by_country', 'taxid-guard-for-woocommerce') . '</th><td><textarea class="large-text code" rows="6" name="tg_label_by_country" placeholder="ES=NIF/CIF\nIT=Partita IVA">' . esc_textarea($label_map) . '</textarea><p class="description">ISO2=Label per line.</p></td></tr>';
+        echo '<tr><th>' . esc_html__('label_by_country', 'taxid-guard-for-woocommerce') . '</th><td><textarea class="large-text code" rows="6" name="tg_label_by_country" placeholder="ES=NIF/CIF\nIT=Partita IVA">' . esc_textarea($label_map) . '</textarea><p class="description">' . esc_html__('ISO2=Label per line.', 'taxid-guard-for-woocommerce') . '</p></td></tr>';
         echo '<tr><th>' . esc_html__('help_by_country', 'taxid-guard-for-woocommerce') . '</th><td><textarea class="large-text code" rows="6" name="tg_help_by_country" placeholder="ES=Introduce tu NIF/CIF\nIT=Inserisci partita IVA">' . esc_textarea($help_map) . '</textarea><p class="description">ISO2=Help per line. Use \\n for line break.</p></td></tr>';
+        echo '</table>';
+    }
+
+    private function render_section_diagnostics(bool $is_pro): void
+    {
+        $checkoutContext = class_exists('TaxID_Guard\Bootstrap') ? \TaxID_Guard\Bootstrap::instance()->debug_checkout_context() : 'unknown';
+        $country = '';
+        if (function_exists('WC') && WC()->customer) {
+            $country = (string) (WC()->customer->get_billing_country() ?: WC()->customer->get_shipping_country());
+        }
+
+        $viesCircuit = get_transient('tg_vies_circuit_open') ? __('Open', 'taxid-guard-for-woocommerce') : __('Closed', 'taxid-guard-for-woocommerce');
+        $viesActive = get_option('tg_pro_vies', 'no') === 'yes' ? __('Yes', 'taxid-guard-for-woocommerce') : __('No', 'taxid-guard-for-woocommerce');
+
+        echo '<h2>' . esc_html__('Diagnostics', 'taxid-guard-for-woocommerce') . '</h2><table class="form-table">';
+        echo '<tr><th>' . esc_html__('Checkout detection', 'taxid-guard-for-woocommerce') . '</th><td>' . esc_html($checkoutContext) . '</td></tr>';
+        echo '<tr><th>' . esc_html__('Mode', 'taxid-guard-for-woocommerce') . '</th><td>' . esc_html((string) self::get('tg_mode')) . '</td></tr>';
+        echo '<tr><th>' . esc_html__('Detected country', 'taxid-guard-for-woocommerce') . '</th><td>' . esc_html($country !== '' ? $country : __('N/A', 'taxid-guard-for-woocommerce')) . '</td></tr>';
+        echo '<tr><th>' . esc_html__('Pro active', 'taxid-guard-for-woocommerce') . '</th><td>' . esc_html($is_pro ? __('Yes', 'taxid-guard-for-woocommerce') : __('No', 'taxid-guard-for-woocommerce')) . '</td></tr>';
+        echo '<tr><th>' . esc_html__('VIES enabled', 'taxid-guard-for-woocommerce') . '</th><td>' . esc_html($viesActive) . '</td></tr>';
+        echo '<tr><th>' . esc_html__('VIES circuit breaker', 'taxid-guard-for-woocommerce') . '</th><td>' . esc_html($viesCircuit) . '</td></tr>';
         echo '</table>';
     }
 

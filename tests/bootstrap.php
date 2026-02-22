@@ -5,6 +5,39 @@ if (!defined('ABSPATH')) {
     define('ABSPATH', __DIR__);
 }
 
+
+if (!defined('MINUTE_IN_SECONDS')) {
+    define('MINUTE_IN_SECONDS', 60);
+}
+if (!defined('HOUR_IN_SECONDS')) {
+    define('HOUR_IN_SECONDS', 3600);
+}
+
+$GLOBALS['tg_test_transients'] = $GLOBALS['tg_test_transients'] ?? [];
+
+if (!function_exists('get_transient')) {
+    function get_transient(string $key)
+    {
+        return $GLOBALS['tg_test_transients'][$key] ?? false;
+    }
+}
+
+if (!function_exists('set_transient')) {
+    function set_transient(string $key, $value, int $expiration = 0): bool
+    {
+        $GLOBALS['tg_test_transients'][$key] = $value;
+        return true;
+    }
+}
+
+if (!function_exists('delete_transient')) {
+    function delete_transient(string $key): bool
+    {
+        unset($GLOBALS['tg_test_transients'][$key]);
+        return true;
+    }
+}
+
 $GLOBALS['tg_test_options'] = $GLOBALS['tg_test_options'] ?? [];
 
 if (!function_exists('__')) {
@@ -84,3 +117,6 @@ require_once __DIR__ . '/../includes/Domain/TaxIdValidatorES.php';
 require_once __DIR__ . '/../includes/Domain/TaxIdValidatorEU.php';
 require_once __DIR__ . '/../includes/Admin/SettingsPage.php';
 require_once __DIR__ . '/../includes/Checkout/DataExtractor.php';
+
+require_once __DIR__ . '/../includes/Pro/Vies/ViesClient.php';
+require_once __DIR__ . '/../includes/Pro/Vies/ViesService.php';
