@@ -5,6 +5,8 @@ if (!defined('ABSPATH')) {
     define('ABSPATH', __DIR__);
 }
 
+$GLOBALS['tg_test_options'] = $GLOBALS['tg_test_options'] ?? [];
+
 if (!function_exists('__')) {
     function __(string $text, ?string $domain = null): string
     {
@@ -38,6 +40,42 @@ if (!function_exists('sanitize_textarea_field')) {
     function sanitize_textarea_field(string $text): string
     {
         return trim(strip_tags($text));
+    }
+}
+
+if (!function_exists('get_option')) {
+    function get_option(string $key, $default = false)
+    {
+        return $GLOBALS['tg_test_options'][$key] ?? $default;
+    }
+}
+
+if (!function_exists('update_option')) {
+    function update_option(string $key, $value): bool
+    {
+        $GLOBALS['tg_test_options'][$key] = $value;
+        return true;
+    }
+}
+
+if (!function_exists('add_action')) {
+    function add_action(...$args): bool
+    {
+        return true;
+    }
+}
+
+if (!function_exists('add_filter')) {
+    function add_filter(...$args): bool
+    {
+        return true;
+    }
+}
+
+if (!function_exists('is_user_logged_in')) {
+    function is_user_logged_in(): bool
+    {
+        return false;
     }
 }
 
