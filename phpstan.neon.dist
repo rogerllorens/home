@@ -1,0 +1,9 @@
+parameters:
+  level: 2
+  paths:
+    - includes/Domain
+    - includes/ValueObjects
+    - includes/Checkout/DataExtractor.php
+    - includes/Checkout/Validator.php
+    - includes/Checkout/ValidatorService.php
+  treatPhpDocTypesAsCertain: false
