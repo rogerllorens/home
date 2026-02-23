@@ -41,8 +41,13 @@ final class StoreApiHookIntegrationTest extends TestCase
             }
         };
 
-        $this->expectException(\WC_REST_Exception::class);
-        do_action('woocommerce_store_api_checkout_update_order_meta', $request, null);
+        try {
+            do_action('woocommerce_store_api_checkout_update_order_meta', $request, null);
+            $this->fail('Expected WC_REST_Exception');
+        } catch (\WC_REST_Exception $e) {
+            $this->assertSame('TG_TAXID_INVALID_EU_PATTERN', $e->get_error_data()['code'] ?? null);
+            $this->assertSame('tg_tax_id', $e->get_error_data()['field'] ?? null);
+        }
     }
 
     public function testStoreApiUsesExtractorAndAppendsCompanyHintWhenInferred(): void

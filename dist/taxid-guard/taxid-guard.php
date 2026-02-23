@@ -3,7 +3,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: TaxID Guard for WooCommerce (Lite)
  * Description: Adds a Tax Identifier (NIF/CIF/NIE/VAT/EIN) field to WooCommerce checkout (Classic + Blocks).
- * Version: 1.2.0
+ * Version: 1.2.1
  * Author: Rogix
  * Text Domain: taxid-guard-for-woocommerce
  * Domain Path: /languages
@@ -24,7 +24,7 @@ define('TG_PLUGIN_FILE', __FILE__);
 define('TG_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('TG_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('TG_PLUGIN_BASENAME', plugin_basename(__FILE__));
-define('TG_VERSION', '1.2.0');
+define('TG_VERSION', '1.2.1');
 
 add_action('before_woocommerce_init', static function () {
     if (class_exists('\Automattic\WooCommerce\Utilities\FeaturesUtil')) {

@@ -52,6 +52,7 @@ if (!function_exists('maybe_unserialize')) {
 }
 if (!function_exists('sanitize_text_field')) { function sanitize_text_field(string $text): string { return trim(strip_tags($text)); } }
 if (!function_exists('sanitize_textarea_field')) { function sanitize_textarea_field(string $text): string { return trim(strip_tags($text)); } }
+if (!function_exists('sanitize_key')) { function sanitize_key(string $key): string { return strtolower(preg_replace('/[^a-zA-Z0-9_\-]/', '', $key)); } }
 if (!function_exists('wp_unslash')) { function wp_unslash($v){ return $v; } }
 if (!function_exists('current_time')) { function current_time($type){ return time(); } }
 

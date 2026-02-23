@@ -30,6 +30,7 @@ final class ClassicHookIntegrationTest extends TestCase
 
         $errors = array_values(array_filter($GLOBALS['wc_notices'], static fn($n) => $n['type'] === 'error'));
         $this->assertNotEmpty($errors);
+        $this->assertStringContainsString('NIF/CIF/NIE', $errors[0]['message']);
     }
 
     public function testClassicHookCollectModeDoesNotHardBlock(): void
@@ -44,6 +45,7 @@ final class ClassicHookIntegrationTest extends TestCase
         $notices = array_values(array_filter($GLOBALS['wc_notices'], static fn($n) => $n['type'] === 'notice'));
         $this->assertEmpty($errors);
         $this->assertNotEmpty($notices);
+        $this->assertStringContainsString('Tax ID was collected but not blocked', $notices[0]['message']);
     }
 
     public function testClassicHookSkipsWhenFieldHidden(): void

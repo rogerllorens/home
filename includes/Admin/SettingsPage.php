@@ -13,6 +13,7 @@ class SettingsPage
         add_action('admin_init', [$this, 'maybe_run_upgrade_routine']);
         add_action('admin_menu', [$this, 'add_settings_page']);
         add_action('admin_post_tg_validation_tester', [$this, 'handle_validation_tester']);
+        add_action('admin_post_tg_apply_preset', [$this, 'handle_apply_preset']);
     }
 
     public static function defaults(): array
@@ -232,6 +233,7 @@ class SettingsPage
         settings_fields('tg_taxid_guard');
 
         $this->render_section_general();
+        $this->render_section_presets();
         $this->render_section_checkout();
         $this->render_section_validation();
         $this->render_section_countries($label_map, $help_map);
@@ -258,6 +260,21 @@ class SettingsPage
         $this->select_row('tg_mode', __('Mode', 'taxid-guard-for-woocommerce'), ['validate' => __('Validate (block)', 'taxid-guard-for-woocommerce'), 'collect' => __('Collect (no block)', 'taxid-guard-for-woocommerce')], __('Validation behavior at checkout.', 'taxid-guard-for-woocommerce'));
         $this->checkbox_row('tg_debug', __('Debug logging', 'taxid-guard-for-woocommerce'), __('Write debug info to WooCommerce logs when enabled.', 'taxid-guard-for-woocommerce'));
         echo '</table>';
+    }
+
+    private function render_section_presets(): void
+    {
+        echo '<h2>' . esc_html__('Quick Presets', 'taxid-guard-for-woocommerce') . '</h2>';
+        echo '<p class="description">' . esc_html__('Apply a recommended configuration profile to speed up setup.', 'taxid-guard-for-woocommerce') . '</p>';
+        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
+        wp_nonce_field('tg_apply_preset', 'tg_apply_preset_nonce');
+        echo '<input type="hidden" name="action" value="tg_apply_preset" />';
+        echo '<p>';
+        echo '<button class="button" type="submit" name="preset" value="b2b_eu">' . esc_html__('Preset B2B EU', 'taxid-guard-for-woocommerce') . '</button> ';
+        echo '<button class="button" type="submit" name="preset" value="permissive">' . esc_html__('Preset Permissive', 'taxid-guard-for-woocommerce') . '</button> ';
+        echo '<button class="button" type="submit" name="preset" value="es_only">' . esc_html__('Preset ES Only', 'taxid-guard-for-woocommerce') . '</button>';
+        echo '</p>';
+        echo '</form>';
     }
 
     private function render_section_checkout(): void
@@ -400,6 +417,52 @@ class SettingsPage
         wp_safe_redirect(admin_url('admin.php?page=tg_taxid_guard'));
         exit;
     }
+    public function handle_apply_preset(): void
+    {
+        if (! current_user_can('manage_woocommerce')) {
+            wp_die(esc_html__('Insufficient permissions.', 'taxid-guard-for-woocommerce'));
+        }
+
+        check_admin_referer('tg_apply_preset', 'tg_apply_preset_nonce');
+
+        $preset = sanitize_key((string) wp_unslash($_POST['preset'] ?? ''));
+        switch ($preset) {
+            case 'b2b_eu':
+                update_option('tg_mode', 'validate');
+                update_option('tg_show_company_checkbox', 'yes');
+                update_option('tg_show_taxid_field', 'company');
+                update_option('tg_company_requires_taxid', 'yes');
+                update_option('tg_validate_es', 'yes');
+                update_option('tg_validate_eu_vat', 'yes');
+                update_option('tg_vat_prefix_auto', 'yes');
+                break;
+            case 'permissive':
+                update_option('tg_mode', 'collect');
+                update_option('tg_show_company_checkbox', 'yes');
+                update_option('tg_show_taxid_field', 'always');
+                update_option('tg_company_requires_taxid', 'no');
+                update_option('tg_validate_es', 'yes');
+                update_option('tg_validate_eu_vat', 'yes');
+                update_option('tg_vat_prefix_auto', 'no');
+                break;
+            case 'es_only':
+                update_option('tg_mode', 'validate');
+                update_option('tg_show_company_checkbox', 'yes');
+                update_option('tg_show_taxid_field', 'company');
+                update_option('tg_company_requires_taxid', 'yes');
+                update_option('tg_validate_es', 'yes');
+                update_option('tg_validate_eu_vat', 'no');
+                update_option('tg_required_countries', ['ES']);
+                break;
+            default:
+                wp_safe_redirect(admin_url('admin.php?page=tg_taxid_guard'));
+                exit;
+        }
+
+        wp_safe_redirect(admin_url('admin.php?page=tg_taxid_guard'));
+        exit;
+    }
+
     private function render_section_pro(bool $is_pro, string $upgrade_url): void
     {
         echo '<h2>' . esc_html__('Pro Features', 'taxid-guard-for-woocommerce') . '</h2>';
