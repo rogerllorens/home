@@ -14,6 +14,9 @@ class SettingsPage
         add_action('admin_menu', [$this, 'add_settings_page']);
         add_action('admin_post_tg_validation_tester', [$this, 'handle_validation_tester']);
         add_action('admin_post_tg_apply_preset', [$this, 'handle_apply_preset']);
+        add_action('admin_post_tg_export_settings', [$this, 'handle_export_settings']);
+        add_action('admin_post_tg_import_settings', [$this, 'handle_import_settings']);
+        add_action('admin_post_tg_clear_vies_cache', [$this, 'handle_clear_vies_cache']);
     }
 
     public static function defaults(): array
@@ -354,6 +357,24 @@ class SettingsPage
 ", $summaryText)) . '</textarea>';
         echo '<p><button type="button" class="button" id="tg-copy-diagnostics">' . esc_html__('Copy diagnostics', 'taxid-guard-for-woocommerce') . '</button></p>';
         echo '</td></tr>';
+        echo '<tr><th>' . esc_html__('Support tools', 'taxid-guard-for-woocommerce') . '</th><td>';
+        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline-block;margin-right:8px;">';
+        wp_nonce_field('tg_export_settings', 'tg_export_settings_nonce');
+        echo '<input type="hidden" name="action" value="tg_export_settings" />';
+        echo '<button type="submit" class="button">' . esc_html__('Export settings (JSON)', 'taxid-guard-for-woocommerce') . '</button>';
+        echo '</form>';
+        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline-block;margin-right:8px;">';
+        wp_nonce_field('tg_clear_vies_cache', 'tg_clear_vies_cache_nonce');
+        echo '<input type="hidden" name="action" value="tg_clear_vies_cache" />';
+        echo '<button type="submit" class="button">' . esc_html__('Clear VIES cache', 'taxid-guard-for-woocommerce') . '</button>';
+        echo '</form>';
+        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" enctype="multipart/form-data" style="display:inline-block;">';
+        wp_nonce_field('tg_import_settings', 'tg_import_settings_nonce');
+        echo '<input type="hidden" name="action" value="tg_import_settings" />';
+        echo '<input type="file" name="tg_settings_json" accept="application/json" /> ';
+        echo '<button type="submit" class="button">' . esc_html__('Import settings', 'taxid-guard-for-woocommerce') . '</button>';
+        echo '</form>';
+        echo '</td></tr>';
         echo '</table>';
 
         $this->render_validation_tester($is_pro);
@@ -467,6 +488,89 @@ class SettingsPage
             default:
                 wp_safe_redirect(admin_url('admin.php?page=tg_taxid_guard'));
                 exit;
+        }
+
+        wp_safe_redirect(admin_url('admin.php?page=tg_taxid_guard'));
+        exit;
+    }
+
+
+
+    public function handle_export_settings(): void
+    {
+        if (! current_user_can('manage_woocommerce')) {
+            wp_die(esc_html__('Insufficient permissions.', 'taxid-guard-for-woocommerce'));
+        }
+
+        check_admin_referer('tg_export_settings', 'tg_export_settings_nonce');
+
+        $defaults = self::defaults();
+        $payload = [];
+        foreach ($defaults as $key => $default) {
+            $payload[$key] = get_option($key, $default);
+        }
+
+        nocache_headers();
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Disposition: attachment; filename="taxid-guard-settings-' . gmdate('Ymd-His') . '.json"');
+        echo wp_json_encode($payload, JSON_PRETTY_PRINT);
+        exit;
+    }
+
+    public function handle_import_settings(): void
+    {
+        if (! current_user_can('manage_woocommerce')) {
+            wp_die(esc_html__('Insufficient permissions.', 'taxid-guard-for-woocommerce'));
+        }
+
+        check_admin_referer('tg_import_settings', 'tg_import_settings_nonce');
+
+        if (empty($_FILES['tg_settings_json']['tmp_name']) || ! is_uploaded_file($_FILES['tg_settings_json']['tmp_name'])) {
+            wp_safe_redirect(admin_url('admin.php?page=tg_taxid_guard'));
+            exit;
+        }
+
+        $raw = file_get_contents($_FILES['tg_settings_json']['tmp_name']);
+        $data = json_decode((string) $raw, true);
+        if (! is_array($data)) {
+            wp_safe_redirect(admin_url('admin.php?page=tg_taxid_guard'));
+            exit;
+        }
+
+        foreach (self::defaults() as $key => $default) {
+            if (array_key_exists($key, $data)) {
+                update_option($key, $data[$key]);
+            }
+        }
+
+        wp_safe_redirect(admin_url('admin.php?page=tg_taxid_guard'));
+        exit;
+    }
+
+    public function handle_clear_vies_cache(): void
+    {
+        if (! current_user_can('manage_woocommerce')) {
+            wp_die(esc_html__('Insufficient permissions.', 'taxid-guard-for-woocommerce'));
+        }
+
+        check_admin_referer('tg_clear_vies_cache', 'tg_clear_vies_cache_nonce');
+
+        global $wpdb;
+        if ($wpdb) {
+            $prefixes = [
+                '_transient_tg_vies_',
+                '_transient_timeout_tg_vies_',
+                '_transient_tg_pro_vies_',
+                '_transient_timeout_tg_pro_vies_',
+                '_transient_tg_pro_vies_fail_state',
+                '_transient_tg_pro_vies_circuit_open',
+                '_transient_timeout_tg_pro_vies_fail_state',
+                '_transient_timeout_tg_pro_vies_circuit_open',
+            ];
+            foreach ($prefixes as $prefix) {
+                $like = $wpdb->esc_like($prefix) . '%';
+                $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $like));
+            }
         }
 
         wp_safe_redirect(admin_url('admin.php?page=tg_taxid_guard'));

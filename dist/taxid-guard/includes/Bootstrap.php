@@ -98,11 +98,23 @@ final class Bootstrap
             'showCompany' => $show_company,
             'showTaxIdField' => $show_taxid,
             'requireForCompany' => get_option('tg_company_requires_taxid', 'yes') === 'yes',
+            'defaultLabel' => (string) get_option('tg_taxid_label', __('Tax Identifier', 'taxid-guard-for-woocommerce')),
+            'defaultHelp' => (string) get_option('tg_taxid_help', __('Provide your Tax ID if applicable.', 'taxid-guard-for-woocommerce')),
+            'labelByCountry' => (array) get_option('tg_label_by_country', []),
+            'helpByCountry' => (array) get_option('tg_help_by_country', []),
+            'vatPrefixAuto' => get_option('tg_vat_prefix_auto', 'no') === 'yes',
             'i18n' => [
                 'hintCompany' => __('Tax ID is required for company purchases.', 'taxid-guard-for-woocommerce'),
                 'hintIndividual' => __('Only required if you are a company.', 'taxid-guard-for-woocommerce'),
                 'hintGeneric' => __('Provide your Tax ID if applicable.', 'taxid-guard-for-woocommerce'),
+                'hintEnableCompany' => __('Enable “I am a company” to enter VAT.', 'taxid-guard-for-woocommerce'),
                 'warnFormat' => __('Tax ID format looks unusual. Please double-check.', 'taxid-guard-for-woocommerce'),
+                'looksGood' => __('Format looks good.', 'taxid-guard-for-woocommerce'),
+                'looksWrongEs' => __('Unrecognized format for Spain (NIF/CIF/NIE).', 'taxid-guard-for-woocommerce'),
+                'looksGoodEs' => __('Looks like a valid Spanish tax ID format.', 'taxid-guard-for-woocommerce'),
+                'ifIndividual' => __('If you are an individual, uncheck “I am a company”.', 'taxid-guard-for-woocommerce'),
+                'normalizedAs' => __('We will store it as: %s', 'taxid-guard-for-woocommerce'),
+                'autoPrefixApplied' => __('Country prefix will be applied automatically.', 'taxid-guard-for-woocommerce'),
             ],
         ]);
         wp_enqueue_style('tg-checkout-classic', TG_PLUGIN_URL . 'assets/css/checkout.css', [], TG_VERSION);

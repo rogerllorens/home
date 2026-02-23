@@ -1,7 +1,20 @@
-.tg-tax-id-hidden {
-  display: none !important;
+.tg-tax-id-disabled {
+  opacity: 0.6;
 }
 
 .tg-tax-id-warning {
   color: #8a6d3b;
+}
+
+.tg-tax-id-status.tg-state-good {
+  color: #0f834d;
+}
+
+.tg-tax-id-status.tg-state-bad {
+  color: #b32d2e;
+}
+
+.tg-tax-id-normalized {
+  color: #50575e;
+  font-style: italic;
 }
