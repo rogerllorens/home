@@ -23,6 +23,7 @@ $GLOBALS['tg_actions'] = $GLOBALS['tg_actions'] ?? [];
 $GLOBALS['tg_filters'] = $GLOBALS['tg_filters'] ?? [];
 $GLOBALS['wc_notices'] = $GLOBALS['wc_notices'] ?? [];
 $GLOBALS['wc_stub'] = $GLOBALS['wc_stub'] ?? (object) ['customer' => null, 'cart' => null, 'session' => null];
+$GLOBALS['tg_user_meta'] = $GLOBALS['tg_user_meta'] ?? [];
 
 if (!class_exists('WC_Order')) {
     class WC_Order {
@@ -158,8 +159,10 @@ if (!function_exists('wc_add_notice')) { function wc_add_notice(string $msg, str
 if (!function_exists('WC')) { function WC() { return $GLOBALS['wc_stub']; } }
 if (!function_exists('is_user_logged_in')) { function is_user_logged_in(): bool { return false; } }
 if (!function_exists('current_user_can')) { function current_user_can($cap): bool { return true; } }
-if (!function_exists('update_user_meta')) { function update_user_meta($a, $b, $c = ''): bool { return true; } }
-if (!function_exists('delete_user_meta')) { function delete_user_meta($a, $b): bool { return true; } }
+if (!function_exists('get_user_meta')) { function get_user_meta($a, $b, $single = false) { return $GLOBALS['tg_user_meta'][$a][$b] ?? ($single ? '' : []); } }
+if (!function_exists('update_user_meta')) { function update_user_meta($a, $b, $c = ''): bool { $GLOBALS['tg_user_meta'][$a][$b] = $c; return true; } }
+if (!function_exists('delete_user_meta')) { function delete_user_meta($a, $b): bool { unset($GLOBALS['tg_user_meta'][$a][$b]); return true; } }
+if (!function_exists('get_current_user_id')) { function get_current_user_id(): int { return 1; } }
 if (!function_exists('wp_get_current_user')) { function wp_get_current_user() { return (object) ['roles' => ['customer']]; } }
 
 if (!class_exists('wpdb')) {
@@ -197,6 +200,17 @@ require_once __DIR__ . '/../includes/Domain/TaxIdNormalizer.php';
 require_once __DIR__ . '/../includes/Domain/TaxIdValidatorES.php';
 require_once __DIR__ . '/../includes/Domain/TaxIdValidatorEU.php';
 require_once __DIR__ . '/../includes/Checkout/DataExtractor.php';
+require_once __DIR__ . '/../includes/Checkout/VatExemptionManager.php';
+require_once __DIR__ . '/../includes/Checkout/LocationEvidence.php';
 require_once __DIR__ . '/../includes/Checkout/ValidatorService.php';
 require_once __DIR__ . '/../includes/Checkout/Validator.php';
 require_once __DIR__ . '/../includes/Admin/SettingsPage.php';
+
+if (!function_exists('is_uploaded_file')) { function is_uploaded_file($f): bool { return is_string($f) && $f !== ''; } }
+if (!function_exists('nocache_headers')) { function nocache_headers(): void {} }
+if (!function_exists('wp_safe_redirect')) { function wp_safe_redirect($u): void { throw new Exception('redirect:' . $u); } }
+if (!function_exists('admin_url')) { function admin_url($p=''): string { return '/wp-admin/' . ltrim((string)$p,'/'); } }
+if (!function_exists('wp_nonce_field')) { function wp_nonce_field($a, $n): void {} }
+if (!function_exists('check_admin_referer')) { function check_admin_referer($a, $n=''): bool { return true; } }
+require_once __DIR__ . '/../includes/Classic/AccountVatFields.php';
+require_once __DIR__ . '/../includes/Admin/VatRatesPage.php';

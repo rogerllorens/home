@@ -41,7 +41,7 @@ class ClassicFields {
             $help  = $this->get_dynamic_help( $country );
 
             $default = '';
-            if ( is_user_logged_in() && 'yes' === get_option( 'tg_save_taxid_profile', 'no' ) ) {
+            if ( is_user_logged_in() ) {
                 $default = (string) get_user_meta( get_current_user_id(), '_tg_tax_id', true );
             }
 

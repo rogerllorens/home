@@ -42,6 +42,9 @@ class AdminDisplay
         $tax_id = (string) $order->get_meta('_tg_tax_id', true);
         $status = (string) $order->get_meta('_tg_tax_id_status', true);
         $method = (string) $order->get_meta('_tg_tax_id_validation', true);
+        $vatExempt = (string) $order->get_meta('_tg_vat_exempt_applied', true);
+        $vatExemptReason = (string) $order->get_meta('_tg_vat_exempt_reason', true);
+        $evidenceConflict = (string) $order->get_meta('_tg_evidence_conflict', true);
 
         if ($tax_id === '' && $status === '' && $method === '') {
             echo '<p>' . esc_html__('No Tax ID data stored for this order.', 'taxid-guard-for-woocommerce') . '</p>';
@@ -52,6 +55,8 @@ class AdminDisplay
         echo '<p><strong>' . esc_html__('Tax ID:', 'taxid-guard-for-woocommerce') . '</strong> ' . esc_html($display_tax_id !== '' ? $display_tax_id : '—') . '</p>';
         echo '<p><strong>' . esc_html__('Status:', 'taxid-guard-for-woocommerce') . '</strong> ' . esc_html($this->status_label($status)) . '</p>';
         echo '<p><strong>' . esc_html__('Method:', 'taxid-guard-for-woocommerce') . '</strong> ' . esc_html($method ?: '—') . '</p>';
+        echo '<p><strong>' . esc_html__('VAT Exempt Applied:', 'taxid-guard-for-woocommerce') . '</strong> ' . esc_html($vatExempt ?: 'no') . ' (' . esc_html($vatExemptReason ?: 'n/a') . ')</p>';
+        echo '<p><strong>' . esc_html__('Evidence conflict:', 'taxid-guard-for-woocommerce') . '</strong> ' . esc_html($evidenceConflict ?: 'no') . '</p>';
     }
 
     public function order_admin_meta($order): void
@@ -66,6 +71,10 @@ class AdminDisplay
 
         $display_tax_id = $this->format_admin_tax_id($tax_id);
         echo '<p><strong>' . esc_html((string) get_option('tg_taxid_label', __('Tax Identifier', 'taxid-guard-for-woocommerce'))) . ':</strong> ' . esc_html($display_tax_id) . '</p>';
+        $evidenceConflict = (string) $order->get_meta('_tg_evidence_conflict', true);
+        if ($evidenceConflict === 'yes') {
+            echo '<p><strong>' . esc_html__('VAT evidence warning:', 'taxid-guard-for-woocommerce') . '</strong> ' . esc_html__('Location evidence is contradictory.', 'taxid-guard-for-woocommerce') . '</p>';
+        }
     }
 
     public function order_email_meta($order, $sent_to_admin, $plain_text): void

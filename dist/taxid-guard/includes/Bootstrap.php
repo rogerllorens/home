@@ -8,8 +8,12 @@ use TaxID_Guard\Admin\OrdersListBadge;
 use TaxID_Guard\Admin\SettingsPage;
 use TaxID_Guard\Admin\UpgradePage;
 use TaxID_Guard\Admin\DebugPage;
+use TaxID_Guard\Admin\VatRatesPage;
 use TaxID_Guard\Checkout\Validator;
+use TaxID_Guard\Checkout\LocationEvidence;
+use TaxID_Guard\Checkout\VatExemptionManager;
 use TaxID_Guard\Classic\ClassicFields;
+use TaxID_Guard\Classic\AccountVatFields;
 use TaxID_Guard\Integrations\CheckoutFields;
 use TaxID_Guard\Privacy\PersonalDataExportErase;
 use TaxID_Guard\Utils\Logger;
@@ -52,8 +56,12 @@ final class Bootstrap
         new OrdersListBadge();
         new PersonalDataExportErase();
         new DebugPage();
+        new VatRatesPage();
 
         new Validator();
+        new VatExemptionManager();
+        new LocationEvidence();
+        new AccountVatFields();
 
         add_action('wp_enqueue_scripts', [$this, 'enqueue_classic_assets']);
     }
@@ -103,17 +111,19 @@ final class Bootstrap
             'labelByCountry' => (array) get_option('tg_label_by_country', []),
             'helpByCountry' => (array) get_option('tg_help_by_country', []),
             'vatPrefixAuto' => get_option('tg_vat_prefix_auto', 'no') === 'yes',
+            'showValidationProgress' => get_option('tg_show_validation_progress', 'yes') === 'yes',
             'i18n' => [
                 'hintCompany' => __('Tax ID is required for company purchases.', 'taxid-guard-for-woocommerce'),
                 'hintIndividual' => __('Only required if you are a company.', 'taxid-guard-for-woocommerce'),
                 'hintGeneric' => __('Provide your Tax ID if applicable.', 'taxid-guard-for-woocommerce'),
                 'hintEnableCompany' => __('Enable “I am a company” to enter VAT.', 'taxid-guard-for-woocommerce'),
-                'warnFormat' => __('Tax ID format looks unusual. Please double-check.', 'taxid-guard-for-woocommerce'),
+                'warnFormat' => (string) get_option('tg_invalid_message', __('Tax ID format looks unusual. Please double-check.', 'taxid-guard-for-woocommerce')),
                 'looksGood' => __('Format looks good.', 'taxid-guard-for-woocommerce'),
                 'looksWrongEs' => __('Unrecognized format for Spain (NIF/CIF/NIE).', 'taxid-guard-for-woocommerce'),
                 'looksGoodEs' => __('Looks like a valid Spanish tax ID format.', 'taxid-guard-for-woocommerce'),
                 'ifIndividual' => __('If you are an individual, uncheck “I am a company”.', 'taxid-guard-for-woocommerce'),
                 'normalizedAs' => __('We will store it as: %s', 'taxid-guard-for-woocommerce'),
+                'progressMessage' => (string) get_option('tg_progress_message', __('Validating VAT...', 'taxid-guard-for-woocommerce')),
                 'autoPrefixApplied' => __('Country prefix will be applied automatically.', 'taxid-guard-for-woocommerce'),
             ],
         ]);

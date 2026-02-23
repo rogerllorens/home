@@ -30,7 +30,15 @@ class ValidatorService
             strtoupper((string) sanitize_text_field(wp_unslash($posted_data['billing_country'] ?? '')))
         );
 
-        return $this->validate($input, 'classic');
+        $result = $this->validate($input, 'classic');
+        (new VatExemptionManager())->update_session_from_validation([
+            'ok' => $result->ok,
+            'code' => $result->code,
+            'country' => $input->country,
+            'is_company' => $input->isCompany,
+            'tax_id' => $input->taxId,
+        ]);
+        return $result;
     }
 
     public function validate_store_api_payload($arg1, $arg2): ValidationResult
@@ -57,6 +65,14 @@ class ValidatorService
         if (! $result->ok && ! empty($raw['tg_company_inferred'])) {
             $result->message .= ' ' . __('If you are not a company, leave Tax ID empty.', 'taxid-guard-for-woocommerce');
         }
+
+        (new VatExemptionManager())->update_session_from_validation([
+            'ok' => $result->ok,
+            'code' => $result->code,
+            'country' => $input->country,
+            'is_company' => $input->isCompany,
+            'tax_id' => $input->taxId,
+        ]);
 
         return $result;
     }
@@ -201,7 +217,7 @@ class ValidatorService
             'method' => 'basic_format',
             'status' => $ok ? 'valid' : 'invalid',
             'code' => $ok ? 'TG_VALID' : 'TG_TAXID_INVALID_FORMAT',
-            'message' => $ok ? '' : __('The tax identifier format is invalid (must be 4-24 uppercase alphanumeric characters).', 'taxid-guard-for-woocommerce'),
+            'message' => $ok ? '' : (string) get_option('tg_invalid_message', __('The tax identifier format is invalid (must be 4-24 uppercase alphanumeric characters).', 'taxid-guard-for-woocommerce')),
         ];
     }
 
@@ -325,6 +341,11 @@ class ValidatorService
 
     private function required_message(string $country): string
     {
+        $custom = (string) get_option('tg_required_message', '');
+        if ($custom !== '') {
+            return $custom;
+        }
+
         if ($country === 'US') {
             return __('Please enter your business EIN (9 digits).', 'taxid-guard-for-woocommerce');
         }

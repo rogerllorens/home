@@ -16,7 +16,8 @@ jQuery(function ($) {
   var $status = $('<p class="tg-tax-id-status description" />');
   var $warn = $('<p class="tg-tax-id-warning description" />');
   var $normalized = $('<p class="tg-tax-id-normalized description" />');
-  $taxField.append($hint).append($status).append($warn).append($normalized);
+  var $progress = $('<p class="tg-tax-id-progress description" />');
+  $taxField.append($hint).append($status).append($warn).append($normalized).append($progress);
 
   function cleanValue(value) {
     return String(value || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
@@ -180,6 +181,10 @@ jQuery(function ($) {
 
   $taxInput.on('input blur', function () {
     autoDetectCompany();
+    if (cfg.showValidationProgress) {
+      $progress.text(i18n.progressMessage || 'Validating VAT...');
+      setTimeout(function () { $progress.text(''); }, 400);
+    }
     updateStatus();
     normalizePreview();
   });

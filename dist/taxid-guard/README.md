@@ -76,3 +76,11 @@ Consulta `CHANGELOG.md`.
 - Export CSV/XLSX con filtros por país/estado VIES.
 - Revalidación masiva de VIES por lotes con rate-limit.
 - Integraciones de facturación (Holded/Quaderno/FacturaScripts) como add-ons.
+
+
+## Lite VAT features
+- VAT exemption mode for valid company VAT numbers (configurable).
+- B2C location evidence capture (billing/shipping/IP country + conflict flag).
+- Digital-goods mode for virtual/downloadable carts.
+- VAT field on signup/account (optional).
+- EU VAT rates importer page (no remote calls).

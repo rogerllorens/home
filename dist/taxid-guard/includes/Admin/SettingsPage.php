@@ -34,6 +34,15 @@ class SettingsPage
             'tg_debug' => 'no',
             'tg_mask_admin_taxid' => 'no',
             'tg_taxid_visible_roles' => [],
+            'tg_vat_exemption_mode' => 'off',
+            'tg_collect_location_evidence' => 'yes',
+            'tg_digital_goods_mode' => 'auto_detect_virtual_only',
+            'tg_collect_vat_on_signup' => 'no',
+            'tg_show_validation_progress' => 'yes',
+            'tg_progress_message' => __('Validating VAT...', 'taxid-guard-for-woocommerce'),
+            'tg_invalid_message' => __('VAT format looks invalid for the selected country.', 'taxid-guard-for-woocommerce'),
+            'tg_required_message' => __('Please enter your VAT / Tax ID.', 'taxid-guard-for-woocommerce'),
+            'tg_vies_unavailable_message' => __('VIES validation is available in Pro.', 'taxid-guard-for-woocommerce'),
 
             // Validation
             'tg_validate_es' => 'yes',
@@ -84,6 +93,15 @@ class SettingsPage
         register_setting($group, 'tg_debug', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
         register_setting($group, 'tg_mask_admin_taxid', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
         register_setting($group, 'tg_taxid_visible_roles', ['sanitize_callback' => [$this, 'sanitize_slug_list']]);
+        register_setting($group, 'tg_vat_exemption_mode', ['sanitize_callback' => fn($v) => $this->sanitize_select($v, ['off', 'exempt_when_valid_outside_base_country', 'exempt_when_valid_anywhere', 'preserve_vat_in_base_country_only'], 'off')]);
+        register_setting($group, 'tg_collect_location_evidence', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
+        register_setting($group, 'tg_digital_goods_mode', ['sanitize_callback' => fn($v) => $this->sanitize_select($v, ['auto_detect_virtual_only', 'always_treat_as_digital', 'disabled'], 'auto_detect_virtual_only')]);
+        register_setting($group, 'tg_collect_vat_on_signup', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
+        register_setting($group, 'tg_show_validation_progress', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
+        register_setting($group, 'tg_progress_message', ['sanitize_callback' => 'sanitize_text_field']);
+        register_setting($group, 'tg_invalid_message', ['sanitize_callback' => 'sanitize_text_field']);
+        register_setting($group, 'tg_required_message', ['sanitize_callback' => 'sanitize_text_field']);
+        register_setting($group, 'tg_vies_unavailable_message', ['sanitize_callback' => 'sanitize_text_field']);
 
         register_setting($group, 'tg_validate_es', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
         register_setting($group, 'tg_validate_eu_vat', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
@@ -299,6 +317,10 @@ class SettingsPage
         $this->checkbox_row('tg_email_admin', __('Show in admin emails', 'taxid-guard-for-woocommerce'), '');
         $this->checkbox_row('tg_mask_admin_taxid', __('Mask Tax ID in admin and admin emails', 'taxid-guard-for-woocommerce'), '');
         echo '<tr><th>' . esc_html__('Roles allowed to view full Tax ID (CSV)', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_taxid_visible_roles" value="' . esc_attr(implode(',', (array) self::get('tg_taxid_visible_roles'))) . '" placeholder="administrator,shop_manager" /><p class="description">' . esc_html__('Leave empty to allow all admin roles with access to this page.', 'taxid-guard-for-woocommerce') . '</p></td></tr>';
+        $this->select_row('tg_vat_exemption_mode', __('VAT exemption mode', 'taxid-guard-for-woocommerce'), ['off' => __('Off', 'taxid-guard-for-woocommerce'), 'exempt_when_valid_outside_base_country' => __('Exempt when valid outside base country', 'taxid-guard-for-woocommerce'), 'exempt_when_valid_anywhere' => __('Exempt when valid anywhere', 'taxid-guard-for-woocommerce'), 'preserve_vat_in_base_country_only' => __('Preserve VAT in base country only', 'taxid-guard-for-woocommerce')], '');
+        $this->checkbox_row('tg_collect_location_evidence', __('Collect location evidence', 'taxid-guard-for-woocommerce'), '');
+        $this->select_row('tg_digital_goods_mode', __('Digital goods mode', 'taxid-guard-for-woocommerce'), ['auto_detect_virtual_only' => __('Auto detect virtual-only carts', 'taxid-guard-for-woocommerce'), 'always_treat_as_digital' => __('Always treat as digital', 'taxid-guard-for-woocommerce'), 'disabled' => __('Disabled', 'taxid-guard-for-woocommerce')], '');
+        $this->checkbox_row('tg_collect_vat_on_signup', __('Collect VAT on signup/account', 'taxid-guard-for-woocommerce'), '');
         echo '</table>';
     }
 
@@ -308,6 +330,11 @@ class SettingsPage
         $this->checkbox_row('tg_validate_es', __('Validate ES (NIF/NIE/CIF)', 'taxid-guard-for-woocommerce'), '');
         $this->checkbox_row('tg_validate_eu_vat', __('Validate EU VAT pattern', 'taxid-guard-for-woocommerce'), '');
         $this->checkbox_row('tg_vat_prefix_auto', __('Auto prepend VAT country prefix', 'taxid-guard-for-woocommerce'), '');
+        $this->checkbox_row('tg_show_validation_progress', __('Show validation progress text', 'taxid-guard-for-woocommerce'), '');
+        echo '<tr><th>' . esc_html__('Progress message', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_progress_message" value="' . esc_attr((string) self::get('tg_progress_message')) . '" /></td></tr>';
+        echo '<tr><th>' . esc_html__('Invalid message', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_invalid_message" value="' . esc_attr((string) self::get('tg_invalid_message')) . '" /></td></tr>';
+        echo '<tr><th>' . esc_html__('Required message', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_required_message" value="' . esc_attr((string) self::get('tg_required_message')) . '" /></td></tr>';
+        echo '<tr><th>' . esc_html__('VIES unavailable message', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_vies_unavailable_message" value="' . esc_attr((string) self::get('tg_vies_unavailable_message')) . '" /></td></tr>';
         echo '<tr><th>' . esc_html__('Required countries (ISO2 CSV)', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_required_countries" value="' . esc_attr(implode(',', (array) self::get('tg_required_countries'))) . '" placeholder="ES,IT,DE" /></td></tr>';
         echo '</table>';
     }
