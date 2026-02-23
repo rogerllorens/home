@@ -57,3 +57,22 @@ CI ejecuta:
 ## Changelog
 
 Consulta `CHANGELOG.md`.
+
+
+## Estado actual (implementado)
+
+### Lite (hoy)
+- Campo Tax ID + Company checkbox en Classic y Blocks.
+- Validación local ES/EU pattern + modo `collect/validate`.
+- Diagnostics + Validation Tester.
+- Guardado en pedido, badges y privacidad export/erase.
+
+### Pro (hoy, en `dist/taxid-guard-pro/`)
+- VIES online con timeout corto, retry simple, caché por VAT y circuit-breaker con fail-mode `allow/block`.
+- Reglas B2B de requisito por rol, umbral de carrito y reglas de exclusión por pago/envío/virtual.
+- Dependencia de Lite + licencia Freemius activa.
+
+## Roadmap Pro (siguiente nivel)
+- Export CSV/XLSX con filtros por país/estado VIES.
+- Revalidación masiva de VIES por lotes con rate-limit.
+- Integraciones de facturación (Holded/Quaderno/FacturaScripts) como add-ons.

@@ -5,11 +5,25 @@ namespace TaxID_Guard_Pro;
 
 final class Freemius
 {
+
+    private static function has_valid_keys(): bool
+    {
+        $id = defined('TG_PRO_FS_ID') ? (string) TG_PRO_FS_ID : 'REPLACE_ME';
+        $key = defined('TG_PRO_FS_PUBLIC_KEY') ? (string) TG_PRO_FS_PUBLIC_KEY : 'REPLACE_ME';
+
+        return $id !== '' && $key !== '' && $id !== 'REPLACE_ME' && $key !== 'REPLACE_ME';
+    }
+
     public static function instance()
     {
         static $fs = null;
 
         if ($fs !== null) {
+            return $fs;
+        }
+
+        if (! self::has_valid_keys()) {
+            $fs = false;
             return $fs;
         }
 
