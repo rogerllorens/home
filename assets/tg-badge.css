@@ -1,0 +1,12 @@
+.tg-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1.4;
+    border-radius: 3px;
+    color: #fff;
+}
+.tg-badge-valid { background:#28a745; }
+.tg-badge-invalid { background:#dc3545; }
+.tg-badge-skipped { background:#6c757d; }
+.tg-badge-unverified { background:#ffc107; color:#212529; }
