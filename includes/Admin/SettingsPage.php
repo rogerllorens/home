@@ -369,7 +369,7 @@ class SettingsPage
 
     public function handle_validation_tester(): void
     {
-        if (! current_user_can('manage_options')) {
+        if (! current_user_can('manage_woocommerce')) {
             wp_die(esc_html__('Insufficient permissions.', 'taxid-guard-for-woocommerce'));
         }
 
@@ -379,7 +379,7 @@ class SettingsPage
         $taxId = sanitize_text_field((string) wp_unslash($_POST['tax_id'] ?? ''));
         $isCompany = isset($_POST['is_company']) && $_POST['is_company'] === '1';
         $runVies = false;
-        $validator = new \TaxID_Guard\Checkout\Validator();
+        $validator = new \TaxID_Guard\Checkout\ValidatorService();
 
         $input = new \TaxID_Guard\ValueObjects\TaxIdInput($isCompany, \TaxID_Guard\Domain\TaxIdNormalizer::normalize($taxId), $country);
         $result = $validator->validate($input);

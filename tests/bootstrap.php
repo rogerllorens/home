@@ -195,5 +195,6 @@ require_once __DIR__ . '/../includes/Domain/TaxIdNormalizer.php';
 require_once __DIR__ . '/../includes/Domain/TaxIdValidatorES.php';
 require_once __DIR__ . '/../includes/Domain/TaxIdValidatorEU.php';
 require_once __DIR__ . '/../includes/Checkout/DataExtractor.php';
+require_once __DIR__ . '/../includes/Checkout/ValidatorService.php';
 require_once __DIR__ . '/../includes/Checkout/Validator.php';
 require_once __DIR__ . '/../includes/Admin/SettingsPage.php';

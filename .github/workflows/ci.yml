@@ -28,3 +28,13 @@ jobs:
 
       - name: Run PHPUnit
         run: phpunit -c phpunit.xml.dist
+
+
+      - name: Install QA dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: Run PHPCS (WPCS subset)
+        run: composer run lint:phpcs
+
+      - name: Run PHPStan (level 2)
+        run: composer run lint:phpstan
