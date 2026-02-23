@@ -1,0 +1,4 @@
+<?php
+// Copy to config/local-keys.php during local development (do not commit keys).
+// define('TG_PRO_FS_ID', '12345');
+// define('TG_PRO_FS_PUBLIC_KEY', 'pk_xxxxx');
