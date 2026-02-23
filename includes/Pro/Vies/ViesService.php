@@ -59,6 +59,12 @@ class ViesService
         return $result;
     }
 
+
+    public function is_circuit_breaker_open(): bool
+    {
+        return $this->is_circuit_open();
+    }
+
     private function is_circuit_open(): bool
     {
         return (bool) get_transient('tg_vies_circuit_open');

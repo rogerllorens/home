@@ -1,3 +1,7 @@
 .tg-tax-id-hidden {
   display: none !important;
 }
+
+.tg-tax-id-warning {
+  color: #8a6d3b;
+}

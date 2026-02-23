@@ -38,12 +38,15 @@ class DataExtractor
         $is_company_present = $is_company_raw !== '' && $is_company_raw !== null;
 
         // Policy for Blocks/company-only mode when checkbox value is absent but customer entered tax id.
+        $company_inferred = false;
         if (! $is_company_present && $tax_id !== '' && get_option('tg_show_taxid_field', 'always') === 'company') {
             $is_company = true;
+            $company_inferred = true;
         }
 
         return [
             'tg_is_company' => $is_company,
+            'tg_company_inferred' => $company_inferred,
             'tg_tax_id' => sanitize_text_field((string) $tax_id),
             'billing_country' => strtoupper((string) $country),
         ];

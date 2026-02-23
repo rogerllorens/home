@@ -57,7 +57,12 @@ class Validator
             strtoupper((string) ($raw['billing_country'] ?? '')),
         );
 
-        $this->apply_validation_result($this->validate($input), 'store_api');
+        $result = $this->validate($input);
+        if (! $result->ok && ! empty($raw['tg_company_inferred'])) {
+            $result->message .= ' ' . __('If you are not a company, leave Tax ID empty.', 'taxid-guard-for-woocommerce');
+        }
+
+        $this->apply_validation_result($result, 'store_api');
     }
 
     public function validate(TaxIdInput $input): ValidationResult

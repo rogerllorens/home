@@ -108,6 +108,12 @@ final class Bootstrap
             'showCompany' => $show_company,
             'showTaxIdField' => $show_taxid,
             'requireForCompany' => get_option('tg_company_requires_taxid', 'yes') === 'yes',
+            'i18n' => [
+                'hintCompany' => __('Tax ID is required for company purchases.', 'taxid-guard-for-woocommerce'),
+                'hintIndividual' => __('Only required if you are a company.', 'taxid-guard-for-woocommerce'),
+                'hintGeneric' => __('Provide your Tax ID if applicable.', 'taxid-guard-for-woocommerce'),
+                'warnFormat' => __('Tax ID format looks unusual. Please double-check.', 'taxid-guard-for-woocommerce'),
+            ],
         ]);
         wp_enqueue_style('tg-checkout-classic', TG_PLUGIN_URL . 'assets/css/checkout.css', [], TG_VERSION);
     }
