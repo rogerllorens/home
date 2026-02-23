@@ -10,9 +10,6 @@ $options = [
     'tg_validate_es', 'tg_validate_eu_vat', 'tg_save_taxid_profile', 'tg_show_in_admin',
     'tg_email_admin', 'tg_debug',
     'tg_label_by_country', 'tg_help_by_country',
-    'tg_pro_vies', 'tg_vies_cache_hours', 'tg_vies_fail_mode', 'tg_required_roles', 'tg_cart_total_threshold',
-    'tg_exclude_payment_methods', 'tg_exclude_shipping_methods', 'tg_exclude_virtual_orders',
-    'tg_email_customer', 'tg_mask_customer_email',
     'tg_plugin_version', 'tg_settings_schema_version', 'tg_schema_version'
 ];
 

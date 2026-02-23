@@ -15,7 +15,6 @@ final class SettingsMigrator
         if (version_compare($schema, '1.1.0', '<')) {
             self::migrate_country_maps(['tg_label_by_country', 'tg_help_by_country']);
             self::migrate_legacy_selects();
-            self::migrate_slug_lists(['tg_required_roles', 'tg_exclude_payment_methods', 'tg_exclude_shipping_methods']);
             update_option('tg_schema_version', '1.1.0');
         }
 
@@ -55,30 +54,6 @@ final class SettingsMigrator
             }
 
             update_option($key, $normalized);
-        }
-    }
-
-
-    private static function migrate_slug_lists(array $keys): void
-    {
-        foreach ($keys as $key) {
-            $raw = maybe_unserialize(get_option($key, []));
-            if (is_string($raw)) {
-                $raw = trim($raw) === '' ? [] : preg_split('/\s*,\s*/', $raw);
-            }
-            if (! is_array($raw)) {
-                update_option($key, []);
-                continue;
-            }
-
-            $clean = [];
-            foreach ($raw as $value) {
-                $item = sanitize_text_field(trim((string) $value));
-                if ($item !== '') {
-                    $clean[] = $item;
-                }
-            }
-            update_option($key, array_values(array_unique($clean)));
         }
     }
 

@@ -10,9 +10,6 @@ class UpgradePage {
     }
 
     public function add_upgrade_page(): void {
-        if ( ! function_exists( 'tg_fs' ) || ! tg_fs() ) {
-            return;
-        }
         add_submenu_page(
             'woocommerce',
             __( 'Upgrade to Pro', 'taxid-guard-for-woocommerce' ),
@@ -27,14 +24,7 @@ class UpgradePage {
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_die( __( 'Insufficient permissions.', 'taxid-guard-for-woocommerce' ) );
         }
-        $fs = function_exists( 'tg_fs' ) ? tg_fs() : false;
-        if ( ! $fs ) {
-            echo '<div class="notice notice-warning"><p>';
-            esc_html_e( 'Upgrade is not available because Freemius is not installed.', 'taxid-guard-for-woocommerce' );
-            echo '</p></div>';
-            return;
-        }
-        $upgrade_url = $fs->get_upgrade_url();
+        $upgrade_url = 'https://example.com/taxid-guard-pro';
         ?>
         <div class="wrap">
             <h1><?php esc_html_e( 'Upgrade to TaxID Guard Pro', 'taxid-guard-for-woocommerce' ); ?></h1>

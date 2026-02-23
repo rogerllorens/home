@@ -80,6 +80,25 @@ class Validator
         $taxId = $input->taxId;
         $isCompany = $input->isCompany;
 
+        $showTaxIdField = (string) get_option('tg_show_taxid_field', 'always');
+        $showCompanyCheckbox = get_option('tg_show_company_checkbox', 'yes') === 'yes';
+
+        if ($showTaxIdField === 'no') {
+            $this->store_temp('', false, $country, 'field_hidden', false, 'skipped');
+            $this->add_temp_meta('__tg_context', $context);
+            $this->add_temp_meta('__tg_input', $input);
+            $result = new ValidationResult(true, '', 'TG_FIELD_DISABLED', 'skipped', 'field_hidden');
+            return apply_filters('tg_taxid_guard_validation_result', $result, $input, $context);
+        }
+
+        if ($showTaxIdField === 'company' && $showCompanyCheckbox && ! $isCompany && $taxId === '') {
+            $this->store_temp('', false, $country, 'company_only_skipped', false, 'skipped');
+            $this->add_temp_meta('__tg_context', $context);
+            $this->add_temp_meta('__tg_input', $input);
+            $result = new ValidationResult(true, '', 'TG_SKIPPED', 'skipped', 'company_only_skipped');
+            return apply_filters('tg_taxid_guard_validation_result', $result, $input, $context);
+        }
+
         $vatCountry = $this->country_to_vat_prefix($country);
         if ($taxId !== '' && $country !== 'ES' && $this->is_eu_country($vatCountry) && get_option('tg_vat_prefix_auto', 'no') === 'yes' && strpos($taxId, $vatCountry) !== 0 && ! preg_match('/^[A-Z]{2}/', $taxId)) {
             $taxId = $vatCountry . $taxId;
@@ -175,7 +194,7 @@ class Validator
         if ($country !== 'ES' && TaxIdValidatorEU::is_eu_country($vat) && get_option('tg_validate_eu_vat', 'yes') === 'yes') {
             $result = TaxIdValidatorEU::validate($vat, $tax_id);
             if (($result['valid'] ?? false) !== true) {
-                $result['code'] = 'TG_TAXID_INVALID_EU';
+                $result['code'] = 'TG_TAXID_INVALID_EU_PATTERN';
             }
             return $result;
         }

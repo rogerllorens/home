@@ -41,17 +41,6 @@ class SettingsPage
             'tg_label_by_country' => [],
             'tg_help_by_country' => [],
 
-            // Pro (safe defaults)
-            'tg_pro_vies' => 'no',
-            'tg_vies_cache_hours' => 24,
-            'tg_vies_fail_mode' => 'block',
-            'tg_required_roles' => [],
-            'tg_cart_total_threshold' => 0.0,
-            'tg_exclude_payment_methods' => [],
-            'tg_exclude_shipping_methods' => [],
-            'tg_exclude_virtual_orders' => 'no',
-            'tg_email_customer' => 'no',
-            'tg_mask_customer_email' => 'no',
         ];
     }
 
@@ -99,16 +88,6 @@ class SettingsPage
         register_setting($group, 'tg_help_by_country', ['sanitize_callback' => [$this, 'sanitize_assoc_map_help']]);
 
         // Pro-gated
-        register_setting($group, 'tg_pro_vies', ['sanitize_callback' => fn($v) => $this->sanitize_pro_yes_no($v, 'no')]);
-        register_setting($group, 'tg_vies_cache_hours', ['sanitize_callback' => fn($v) => $this->sanitize_pro_int_range($v, 1, 168, 24)]);
-        register_setting($group, 'tg_vies_fail_mode', ['sanitize_callback' => fn($v) => $this->sanitize_pro_select($v, ['block', 'allow'], 'block')]);
-        register_setting($group, 'tg_required_roles', ['sanitize_callback' => fn($v) => $this->sanitize_pro_array($v)]);
-        register_setting($group, 'tg_cart_total_threshold', ['sanitize_callback' => fn($v) => $this->sanitize_pro_float($v, 0, 10000000, 0)]);
-        register_setting($group, 'tg_exclude_payment_methods', ['sanitize_callback' => fn($v) => $this->sanitize_pro_array($v)]);
-        register_setting($group, 'tg_exclude_shipping_methods', ['sanitize_callback' => fn($v) => $this->sanitize_pro_array($v)]);
-        register_setting($group, 'tg_exclude_virtual_orders', ['sanitize_callback' => fn($v) => $this->sanitize_pro_yes_no($v, 'no')]);
-        register_setting($group, 'tg_email_customer', ['sanitize_callback' => fn($v) => $this->sanitize_pro_yes_no($v, 'no')]);
-        register_setting($group, 'tg_mask_customer_email', ['sanitize_callback' => fn($v) => $this->sanitize_pro_yes_no($v, 'no')]);
     }
 
     public function sanitize_yes_no($v): string
@@ -218,35 +197,6 @@ class SettingsPage
         }
         return $map;
     }
-
-    public function sanitize_pro_yes_no($v, string $default): string
-    {
-        return $this->is_pro() ? $this->sanitize_yes_no($v) : $default;
-    }
-
-    public function sanitize_pro_int_range($v, int $min, int $max, int $default): int
-    {
-        return $this->is_pro() ? $this->sanitize_int_range($v, $min, $max, $default) : $default;
-    }
-
-    public function sanitize_pro_select($v, array $allowed, $default)
-    {
-        return $this->is_pro() ? $this->sanitize_select($v, $allowed, $default) : $default;
-    }
-
-    public function sanitize_pro_array($v): array
-    {
-        if (! $this->is_pro()) {
-            return [];
-        }
-        return $this->sanitize_slug_list($v);
-    }
-
-    public function sanitize_pro_float($v, float $min, float $max, float $default): float
-    {
-        return $this->is_pro() ? $this->sanitize_float($v, $min, $max, $default) : $default;
-    }
-
     private function maybe_run_upgrade_routine(): void
     {
         $version = get_option('tg_settings_schema_version', '0');
@@ -271,9 +221,8 @@ class SettingsPage
             wp_die(esc_html__('Insufficient permissions.', 'taxid-guard-for-woocommerce'));
         }
 
-        $is_pro = $this->is_pro();
-        $fs = function_exists('tg_fs') ? tg_fs() : false;
-        $upgrade_url = (! $is_pro && $fs && method_exists($fs, 'get_upgrade_url')) ? $fs->get_upgrade_url() : '';
+        $is_pro = false;
+        $upgrade_url = 'https://example.com/taxid-guard-pro';
 
         $label_map = $this->map_to_textarea(self::get('tg_label_by_country'));
         $help_map = $this->map_to_textarea(self::get('tg_help_by_country'));
@@ -351,14 +300,9 @@ class SettingsPage
             $country = (string) (WC()->customer->get_billing_country() ?: WC()->customer->get_shipping_country());
         }
 
-        $viesActive = get_option('tg_pro_vies', 'no') === 'yes' ? __('Yes', 'taxid-guard-for-woocommerce') : __('No', 'taxid-guard-for-woocommerce');
+        $viesActive = __('Pro plugin required', 'taxid-guard-for-woocommerce');
         $soapAvailable = class_exists('\SoapClient') ? __('Yes', 'taxid-guard-for-woocommerce') : __('No', 'taxid-guard-for-woocommerce');
         $viesCircuit = __('Closed', 'taxid-guard-for-woocommerce');
-        if (class_exists('TaxID_Guard\Pro\Vies\ViesService')) {
-            $viesCircuit = (new \TaxID_Guard\Pro\Vies\ViesService())->is_circuit_breaker_open()
-                ? __('Open', 'taxid-guard-for-woocommerce')
-                : __('Closed', 'taxid-guard-for-woocommerce');
-        }
 
         $summaryRows = [
             __('Checkout detection', 'taxid-guard-for-woocommerce') => $checkoutContext,
@@ -413,9 +357,6 @@ class SettingsPage
         echo '</select></td></tr>';
         echo '<tr><th>' . esc_html__('I am a company', 'taxid-guard-for-woocommerce') . '</th><td><label><input type="checkbox" name="is_company" value="1" /> ' . esc_html__('Yes', 'taxid-guard-for-woocommerce') . '</label></td></tr>';
         echo '<tr><th>' . esc_html__('Tax ID', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tax_id" /></td></tr>';
-        if ($is_pro && get_option('tg_pro_vies', 'no') === 'yes') {
-            echo '<tr><th>' . esc_html__('Run VIES in test', 'taxid-guard-for-woocommerce') . '</th><td><label><input type="checkbox" name="run_vies" value="1" /> ' . esc_html__('Yes', 'taxid-guard-for-woocommerce') . '</label></td></tr>';
-        }
         echo '</table>';
         submit_button(__('Test validation', 'taxid-guard-for-woocommerce'));
         echo '</form>';
@@ -437,14 +378,8 @@ class SettingsPage
         $country = strtoupper(sanitize_text_field((string) wp_unslash($_POST['country'] ?? '')));
         $taxId = sanitize_text_field((string) wp_unslash($_POST['tax_id'] ?? ''));
         $isCompany = isset($_POST['is_company']) && $_POST['is_company'] === '1';
-        $runVies = isset($_POST['run_vies']) && $_POST['run_vies'] === '1';
-
-        $isPro = $this->is_pro();
-        if ($isPro && $runVies && get_option('tg_pro_vies', 'no') === 'yes') {
-            $validator = new \TaxID_Guard\Checkout\ProValidator();
-        } else {
-            $validator = new \TaxID_Guard\Checkout\Validator();
-        }
+        $runVies = false;
+        $validator = new \TaxID_Guard\Checkout\Validator();
 
         $input = new \TaxID_Guard\ValueObjects\TaxIdInput($isCompany, \TaxID_Guard\Domain\TaxIdNormalizer::normalize($taxId), $country);
         $result = $validator->validate($input);
@@ -458,38 +393,18 @@ class SettingsPage
             'is_company' => $isCompany,
             'country' => $country,
             'tax_id' => $input->taxId,
-            'vies_ran' => $isPro && $runVies,
+            'vies_ran' => $runVies,
         ];
 
         set_transient('tg_validation_tester_result_' . get_current_user_id(), $payload, 2 * MINUTE_IN_SECONDS);
         wp_safe_redirect(admin_url('admin.php?page=tg_taxid_guard'));
         exit;
     }
-
     private function render_section_pro(bool $is_pro, string $upgrade_url): void
     {
-        $disabled = $is_pro ? '' : ' disabled="disabled"';
-        echo '<h2>' . esc_html__('Pro', 'taxid-guard-for-woocommerce') . '</h2>';
-        if (! $is_pro) {
-            echo '<p class="description">' . esc_html__('Available in Pro.', 'taxid-guard-for-woocommerce');
-            if ($upgrade_url !== '') {
-                echo ' <a class="button" href="' . esc_url($upgrade_url) . '">' . esc_html__('Upgrade', 'taxid-guard-for-woocommerce') . '</a>';
-            }
-            echo '</p>';
-        }
-
-        echo '<table class="form-table">';
-        echo '<tr><th>' . esc_html__('Enable VIES validation', 'taxid-guard-for-woocommerce') . '</th><td><input type="hidden" name="tg_pro_vies" value="no" /><input type="checkbox" name="tg_pro_vies" value="yes" ' . checked('yes', (string) self::get('tg_pro_vies'), false) . $disabled . ' /></td></tr>';
-        echo '<tr><th>' . esc_html__('VIES cache hours', 'taxid-guard-for-woocommerce') . '</th><td><input type="number" min="1" max="168" name="tg_vies_cache_hours" value="' . esc_attr((string) self::get('tg_vies_cache_hours')) . '"' . $disabled . ' /></td></tr>';
-        echo '<tr><th>' . esc_html__('VIES fail mode', 'taxid-guard-for-woocommerce') . '</th><td><select name="tg_vies_fail_mode"' . $disabled . '><option value="block"' . selected('block', (string) self::get('tg_vies_fail_mode'), false) . '>' . esc_html__('Block checkout', 'taxid-guard-for-woocommerce') . '</option><option value="allow"' . selected('allow', (string) self::get('tg_vies_fail_mode'), false) . '>' . esc_html__('Allow checkout', 'taxid-guard-for-woocommerce') . '</option></select></td></tr>';
-        echo '<tr><th>' . esc_html__('Required customer roles', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_required_roles" value="' . esc_attr(implode(',', (array) self::get('tg_required_roles'))) . '"' . $disabled . ' /></td></tr>';
-        echo '<tr><th>' . esc_html__('Min cart total', 'taxid-guard-for-woocommerce') . '</th><td><input type="text" name="tg_cart_total_threshold" value="' . esc_attr((string) self::get('tg_cart_total_threshold')) . '"' . $disabled . ' /></td></tr>';
-        echo '<tr><th>' . esc_html__('Excluded payment methods', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_exclude_payment_methods" value="' . esc_attr(implode(',', (array) self::get('tg_exclude_payment_methods'))) . '"' . $disabled . ' /></td></tr>';
-        echo '<tr><th>' . esc_html__('Excluded shipping methods', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_exclude_shipping_methods" value="' . esc_attr(implode(',', (array) self::get('tg_exclude_shipping_methods'))) . '"' . $disabled . ' /></td></tr>';
-        echo '<tr><th>' . esc_html__('Exclude virtual orders', 'taxid-guard-for-woocommerce') . '</th><td><input type="hidden" name="tg_exclude_virtual_orders" value="no" /><input type="checkbox" name="tg_exclude_virtual_orders" value="yes" ' . checked('yes', (string) self::get('tg_exclude_virtual_orders'), false) . $disabled . ' /></td></tr>';
-        echo '<tr><th>' . esc_html__('Email customer on invalid', 'taxid-guard-for-woocommerce') . '</th><td><input type="hidden" name="tg_email_customer" value="no" /><input type="checkbox" name="tg_email_customer" value="yes" ' . checked('yes', (string) self::get('tg_email_customer'), false) . $disabled . ' /></td></tr>';
-        echo '<tr><th>' . esc_html__('Mask customer email', 'taxid-guard-for-woocommerce') . '</th><td><input type="hidden" name="tg_mask_customer_email" value="no" /><input type="checkbox" name="tg_mask_customer_email" value="yes" ' . checked('yes', (string) self::get('tg_mask_customer_email'), false) . $disabled . ' /></td></tr>';
-        echo '</table>';
+        echo '<h2>' . esc_html__('Pro Features', 'taxid-guard-for-woocommerce') . '</h2>';
+        echo '<p class="description">' . esc_html__('Unlock real-time VIES validation, advanced B2B rules, CSV exports and priority support.', 'taxid-guard-for-woocommerce') . '</p>';
+        echo '<p><a class="button button-secondary" href="' . esc_url($upgrade_url) . '" target="_blank" rel="noopener">' . esc_html__('View Pro Plans', 'taxid-guard-for-woocommerce') . '</a></p>';
     }
 
     private function checkbox_row(string $key, string $label, string $description): void
@@ -529,11 +444,5 @@ class SettingsPage
             }
         }
         return implode("\n", $lines);
-    }
-
-    private function is_pro(): bool
-    {
-        $fs = function_exists('tg_fs') ? tg_fs() : false;
-        return $fs && method_exists($fs, 'is_paying') && $fs->is_paying();
     }
 }
