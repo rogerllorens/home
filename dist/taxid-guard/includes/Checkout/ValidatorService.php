@@ -169,13 +169,14 @@ class ValidatorService
     protected function validate_by_country(string $country, string $tax_id): array
     {
         if ($country === 'US') {
-            $ok = (bool) preg_match('/^[0-9]{9}$/', $tax_id);
+            $normalizedEin = preg_replace('/\D+/', '', $tax_id) ?: '';
+            $ok = (bool) preg_match('/^[0-9]{9}$/', $normalizedEin);
             return [
                 'valid' => $ok,
                 'method' => 'us_ein',
                 'status' => $ok ? 'valid' : 'invalid',
                 'code' => $ok ? 'TG_VALID' : 'TG_TAXID_INVALID_US',
-                'message' => $ok ? '' : __('EIN must be 9 digits (example: 12-3456789). Do not enter an SSN.', 'taxid-guard-for-woocommerce'),
+                'message' => $ok ? '' : __('EIN must contain 9 digits (example: 12-3456789). Do not enter an SSN.', 'taxid-guard-for-woocommerce'),
             ];
         }
         if ($country === 'ES' && get_option('tg_validate_es', 'yes') === 'yes') {

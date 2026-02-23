@@ -29,6 +29,8 @@ class SettingsPage
             'tg_show_in_admin' => 'yes',
             'tg_email_admin' => 'yes',
             'tg_debug' => 'no',
+            'tg_mask_admin_taxid' => 'no',
+            'tg_taxid_visible_roles' => [],
 
             // Validation
             'tg_validate_es' => 'yes',
@@ -77,6 +79,8 @@ class SettingsPage
         register_setting($group, 'tg_show_in_admin', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
         register_setting($group, 'tg_email_admin', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
         register_setting($group, 'tg_debug', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
+        register_setting($group, 'tg_mask_admin_taxid', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
+        register_setting($group, 'tg_taxid_visible_roles', ['sanitize_callback' => [$this, 'sanitize_slug_list']]);
 
         register_setting($group, 'tg_validate_es', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
         register_setting($group, 'tg_validate_eu_vat', ['sanitize_callback' => [$this, 'sanitize_yes_no']]);
@@ -229,16 +233,17 @@ class SettingsPage
         $help_map = $this->map_to_textarea(self::get('tg_help_by_country'));
 
         echo '<div class="wrap"><h1>' . esc_html__('TaxID Guard Settings', 'taxid-guard-for-woocommerce') . '</h1>';
+
+        $this->render_section_diagnostics($is_pro);
+        $this->render_section_presets();
+
         echo '<form method="post" action="options.php">';
         settings_fields('tg_taxid_guard');
 
         $this->render_section_general();
-        $this->render_section_presets();
         $this->render_section_checkout();
         $this->render_section_validation();
         $this->render_section_countries($label_map, $help_map);
-        $this->render_section_diagnostics($is_pro);
-        $this->render_section_pro($is_pro, $upgrade_url);
 
         $extraSections = apply_filters('tg_taxid_guard_settings_sections', []);
         if (is_array($extraSections)) {
@@ -250,7 +255,10 @@ class SettingsPage
         }
 
         submit_button(__('Save changes', 'taxid-guard-for-woocommerce'));
-        echo '</form></div>';
+        echo '</form>';
+
+        $this->render_section_pro($is_pro, $upgrade_url);
+        echo '</div>';
     }
 
     private function render_section_general(): void
@@ -286,6 +294,8 @@ class SettingsPage
         $this->checkbox_row('tg_save_taxid_profile', __('Save to customer profile', 'taxid-guard-for-woocommerce'), '');
         $this->checkbox_row('tg_show_in_admin', __('Show in admin order', 'taxid-guard-for-woocommerce'), '');
         $this->checkbox_row('tg_email_admin', __('Show in admin emails', 'taxid-guard-for-woocommerce'), '');
+        $this->checkbox_row('tg_mask_admin_taxid', __('Mask Tax ID in admin and admin emails', 'taxid-guard-for-woocommerce'), '');
+        echo '<tr><th>' . esc_html__('Roles allowed to view full Tax ID (CSV)', 'taxid-guard-for-woocommerce') . '</th><td><input class="regular-text" type="text" name="tg_taxid_visible_roles" value="' . esc_attr(implode(',', (array) self::get('tg_taxid_visible_roles'))) . '" placeholder="administrator,shop_manager" /><p class="description">' . esc_html__('Leave empty to allow all admin roles with access to this page.', 'taxid-guard-for-woocommerce') . '</p></td></tr>';
         echo '</table>';
     }
 

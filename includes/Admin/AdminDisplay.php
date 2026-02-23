@@ -48,7 +48,8 @@ class AdminDisplay
             return;
         }
 
-        echo '<p><strong>' . esc_html__('Tax ID:', 'taxid-guard-for-woocommerce') . '</strong> ' . esc_html($tax_id ?: '—') . '</p>';
+        $display_tax_id = $this->format_admin_tax_id($tax_id);
+        echo '<p><strong>' . esc_html__('Tax ID:', 'taxid-guard-for-woocommerce') . '</strong> ' . esc_html($display_tax_id !== '' ? $display_tax_id : '—') . '</p>';
         echo '<p><strong>' . esc_html__('Status:', 'taxid-guard-for-woocommerce') . '</strong> ' . esc_html($this->status_label($status)) . '</p>';
         echo '<p><strong>' . esc_html__('Method:', 'taxid-guard-for-woocommerce') . '</strong> ' . esc_html($method ?: '—') . '</p>';
     }
@@ -63,7 +64,8 @@ class AdminDisplay
             return;
         }
 
-        echo '<p><strong>' . esc_html((string) get_option('tg_taxid_label', __('Tax Identifier', 'taxid-guard-for-woocommerce'))) . ':</strong> ' . esc_html($tax_id) . '</p>';
+        $display_tax_id = $this->format_admin_tax_id($tax_id);
+        echo '<p><strong>' . esc_html((string) get_option('tg_taxid_label', __('Tax Identifier', 'taxid-guard-for-woocommerce'))) . ':</strong> ' . esc_html($display_tax_id) . '</p>';
     }
 
     public function order_email_meta($order, $sent_to_admin, $plain_text): void
@@ -80,7 +82,8 @@ class AdminDisplay
             if ('yes' !== get_option('tg_email_admin', 'yes')) {
                 return;
             }
-            $this->print_email_line((string) get_option('tg_taxid_label', __('Tax Identifier', 'taxid-guard-for-woocommerce')), $tax_id, (bool) $plain_text);
+            $display_tax_id = get_option('tg_mask_admin_taxid', 'no') === 'yes' ? $this->mask($tax_id) : $tax_id;
+            $this->print_email_line((string) get_option('tg_taxid_label', __('Tax Identifier', 'taxid-guard-for-woocommerce')), $display_tax_id, (bool) $plain_text);
             return;
         }
 
@@ -90,6 +93,40 @@ class AdminDisplay
 
         $value = get_option('tg_mask_customer_email', 'no') === 'yes' ? $this->mask($tax_id) : $tax_id;
         $this->print_email_line((string) get_option('tg_taxid_label', __('Tax Identifier', 'taxid-guard-for-woocommerce')), $value, (bool) $plain_text);
+    }
+
+
+    private function can_view_full_tax_id(): bool
+    {
+        $allowed = get_option('tg_taxid_visible_roles', []);
+        if (is_string($allowed)) {
+            $allowed = trim($allowed) === '' ? [] : preg_split('/\s*,\s*/', $allowed);
+        }
+        if (! is_array($allowed) || $allowed === []) {
+            return true;
+        }
+
+        $roles = (array) (wp_get_current_user()->roles ?? []);
+        foreach ($roles as $role) {
+            if (in_array((string) $role, array_map('strval', $allowed), true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function format_admin_tax_id(string $tax_id): string
+    {
+        if ($tax_id === '') {
+            return '';
+        }
+
+        if (get_option('tg_mask_admin_taxid', 'no') === 'yes' && ! $this->can_view_full_tax_id()) {
+            return $this->mask($tax_id);
+        }
+
+        return $tax_id;
     }
 
     private function print_email_line(string $label, string $value, bool $plain_text): void

@@ -157,6 +157,7 @@ if (!function_exists('apply_filters')) {
 if (!function_exists('wc_add_notice')) { function wc_add_notice(string $msg, string $type = 'success'): void { $GLOBALS['wc_notices'][] = ['message' => $msg, 'type' => $type]; } }
 if (!function_exists('WC')) { function WC() { return $GLOBALS['wc_stub']; } }
 if (!function_exists('is_user_logged_in')) { function is_user_logged_in(): bool { return false; } }
+if (!function_exists('current_user_can')) { function current_user_can($cap): bool { return true; } }
 if (!function_exists('update_user_meta')) { function update_user_meta($a, $b, $c = ''): bool { return true; } }
 if (!function_exists('delete_user_meta')) { function delete_user_meta($a, $b): bool { return true; } }
 if (!function_exists('wp_get_current_user')) { function wp_get_current_user() { return (object) ['roles' => ['customer']]; } }

@@ -36,4 +36,16 @@ final class ValidatorPipelineTest extends TestCase
         $this->assertFalse($data['tg_is_company']);
         $this->assertSame('', $data['tg_tax_id']);
     }
+
+    public function testUsEinAcceptsDashedFormatAfterNormalization(): void
+    {
+        update_option('tg_enable', 'yes');
+        $service = new \TaxID_Guard\Checkout\ValidatorService();
+        $input = new \TaxID_Guard\ValueObjects\TaxIdInput(true, '12-3456789', 'US');
+
+        $result = $service->validate($input, 'runtime');
+
+        $this->assertTrue($result->ok);
+        $this->assertSame('TG_VALID', $result->code);
+    }
 }
