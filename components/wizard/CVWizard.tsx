@@ -1,0 +1,28 @@
+'use client'
+import { useEffect, useMemo, useState } from 'react'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { wizardSchema, type WizardInput } from '@/lib/validations/wizard'
+import { CVProgress } from './CVProgress'
+import { CVLivePreview } from './CVLivePreview'
+import { ChipSelector } from './ChipSelector'
+import { TemplateSelector } from './TemplateSelector'
+import { UsernameAvailabilityField } from './UsernameAvailabilityField'
+import { AutosaveIndicator } from './AutosaveIndicator'
+
+const intents=['Relación seria','Algo tranquilo','Conocer gente','Amistad con química','Ver qué surge','Planes y conexión','Solo estoy explorando']
+const emotional=['Disponible','En reconstrucción','Con ganas de algo bonito','Sin prisa','En modo protagonista','Abierto/a a sorprenderme']
+const skills=['Escuchar','Hacer reír','Planear citas','Cuidar detalles','Hablar claro','Cocinar','Improvisar planes','Dar espacio','Acompañar','Comunicar']
+const green=['Soy leal','No juego con la gente','Hablo claro','Cuido los detalles','Respeto tiempos','Me esfuerzo']
+const red=['Sobrepienso','Tardo en responder','Me cuesta abrirme al principio','Soy intenso/a con las canciones','Necesito café para funcionar','Me engancho a las series']
+const love=['Tiempo de calidad','Palabras bonitas','Contacto físico','Actos de servicio','Regalos con intención']
+
+export function CVWizard({initial}:{initial?:Partial<WizardInput>}){
+const [step,setStep]=useState(1); const [saving,setSaving]=useState(false); const [saved,setSaved]=useState(false)
+const {register,control,watch,handleSubmit,setValue}=useForm<WizardInput>({resolver:zodResolver(wizardSchema),defaultValues:{template:'Clásico romántico',is_public:false,affective_skills:[],green_flags:[],soft_red_flags:[],love_languages:[],...initial}})
+const values=watch();
+useEffect(()=>{const t=setTimeout(async()=>{setSaving(true);await fetch('/api/profile/wizard-save',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...values,draft:true})});setSaving(false);setSaved(true)},900);return ()=>clearTimeout(t)},[values])
+const preview=useMemo(()=>values,[values])
+const onSubmit=async(v:WizardInput)=>{await fetch('/api/profile/wizard-save',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...v,draft:false,is_public:true})});location.href='/dashboard'}
+return <div className='grid md:grid-cols-[1fr_360px] gap-4'><div className='space-y-4'><CVProgress step={step} total={6}/><AutosaveIndicator saving={saving} saved={saved}/>{step===1&&<div className='card space-y-2'><p>Esto será lo primero que verá alguien de ti.</p><input className='w-full border rounded-xl p-3' placeholder='nombre visible' {...register('display_name')}/><Controller control={control} name='username' render={({field})=><UsernameAvailabilityField value={field.value||''} onChange={field.onChange}/>}/><input className='w-full border rounded-xl p-3' placeholder='ciudad' {...register('city')}/><input className='w-full border rounded-xl p-3' placeholder='país' {...register('country')}/><select className='w-full border rounded-xl p-3' {...register('intention')}>{intents.map(x=><option key={x}>{x}</option>)}</select><select className='w-full border rounded-xl p-3' {...register('emotional_status')}>{emotional.map(x=><option key={x}>{x}</option>)}</select></div>}{step===2&&<div className='card space-y-2'><input className='w-full border rounded-xl p-3' placeholder='headline' {...register('headline')}/><input className='w-full border rounded-xl p-3' placeholder='applying_for' {...register('applying_for')}/></div>}{step===3&&<div className='card space-y-2'><textarea className='w-full border rounded-xl p-3 min-h-28' placeholder='about_me' {...register('about_me')}/><input className='w-full border rounded-xl p-3' placeholder='fun_fact' {...register('fun_fact')}/><input className='w-full border rounded-xl p-3' placeholder='ideal_date' {...register('ideal_date')}/></div>}{step===4&&<div className='card space-y-4'><ChipSelector label='Habilidades' options={skills} value={values.affective_skills||[]} onChange={v=>setValue('affective_skills',v)}/><ChipSelector label='Green flags' options={green} value={values.green_flags||[]} onChange={v=>setValue('green_flags',v)}/><ChipSelector label='Red flags suaves' options={red} value={values.soft_red_flags||[]} onChange={v=>setValue('soft_red_flags',v)}/><ChipSelector label='Idiomas del amor' options={love} value={values.love_languages||[]} onChange={v=>setValue('love_languages',v)}/></div>}{step===5&&<div className='card space-y-2'><p>Una red flag honesta puede ser una green flag.</p><input className='w-full border rounded-xl p-3' placeholder='availability' {...register('availability')}/><input className='w-full border rounded-xl p-3' placeholder='final_cta' {...register('final_cta')}/><Controller control={control} name='template' render={({field})=><TemplateSelector value={field.value||''} onChange={field.onChange}/>}/></div>}{step===6&&<div className='card space-y-2'><p>Tu CV está casi listo para salir al mercado sentimental.</p><label className='flex gap-2'><input type='checkbox' {...register('is_public')}/> Activar perfil público</label><button className='btn-primary' onClick={handleSubmit(onSubmit)}>Publicar</button><p>Publicado. Ya puedes compartirlo y esperar entrevistas.</p></div>}<div className='flex justify-between'><button type='button' className='btn-secondary' onClick={()=>setStep(Math.max(1,step-1))}>Atrás</button><button type='button' className='btn-primary' onClick={()=>setStep(Math.min(6,step+1))}>Siguiente</button></div></div><CVLivePreview v={preview}/></div>
+}

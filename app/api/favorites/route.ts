@@ -1,0 +1,4 @@
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+export async function POST(req:Request){const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)return NextResponse.json({error:'unauthorized'},{status:401});const b=await req.json();const {error}=await s.from('favorites').upsert({user_id:user.id,profile_id:b.profile_id},{onConflict:'user_id,profile_id'});if(error)return NextResponse.json({error:error.message},{status:400});return NextResponse.json({ok:true})}
+export async function DELETE(req:Request){const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)return NextResponse.json({error:'unauthorized'},{status:401});const b=await req.json();await s.from('favorites').delete().eq('user_id',user.id).eq('profile_id',b.profile_id);return NextResponse.json({ok:true})}

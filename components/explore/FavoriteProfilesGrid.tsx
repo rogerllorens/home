@@ -1,0 +1,2 @@
+import Link from 'next/link'
+export function FavoriteProfilesGrid({items}:{items:any[]}){if(!items.length)return <div className='card'>Aún no guardaste candidatos.</div>;return <div className='grid md:grid-cols-3 gap-3'>{items.map(i=><div key={i.id} className='card'><h3>{i.profiles?.display_name}</h3><Link className='btn-secondary mt-2' href={`/u/${i.profiles?.username}`}>Ver CV</Link></div>)}</div>}

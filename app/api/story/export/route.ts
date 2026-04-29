@@ -1,0 +1,3 @@
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+export async function POST(req:Request){const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)return NextResponse.json({error:'unauthorized'},{status:401});const b=await req.json();const {data:profile}=await s.from('profiles').select('id').eq('user_id',user.id).single();const {error}=await s.from('story_exports').insert({user_id:user.id,profile_id:profile?.id,template_id:b.template_id,has_watermark:b.has_watermark,is_premium:b.is_premium,export_url:b.export_url??null});if(error)return NextResponse.json({error:error.message},{status:400});return NextResponse.json({ok:true})}

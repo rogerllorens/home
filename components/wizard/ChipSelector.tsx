@@ -1,0 +1,2 @@
+'use client'
+export function ChipSelector({label,options,value,onChange}:{label:string;options:string[];value:string[];onChange:(v:string[])=>void}){const t=(x:string)=>onChange(value.includes(x)?value.filter(i=>i!==x):[...value,x]);return <div><p className='mb-2 font-medium'>{label}</p><div className='flex flex-wrap gap-2'>{options.map(o=><button type='button' key={o} onClick={()=>t(o)} className={`px-3 py-1 rounded-full border ${value.includes(o)?'bg-coral text-white':'bg-white'}`}>{o}</button>)}</div></div>}

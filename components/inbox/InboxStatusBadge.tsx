@@ -1,0 +1,1 @@
+export function InboxStatusBadge({status}:{status:string}){const map:any={pending:'Nueva candidatura',accepted:'Entrevista aceptada',rejected:'Candidatura cerrada',archived:'Guardada para revisar después',cancelled:'Cancelada'};return <span className='px-2 py-1 rounded-full bg-rose text-burgundy text-xs'>{map[status]||status}</span>}

@@ -1,0 +1,2 @@
+import { LandingHero } from '@/components/landing/LandingHero'
+export default function Page(){return <main className='mx-auto max-w-4xl p-4 space-y-6'><LandingHero/><section className='card'>Cómo funciona: crea, comparte y conecta.</section><section className='card'>Compártelo en stories y recibe visitas.</section><section className='card'>Seguridad: control de privacidad y reportes.</section></main>}

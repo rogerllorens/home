@@ -1,0 +1,1 @@
+export interface DiscoverPreference{user_id:string;preferred_cities:string[]|null;preferred_country:string|null;preferred_intentions:string[]|null;preferred_age_ranges:string[]|null;preferred_love_languages:string[]|null;hide_viewed_profiles:boolean;show_me_in_discover:boolean}

@@ -1,0 +1,3 @@
+import { createClient } from '@/lib/supabase/server'
+import { InboxStatusBadge } from '@/components/inbox/InboxStatusBadge'
+export default async function SentDetail({params}:{params:{id:string}}){const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)return null;const {data:r}=await s.from('interview_requests').select('*').eq('id',params.id).eq('sender_id',user.id).single();if(!r)return <main className='p-4'>No encontrada</main>;return <main className='p-4 max-w-2xl mx-auto'><div className='card'><div className='flex justify-between'><h1 className='text-xl font-bold'>Estado de candidatura</h1><InboxStatusBadge status={r.status}/></div><p className='mt-2'>{r.message}</p></div></main>}

@@ -1,0 +1,1 @@
+export default function P(){return <main className='p-4 max-w-3xl mx-auto card'><h1 className='text-2xl font-bold mb-2'>Privacidad</h1><p>Solo mostramos datos que tú marques como públicos. No mostramos email. Solo para mayores de 18 años.</p></main>}
