@@ -1,0 +1,3 @@
+'use client'
+import { useEffect, useState } from 'react'
+export function UsernameAvailabilityField({value,onChange}:{value:string;onChange:(v:string)=>void}){const [a,setA]=useState<boolean|null>(null);useEffect(()=>{if(value.length<3)return;const t=setTimeout(async()=>{const r=await fetch(`/api/profile/check-username?username=${value}`);const d=await r.json();setA(d.available)},300);return ()=>clearTimeout(t)},[value]);return <div><input className='w-full border rounded-xl p-3' value={value} onChange={e=>onChange(e.target.value)} placeholder='username'/><p className='text-xs'>{a===null?'':a?'Disponible':'No disponible'}</p></div>}

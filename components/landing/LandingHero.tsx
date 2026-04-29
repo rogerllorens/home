@@ -1,0 +1,2 @@
+import Link from 'next/link'
+export function LandingHero(){return <section className='card text-center'><h1 className='text-4xl font-bold'>Haz tu Currículum del Amor.</h1><p className='mt-3 text-gray-600'>Preséntate como candidato a entrar en la vida de alguien. Crea tu CV amoroso, compártelo y descubre quién pediría una entrevista contigo.</p><div className='mt-6 flex justify-center gap-3'><Link href='/login' className='btn-primary'>Crear mi CV</Link><Link href='/u/ejemplo' className='btn-secondary'>Ver ejemplo</Link></div></section>}

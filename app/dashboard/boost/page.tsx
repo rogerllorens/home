@@ -1,0 +1,3 @@
+import { createClient } from '@/lib/supabase/server'
+import { BoostPurchaseCard } from '@/components/monetization/BoostPurchaseCard'
+export default async function Boost(){const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)return null;const {data:p}=await s.from('profiles').select('id').eq('user_id',user.id).single();const {data:boosts}=await s.from('boosts').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(5);return <main className='p-4 max-w-3xl mx-auto space-y-4'><BoostPurchaseCard profileId={p?.id}/><div className='card'>{(boosts||[]).map(b=><p key={b.id} className='text-sm'>{b.type} · {b.status}</p>)}</div></main>}

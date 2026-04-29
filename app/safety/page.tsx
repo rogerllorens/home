@@ -1,0 +1,1 @@
+export default function Safety(){return <main className='p-4 max-w-3xl mx-auto card'><h1 className='text-2xl font-bold mb-2'>Seguridad y comunidad</h1><p>Solo para mayores de 18 años. Reporta perfiles de riesgo o contenido sensible.</p></main>}

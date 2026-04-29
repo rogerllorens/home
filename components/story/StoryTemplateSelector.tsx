@@ -1,0 +1,3 @@
+'use client'
+import { STORY_TEMPLATES, StoryTemplateId } from './story-types'
+export function StoryTemplateSelector({value,onChange,isPremium}:{value:StoryTemplateId;onChange:(v:StoryTemplateId)=>void;isPremium:boolean}){return <div className='grid grid-cols-2 gap-2'>{STORY_TEMPLATES.map(t=>{const locked=t.premium&&!isPremium;return <button key={t.id} type='button' onClick={()=>!locked&&onChange(t.id)} className={`card text-left ${value===t.id?'ring-2 ring-coral':''} ${locked?'opacity-50':''}`}><p className='font-semibold'>{t.name}</p>{t.premium&&<p className='text-xs'>Plantilla premium</p>}</button>})}</div>}

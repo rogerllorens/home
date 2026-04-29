@@ -1,0 +1,1 @@
+export function ProfileBadges({featured,newbie}:{featured:boolean;newbie:boolean}){return <div className='flex gap-2'>{featured&&<span className='text-xs px-2 py-1 bg-yellow-100 rounded-full'>Destacado</span>}{newbie&&<span className='text-xs px-2 py-1 bg-rose rounded-full'>Nuevo</span>}</div>}

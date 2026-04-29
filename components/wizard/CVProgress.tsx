@@ -1,0 +1,1 @@
+export function CVProgress({step,total}:{step:number,total:number}){const pct=Math.round((step/total)*100);return <div className='card'><div className='flex justify-between text-sm'><span>Paso {step} de {total}</span><span>{pct}%</span></div><div className='mt-2 h-2 bg-rose rounded-full'><div className='h-2 bg-coral rounded-full' style={{width:`${pct}%`}}/></div></div>}

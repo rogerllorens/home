@@ -1,0 +1,2 @@
+export type InterviewStatus='pending'|'accepted'|'rejected'|'archived'|'cancelled'
+export interface InterviewRequest{ id:string; sender_id:string; receiver_id:string; sender_profile_id:string; receiver_profile_id:string; message:string; proposal_type:string; intention:string; availability:string; custom_question_answer?:string|null; status:InterviewStatus; read_at?:string|null; responded_at?:string|null; archived_at?:string|null; created_at:string; updated_at:string }

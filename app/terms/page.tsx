@@ -1,0 +1,1 @@
+export default function T(){return <main className='p-4 max-w-3xl mx-auto card'><h1 className='text-2xl font-bold mb-2'>Términos</h1><p>Debes tener 18+ años. Prohibido acoso, suplantación, spam y publicación de datos sensibles de terceros.</p></main>}

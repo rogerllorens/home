@@ -1,0 +1,3 @@
+import { z } from 'zod'
+export const interviewCreateSchema=z.object({receiver_profile_id:z.string().uuid(),message:z.string().min(20).max(1000),proposal_type:z.enum(['Café','Paseo','Cena','Plan tranquilo','Charla sin presión','Conocernos por aquí','Plan sorpresa']),intention:z.enum(['Me pareces interesante','Quiero conocerte sin prisa','Me ha gustado tu CV','Creo que habría buena conversación','Me gustaría proponerte una entrevista sentimental']),availability:z.string().min(2).max(120),custom_question_answer:z.string().max(500).optional()})
+export const interviewActionSchema=z.object({action:z.enum(['accepted','rejected','archived','cancelled'])})

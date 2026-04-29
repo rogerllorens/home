@@ -1,0 +1,1 @@
+export function AutosaveIndicator({saving,saved}:{saving:boolean;saved:boolean}){return <p className='text-xs text-gray-500'>{saving?'Guardando borrador...':saved?'Borrador guardado':'Sin guardar'}</p>}

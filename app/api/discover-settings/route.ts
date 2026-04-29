@@ -1,0 +1,3 @@
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+export async function POST(req:Request){const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)return NextResponse.redirect(new URL('/login',req.url));const fd=await req.formData();await s.from('discover_preferences').upsert({user_id:user.id,show_me_in_discover:fd.get('show_me_in_discover')==='on',hide_viewed_profiles:fd.get('hide_viewed_profiles')==='on',preferred_country:String(fd.get('preferred_country')||'')||null},{onConflict:'user_id'});await s.from('profiles').update({discoverable:fd.get('show_me_in_discover')==='on'}).eq('user_id',user.id);return NextResponse.redirect(new URL('/dashboard/discover-settings',req.url))}

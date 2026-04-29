@@ -1,0 +1,1 @@
+export type ProfileInput={username:string;display_name:string;city:string;country:string;intention:string;emotional_status:string;headline:string;applying_for:string;about_me:string;affective_skills:string;green_flags:string;soft_red_flags:string;love_languages:string;ideal_date?:string;availability?:string;final_cta?:string}
