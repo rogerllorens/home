@@ -1,0 +1,11 @@
+{
+  "common": {
+    "cta": "Create your Love Resume",
+    "explore": "Explore",
+    "pricing": "Pricing"
+  },
+  "landing": {
+    "hero": "Don't swipe. Introduce yourself.",
+    "subtitle": "Intentional, human and meaningful connections."
+  }
+}
