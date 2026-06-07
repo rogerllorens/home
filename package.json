@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "worker:dev": "tsx scripts/process-jobs.ts"
+    "worker:dev": "tsx scripts/process-jobs.ts",
+    "worker:once": "tsx scripts/process-jobs.ts",
+    "worker:job": "tsx scripts/process-jobs.ts",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.10.3",

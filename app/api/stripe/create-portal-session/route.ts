@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getCurrentUserContext } from "@/lib/auth";
 import { createCustomerPortalSession, sessionUrl } from "@/lib/stripe/checkout";
 
+export const dynamic = "force-dynamic";
+
 export async function POST() {
   try {
     const { user } = await getCurrentUserContext();

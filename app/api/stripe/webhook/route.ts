@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe/client";
 import { handleStripeEvent } from "@/lib/stripe/webhooks";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) return NextResponse.json({ error: "Missing webhook secret" }, { status: 500 });

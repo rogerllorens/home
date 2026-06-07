@@ -23,6 +23,12 @@ async function createJobLog(jobId: string, userId: string, level: "info" | "warn
 }
 
 async function getPendingJobs() {
+  const jobId = process.argv[2];
+  if (jobId) {
+    const { data, error } = await supabase.from("jobs").select("*").eq("id", jobId).in("status", ["queued", "ready_for_processing"]).returns<Job[]>();
+    if (error) throw error;
+    return data ?? [];
+  }
   const { data, error } = await supabase.from("jobs").select("*").in("status", ["queued", "ready_for_processing"]).order("created_at", { ascending: true }).limit(maxJobs).returns<Job[]>();
   if (error) throw error;
   return data ?? [];
@@ -71,7 +77,7 @@ function serializeAIStats(stats: Partial<AIAccumulator>) {
 
 async function processJob(job: Job) {
   const claimed = await claimJob(job);
-  if (!claimed) return console.log(`Skipped ${job.id}; already claimed.`);
+  if (!claimed) return console.info(`Skipped ${job.id}; already claimed.`);
   job = claimed;
   await createJobLog(job.id, job.user_id, "info", "Job processing started", { file: job.original_filename });
   let reservationId: string | null = null;
@@ -181,7 +187,7 @@ function platformDownloadType(platform: string) { if (/shopify/i.test(platform))
 
 async function main() {
   const jobs = await getPendingJobs();
-  if (!jobs.length) console.log("No pending jobs.");
+  if (!jobs.length) console.info("No pending jobs.");
   for (const job of jobs) await processJob(job);
 }
 main().catch((error) => { console.error(error); process.exit(1); });

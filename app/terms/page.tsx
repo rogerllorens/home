@@ -1,0 +1,7 @@
+import { Button } from "@/components/ui/Button";
+
+export const metadata = { title: "Términos | Rankelia.ai", description: "Condiciones de uso básicas para Rankelia.ai beta." };
+
+export default function TermsPage() {
+  return <main className="bg-slate-50 px-4 py-16"><article className="mx-auto max-w-4xl rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-slate-200"><p className="text-sm font-bold uppercase tracking-[0.3em] text-blue-600">Términos</p><h1 className="mt-4 text-4xl font-black text-slate-950">Condiciones de uso</h1><div className="mt-6 space-y-5 text-slate-600"><p>Rankelia.ai convierte catálogos CSV/Excel en contenido SEO ecommerce estructurado para revisión e importación manual. No modifica tu tienda automáticamente.</p><p>Los planes incluyen productos SEO estándar equivalentes; internamente usamos créditos para calcular reservas, consumo y límites. Los productos extra se añaden cuando Stripe confirma el pago mediante webhook.</p><p>No garantizamos rankings, tráfico, ventas ni resultados comerciales. El usuario es responsable de revisar claims, certificaciones, precios, stock, medidas y textos antes de publicar.</p><p>Las cancelaciones y cambios de suscripción se gestionan en Stripe Customer Portal. Podemos limitar usos abusivos, ficheros peligrosos o actividades que afecten a la seguridad del servicio.</p></div><Button className="mt-8" href="/">Volver</Button></article></main>;
+}

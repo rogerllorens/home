@@ -93,10 +93,10 @@ const faqItems = [
   ["¿Genera alt text para imágenes?", "Sí. Puede preparar alt text orientado a producto, keyword y atributos relevantes."],
   ["¿Sustituye a un redactor SEO?", "No necesariamente. Reduce trabajo operativo y genera una base avanzada que conviene revisar."],
   ["¿Garantiza posicionamiento?", "No. Rankelia mejora la base de contenido, pero ningún software serio debe prometer rankings garantizados."],
-  ["¿Cómo funcionan los créditos?", "Cada tipo de salida consume créditos. En esta fase se muestra una estimación: producto completo 250 créditos."],
+  ["¿Cómo funcionan los productos incluidos?", "De cara al usuario trabajas con productos SEO estándar, Pro o Premium. Rankelia usa créditos internos para reservas y consumo seguro, pero no los vende como pricing principal."],
   ["¿Qué pasa si subo un CSV grande?", "En producción se procesará como job en segundo plano con estado y descarga al terminar."],
   ["¿Puedo cerrar la página mientras procesa?", "La versión real estará preparada para cerrar la página y recibir un email cuando el lote esté listo."],
-  ["¿Puedo revisar antes de procesar todo?", "Sí. El flujo está pensado para diagnóstico gratuito y preview antes de gastar créditos."],
+  ["¿Puedo revisar antes de procesar todo?", "Sí. El flujo está pensado para diagnóstico gratuito y preview antes de consumir productos del plan."],
   ["¿Evita contenido repetitivo?", "Rankelia incorpora avisos anti-repetición y alertas de posible contenido duplicado."],
   ["¿Puedo descargar resultados?", "Sí. El objetivo es descargar CSV final para Shopify, Prestashop, WooCommerce o CSV genérico."],
   ["¿Se podrá conectar con APIs en el futuro?", "Sí. La arquitectura deja preparada la evolución a conectores, aunque esta fase es CSV-first."],
@@ -126,7 +126,7 @@ export function PublicLanding() {
     const rankeliaHours = Math.max(1, Math.round((products * 0.5) / 60));
     const savedHours = Math.max(0, manualHours - rankeliaHours);
     const manualCost = manualHours * 25;
-    const credits = products * 250;
+    const credits = products * PRODUCT_STANDARD_CREDITS;
     const recommendedPack = getRecommendedPack(credits);
     const rankeliaCost = recommendedPack.price;
     const saving = Math.max(0, manualCost - rankeliaCost);
@@ -135,6 +135,17 @@ export function PublicLanding() {
   }, [products]);
 
   const selectedPack = creditPacks[creditIndex];
+
+  const softwareSchema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Rankelia.ai",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    description: "Convierte catálogos CSV/Excel en contenido SEO ecommerce revisable y exportable.",
+    offers: monthlyPlans.map((plan) => ({ "@type": "Offer", name: plan.name, price: plan.price.replace(" €/mes", "").replace(" €", ""), priceCurrency: "EUR" })),
+  };
+  const faqSchema = { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqItems.slice(0, 8).map(([question, answer]) => ({ "@type": "Question", name: question, acceptedAnswer: { "@type": "Answer", text: answer } })) };
 
   const showToast = (message: string, type: NonNullable<ToastState>["type"] = "info") => {
     setToast({ message, type });
@@ -303,7 +314,7 @@ export function PublicLanding() {
       </main>
 
       <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_0.8fr_1fr] lg:px-8"><div><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-violet-600 font-black text-white">R</span><p className="font-black">Rankelia.ai</p></div><p className="mt-4 max-w-md text-sm leading-6 text-slate-600">CSV-first ecommerce SEO para convertir productos y categorías pobres en contenido SEO revisable y exportable.</p></div><div className="grid grid-cols-2 gap-2 text-sm font-semibold text-slate-600">{["Producto", "Cómo funciona", "Precios", "FAQ", "Contacto", "Privacidad", "Términos"].map((link) => <button className="text-left hover:text-slate-950" key={link} onClick={() => link === "FAQ" ? scrollToSection("faq") : scrollToSection("hero")}>{link}</button>)}</div><div className="flex flex-wrap content-start gap-2">{["CSV-first", "Ecommerce SEO", "Shopify", "Prestashop", "WooCommerce"].map((badge) => <Badge key={badge}>{badge}</Badge>)}</div></div><div className="border-t border-slate-200 px-4 py-5 text-center text-sm text-slate-500">© 2026 Rankelia.ai · No publicamos automáticamente · Revisas antes de importar · Exportamos CSV</div>
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_0.8fr_1fr] lg:px-8"><div><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-violet-600 font-black text-white">R</span><p className="font-black">Rankelia.ai</p></div><p className="mt-4 max-w-md text-sm leading-6 text-slate-600">CSV-first ecommerce SEO para convertir productos y categorías pobres en contenido SEO revisable y exportable.</p></div><div className="grid grid-cols-2 gap-2 text-sm font-semibold text-slate-600">{[["Producto", "hero"], ["Cómo funciona", "como-funciona"], ["Precios", "precios"], ["FAQ", "faq"]].map(([link, target]) => <button className="text-left hover:text-slate-950" key={link} onClick={() => scrollToSection(target)}>{link}</button>)}{[["Contacto", "/support"], ["Privacidad", "/privacy"], ["Términos", "/terms"], ["Cookies", "/cookies"]].map(([link, href]) => <a className="text-left hover:text-slate-950" href={href} key={href}>{link}</a>)}</div><div className="flex flex-wrap content-start gap-2">{["CSV-first", "Ecommerce SEO", "Shopify", "Prestashop", "WooCommerce"].map((badge) => <Badge key={badge}>{badge}</Badge>)}</div></div><div className="border-t border-slate-200 px-4 py-5 text-center text-sm text-slate-500">© 2026 Rankelia.ai · No publicamos automáticamente · Revisas antes de importar · Exportamos CSV</div>
       </footer>
 
       <div className="fixed bottom-4 left-4 right-4 z-40 sm:hidden"><Button className="w-full" onClick={() => scrollToSection("hero-uploader")}>Analizar CSV gratis</Button></div>
@@ -312,8 +323,8 @@ export function PublicLanding() {
 
       {modal && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm" role="dialog" aria-modal="true"><Card className="max-h-[90vh] w-full max-w-2xl overflow-auto" variant="elevated"><Badge variant="success">Formato {modal.platform}</Badge><h2 className="mt-4 text-2xl font-black">Ejemplo de columnas para {modal.platform}</h2><pre className="mt-5 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs text-slate-100">{platformExamples[modal.platform]}</pre><div className="mt-5 flex flex-col gap-3 sm:flex-row"><Button onClick={() => downloadPlatformExample(modal.platform)}>Descargar ejemplo CSV</Button><Button onClick={() => setModal(null)} variant="secondary">Cerrar</Button></div></Card></div>}
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@type": "SoftwareApplication", name: "Rankelia.ai", applicationCategory: "BusinessApplication", operatingSystem: "Web", description: "Generador CSV SEO para productos y categorías ecommerce.", offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" } }) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqItems.slice(0, 12).map(([question, answer]) => ({ "@type": "Question", name: question, acceptedAnswer: { "@type": "Answer", text: answer } })) }) }} />
+      <script type="application/ld+json" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }} />
+      <script type="application/ld+json" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
     </div>
   );
 }

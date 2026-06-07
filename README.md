@@ -113,3 +113,35 @@ El worker (`npm run worker:dev`) procesa jobs con `generation_engine='ai'` cuand
 Rankelia incluye endpoints server-side para Stripe Checkout de planes y productos extra, Customer Portal y webhook verificado. Ejecuta `supabase/sql/006_billing_stripe_wallet.sql`, configura `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, los `STRIPE_PRICE_*` y `APP_URL`, y usa `/app/credits` o `/app/billing` para abrir Checkout.
 
 El saldo no se concede desde `success_url`: solo el webhook añade créditos internos mediante RPCs idempotentes. El worker reserva créditos antes de procesar jobs y consume o libera la reserva al finalizar. Consulta `docs/prompt-9-stripe-products-wallet-billing.md` para Stripe CLI, productos, precios y pruebas.
+
+## Prompt 10 — Beta pública / producción inicial
+
+Rankelia.ai queda preparada para beta con hardening final: páginas legales (`/privacy`, `/terms`, `/cookies`, `/support`), metadata SEO, robots/sitemap, error/loading boundaries, analítica opcional, tests básicos y documentación operativa.
+
+### Scripts principales
+
+```bash
+npm run dev
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+npm run worker:dev
+npm run worker:job -- <JOB_ID>
+```
+
+### Documentación final
+
+- `docs/supabase.md`: migraciones, RLS y buckets privados.
+- `docs/stripe.md`: Checkout, Portal, webhooks e idempotencia.
+- `docs/ai.md`: IA real, JSON validado y fallback.
+- `docs/worker.md`: ejecución del worker y reprocesos.
+- `docs/deploy.md`: deploy en Vercel + worker externo.
+- `docs/qa-checklist.md`: QA manual por área.
+- `docs/smoke-test-e2e.md`: prueba completa antes de beta.
+- `docs/security-checklist.md`: revisión de secretos, RLS, Stripe y Storage.
+- `docs/launch-checklist.md`: checklist final de lanzamiento.
+
+### Producción inicial
+
+Antes de abrir beta: aplica migraciones `001` a `006`, crea buckets privados, configura webhook Stripe real, despliega worker con `SUPABASE_SERVICE_ROLE_KEY`, revisa que no hay secretos en frontend y ejecuta el smoke test E2E completo.

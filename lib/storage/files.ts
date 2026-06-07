@@ -5,7 +5,13 @@ export const OUTPUT_BUCKET = "rankelia-outputs";
 export const REPORT_BUCKET = "rankelia-reports";
 
 export function sanitizeFilename(name: string) {
-  const cleaned = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  const cleaned = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/\.{2,}/g, ".")
+    .replace(/-+/g, "-")
+    .replace(/^[.-]+|[.-]+$/g, "");
   return cleaned || "catalogo.csv";
 }
 
@@ -25,4 +31,13 @@ export async function uploadInputFile(fileOrBlob: Blob, path: string) {
 export async function getSignedDownloadUrl(bucket: string, path: string, expiresIn = 60 * 10) {
   const supabase = createClient();
   return supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
+}
+
+export function validateStoragePathOwnership(userId: string, path: string) {
+  const normalized = path.replace(/^\/+/, "");
+  return normalized.startsWith(`${userId}/`) && !normalized.includes("..");
+}
+
+export function buildUserStoragePath(userId: string, jobId: string, filename: string) {
+  return `${userId}/${jobId}/${sanitizeFilename(filename)}`;
 }

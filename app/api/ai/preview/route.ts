@@ -4,7 +4,10 @@ import { generateOutputWithAI } from "@/lib/ai";
 import type { CsvRow } from "@/lib/csv";
 import type { AIProcessingSettings } from "@/lib/ai";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
+  try {
   const context = await getCurrentUserContext();
   if (!context.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await request.json().catch(() => null) as { rows?: CsvRow[]; settings?: AIProcessingSettings } | null;
@@ -14,4 +17,7 @@ export async function POST(request: Request) {
   const settings: AIProcessingSettings = { ...(body?.settings ?? {}), generation_engine: "ai" };
   const results = await Promise.all(rows.map((row, index) => generateOutputWithAI(row, settings).then((result) => ({ index, ...result }))));
   return NextResponse.json({ results, maxRows, provider: results[0]?.provider ?? "template", model: results[0]?.model ?? "template" });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "AI preview failed" }, { status: 500 });
+  }
 }
