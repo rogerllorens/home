@@ -177,7 +177,7 @@ export const defaultGenerationSettings: GenerationSettings = {
   doNotInvent: true,
 };
 
-export const creditPacks = EXTRA_PRODUCT_PACKS.map((pack) => ({ credits: pack.quantity * PRODUCT_STANDARD_CREDITS, products: pack.quantity, price: pack.price, ideal: `${pack.quantity.toLocaleString("es-ES")} productos SEO extra` }));
+export const creditPacks = EXTRA_PRODUCT_PACKS.map((pack) => ({ id: pack.id, credits: pack.quantity * PRODUCT_STANDARD_CREDITS, products: pack.quantity, price: pack.price, ideal: `${pack.quantity.toLocaleString("es-ES")} productos SEO extra` }));
 
 export const monthlyPlans = SUBSCRIPTION_PLANS.map((plan) => ({ id: plan.id, name: plan.name, price: plan.price, credits: `${plan.monthlyProducts.toLocaleString("es-ES")} productos estándar/mes`, products: plan.monthlyProducts, equivalent: plan.equivalent, features: plan.features, featured: plan.featured }));
 

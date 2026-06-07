@@ -1,2 +1,2 @@
-import { CreditsPage } from "@/components/app/AppPages";
-export default function PrivateCreditsPage() { return <CreditsPage />; }
+import { RealCreditsPage } from "@/components/app/real/RealCreditsPage";
+export default function PrivateCreditsPage() { return <RealCreditsPage />; }

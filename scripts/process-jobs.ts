@@ -74,6 +74,7 @@ async function processJob(job: Job) {
   if (!claimed) return console.log(`Skipped ${job.id}; already claimed.`);
   job = claimed;
   await createJobLog(job.id, job.user_id, "info", "Job processing started", { file: job.original_filename });
+  let reservationId: string | null = null;
   try {
     const text = await downloadInputFile(job);
     const parsed = parseCSV(text);
@@ -82,6 +83,20 @@ async function processJob(job: Job) {
     await createJobLog(job.id, job.user_id, "info", "CSV downloaded and parsed", { rows: rows.length, columns: parsed.headers });
 
     const settings: Record<string, unknown> & { generation_type: string; platform: string; language: string; country: string; tone: string; column_mapping: ColumnMapping; generation_engine: "ai" | "template" } = { ...(job.settings ?? {}), generation_type: job.generation_type, platform: job.platform, language: job.language, country: job.country, tone: job.tone, column_mapping: mapping, generation_engine: (job.generation_engine === "template" || job.settings?.generation_engine === "template") ? "template" : "ai" };
+    const estimatedReservationCredits = job.estimated_credits ?? calculateJobCredits(rows.length, { generationType: job.generation_type, qualityLevel: String(settings.quality_level ?? settings.quality ?? "standard") });
+    const existingReservation = await supabase.from("credit_reservations").select("id,amount,status").eq("job_id", job.id).eq("status", "reserved").maybeSingle<{ id: string; amount: number; status: string }>();
+    if (existingReservation.data?.id) reservationId = existingReservation.data.id;
+    else {
+      const reserved = await supabase.rpc("reserve_credits", { p_user_id: job.user_id, p_job_id: job.id, p_amount: estimatedReservationCredits }).maybeSingle<{ id: string }>();
+      if (reserved.error || !reserved.data?.id) {
+        const message = reserved.error?.message ?? "No se pudo reservar saldo.";
+        await supabase.from("jobs").update({ status: "insufficient_credits", error_message: message, last_worker_error: message, finished_at: new Date().toISOString() }).eq("id", job.id);
+        await createJobLog(job.id, job.user_id, "warning", "Insufficient credits: job not processed", { estimatedReservationCredits, error: message });
+        return;
+      }
+      reservationId = reserved.data.id;
+    }
+    await createJobLog(job.id, job.user_id, "info", "Credits reserved before processing", { reservationId, estimatedReservationCredits });
     await createJobLog(job.id, job.user_id, "info", settings.generation_engine === "ai" ? "AI generation enabled with template fallback" : "Template generation selected", { engine: settings.generation_engine }, settings.generation_engine === "ai" ? "ai" : "worker");
     const results: GenerationOutput[] = [];
     const failedRows: Array<{ row_index: number; sku?: string; nombre_producto?: string; error_message: string; detected_issues?: string[] }> = [];
@@ -136,11 +151,21 @@ async function processJob(job: Job) {
       downloads.push({ user_id: job.user_id, project_id: job.project_id, job_id: job.id, file_type: "errors_csv", filename: `errores-${job.original_filename ?? job.id}.csv`, storage_bucket: OUTPUT_BUCKET, storage_path: errorsPath, rows_count: failedRows.length, average_score: 0, file_size: errorsCsv.length, quality_level: settings.quality_level ?? settings.quality ?? "standard", product_equivalent_used: 0 });
     }
     await supabase.from("downloads").insert(downloads);
+    if (reservationId) {
+      const consumed = await supabase.rpc("consume_reserved_credits", { p_reservation_id: reservationId, p_actual_amount: creditsUsed });
+      if (consumed.error) await createJobLog(job.id, job.user_id, "error", "Could not consume reserved credits", { reservationId, error: consumed.error.message });
+      else await createJobLog(job.id, job.user_id, "info", "Credits consumed for completed job", { reservationId, creditsUsed });
+    }
     await supabase.from("jobs").update({ status: failedRows.length || aiStats.fallbackCount || warnings ? "completed_with_warnings" : "completed", rows_processed: processed, rows_failed: failed, credits_used: creditsUsed, product_equivalent_used: productEquivalent, average_score: averageScore, output_csv_path: csvPath, output_html_path: htmlPath, output_report_path: reportPath, finished_at: new Date().toISOString(), last_heartbeat_at: new Date().toISOString(), quality_level: settings.quality_level ?? settings.quality ?? "standard", generation_engine: settings.generation_engine, ...serializeAIStats(aiStats) }).eq("id", job.id);
     await createJobLog(job.id, job.user_id, "info", "Job completed", { processed, failed, averageScore, downloads: downloads.length, email: "prepared", ai: aiStats });
     await sendJobCompletedEmail({ email: null }, job, downloads);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Worker failed";
+    if (reservationId) {
+      const released = await supabase.rpc("release_reserved_credits", { p_reservation_id: reservationId, p_reason: `Job failed: ${message}` });
+      if (released.error) await createJobLog(job.id, job.user_id, "error", "Could not release reserved credits", { reservationId, error: released.error.message });
+      else await createJobLog(job.id, job.user_id, "warning", "Credits released after job failure", { reservationId });
+    }
     await supabase.from("jobs").update({ status: "failed", error_message: message, last_worker_error: message, finished_at: new Date().toISOString() }).eq("id", job.id);
     await createJobLog(job.id, job.user_id, "error", "Job failed", { error: message });
     await sendJobFailedEmail({ email: null }, job, message);

@@ -18,7 +18,7 @@ export async function getCurrentUserContext(): Promise<AuthUserContext> {
       .maybeSingle<Profile>(),
     supabase
       .from("credit_wallets")
-      .select("user_id,balance,lifetime_used,created_at,updated_at")
+      .select("user_id,balance,reserved_balance,lifetime_used,lifetime_purchased,lifetime_granted,lifetime_refunded,created_at,updated_at")
       .eq("user_id", user.id)
       .maybeSingle<CreditWallet>(),
   ]);

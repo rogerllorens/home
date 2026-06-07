@@ -106,3 +106,10 @@ npm run build
 Rankelia ya incluye una capa IA server-side preparada para OpenAI/OpenAI-compatible y futuros providers Qwen, DeepSeek, Claude y Gemini. Ejecuta `supabase/sql/005_ai_generation_fields.sql`, configura las variables `AI_*` y `OPENAI_API_KEY` en `.env.local`, y usa `/app/upload` para generar una preview IA de 3-5 filas.
 
 El worker (`npm run worker:dev`) procesa jobs con `generation_engine='ai'` cuando hay provider configurado. Si no hay API key, el coste supera límites o el JSON no valida, se usa la generación template-based del Prompt 7 como fallback y se registran warnings en `job_logs`. Consulta `docs/prompt-8-ai-generation.md` para detalles de providers, JSON validation, anti-invención, costes y pruebas.
+
+
+## Prompt 9 — Stripe, productos SEO y wallet real
+
+Rankelia incluye endpoints server-side para Stripe Checkout de planes y productos extra, Customer Portal y webhook verificado. Ejecuta `supabase/sql/006_billing_stripe_wallet.sql`, configura `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, los `STRIPE_PRICE_*` y `APP_URL`, y usa `/app/credits` o `/app/billing` para abrir Checkout.
+
+El saldo no se concede desde `success_url`: solo el webhook añade créditos internos mediante RPCs idempotentes. El worker reserva créditos antes de procesar jobs y consume o libera la reserva al finalizar. Consulta `docs/prompt-9-stripe-products-wallet-billing.md` para Stripe CLI, productos, precios y pruebas.

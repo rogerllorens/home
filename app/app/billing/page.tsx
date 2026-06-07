@@ -1,2 +1,2 @@
-import { BillingPage } from "@/components/app/AppPages";
-export default function PrivateBillingPage() { return <BillingPage />; }
+import { RealBillingPage } from "@/components/app/real/RealBillingPage";
+export default function PrivateBillingPage() { return <RealBillingPage />; }

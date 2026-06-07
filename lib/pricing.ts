@@ -22,20 +22,27 @@ export const SUBSCRIPTION_PLANS = [
 ];
 
 export const EXTRA_PRODUCT_PACKS = [
-  { quantity: 25, price: 9 },
-  { quantity: 50, price: 15 },
-  { quantity: 100, price: 29 },
-  { quantity: 250, price: 59 },
-  { quantity: 500, price: 99 },
-  { quantity: 1000, price: 179 },
-  { quantity: 2500, price: 399 },
-  { quantity: 5000, price: 699 },
-  { quantity: 10000, price: 1199 },
-].map((pack) => ({ ...pack, pricePerProduct: pack.price / pack.quantity }));
+  { id: "products_25", quantity: 25, price: 9, stripePriceEnvKey: "STRIPE_PRICE_PRODUCTS_25", recommendedFor: "Primer lote pequeño" },
+  { id: "products_50", quantity: 50, price: 15, stripePriceEnvKey: "STRIPE_PRICE_PRODUCTS_50", recommendedFor: "Tienda pequeña" },
+  { id: "products_100", quantity: 100, price: 29, stripePriceEnvKey: "STRIPE_PRICE_PRODUCTS_100", recommendedFor: "Campaña puntual" },
+  { id: "products_250", quantity: 250, price: 59, stripePriceEnvKey: "STRIPE_PRICE_PRODUCTS_250", recommendedFor: "Catálogo en crecimiento", highlighted: true },
+  { id: "products_500", quantity: 500, price: 99, stripePriceEnvKey: "STRIPE_PRICE_PRODUCTS_500", recommendedFor: "Migración ecommerce" },
+  { id: "products_1000", quantity: 1000, price: 179, stripePriceEnvKey: "STRIPE_PRICE_PRODUCTS_1000", recommendedFor: "Catálogo completo" },
+  { id: "products_2500", quantity: 2500, price: 399, stripePriceEnvKey: "STRIPE_PRICE_PRODUCTS_2500", recommendedFor: "Lote agencia" },
+  { id: "products_5000", quantity: 5000, price: 699, stripePriceEnvKey: "STRIPE_PRICE_PRODUCTS_5000", recommendedFor: "Multi-tienda" },
+  { id: "products_10000", quantity: 10000, price: 1199, stripePriceEnvKey: "STRIPE_PRICE_PRODUCTS_10000", recommendedFor: "Operación masiva" },
+].map((pack) => ({ ...pack, internalCredits: pack.quantity * PRODUCT_STANDARD_CREDITS, pricePerProduct: pack.price / pack.quantity, label: `${pack.quantity.toLocaleString("es-ES")} productos SEO extra` }));
 
 export function getSubscriptionPlans() { return SUBSCRIPTION_PLANS; }
 export function getExtraProductPacks() { return EXTRA_PRODUCT_PACKS; }
+export function getPlanById(planId: string) { return SUBSCRIPTION_PLANS.find((plan) => plan.id === planId.toLowerCase()) ?? SUBSCRIPTION_PLANS[0]; }
+export function getExtraProductPackById(packId: string) { return EXTRA_PRODUCT_PACKS.find((pack) => pack.id === packId || `products_${pack.quantity}` === packId); }
 export function getPlanProductAllowance(planId: string) { return SUBSCRIPTION_PLANS.find((plan) => plan.id === planId.toLowerCase() || plan.name.toLowerCase() === planId.toLowerCase())?.monthlyProducts ?? FREE_PRODUCTS; }
+export function getPlanInternalCredits(planId: string) { return getPlanProductAllowance(planId) * PRODUCT_STANDARD_CREDITS; }
+export function getCreditsForExtraProductPack(packId: string) { return getExtraProductPackById(packId)?.internalCredits ?? 0; }
+export function getProductsForExtraProductPack(packId: string) { return getExtraProductPackById(packId)?.quantity ?? 0; }
+export function getProductsForPlan(planId: string) { return getPlanProductAllowance(planId); }
+export function getCreditsForPlan(planId: string) { return getPlanInternalCredits(planId); }
 export function getQualityMultiplier(qualityLevel: string = "standard") { return QUALITY_OPTIONS.find((option) => option.id === normalizeQualityLevel(qualityLevel))?.multiplier ?? 1; }
 export function normalizeQualityLevel(value = "standard"): QualityLevel {
   if (/premium/i.test(value)) return "premium";
@@ -44,7 +51,9 @@ export function normalizeQualityLevel(value = "standard"): QualityLevel {
 }
 export function calculateProductEquivalentCredits(count: number, qualityLevel: string = "standard") { return count * PRODUCT_STANDARD_CREDITS * getQualityMultiplier(qualityLevel); }
 export function getVisibleProductCountFromCredits(credits: number) { return Math.floor(credits / PRODUCT_STANDARD_CREDITS); }
+export function formatCreditsAsProducts(credits: number) { return `${getVisibleProductCountFromCredits(credits).toLocaleString("es-ES")} productos estándar equivalentes`; }
 export function getProductPackByQuantity(quantity: number) { return EXTRA_PRODUCT_PACKS.find((pack) => pack.quantity >= quantity) ?? EXTRA_PRODUCT_PACKS[EXTRA_PRODUCT_PACKS.length - 1]; }
+export function getRecommendedPackForDeficit(deficitCredits: number) { return getProductPackByQuantity(Math.ceil(deficitCredits / PRODUCT_STANDARD_CREDITS)); }
 export function calculateJobCredits(rowCount: number, settings?: { generationType?: string; quality?: string; qualityLevel?: string; categories?: number }) {
   const generationType = settings?.generationType ?? "Producto completo";
   if (/solo metadatos|metadata/i.test(generationType)) return rowCount * METADATA_CREDITS;

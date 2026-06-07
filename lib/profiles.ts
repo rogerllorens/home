@@ -21,7 +21,11 @@ export type Profile = {
 export type CreditWallet = {
   user_id: string;
   balance: number;
+  reserved_balance: number;
   lifetime_used: number;
+  lifetime_purchased: number;
+  lifetime_granted: number;
+  lifetime_refunded: number;
   created_at: string;
   updated_at: string;
 };
