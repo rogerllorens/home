@@ -1,4 +1,5 @@
 import { analyzePublicCSV, createSlug, downloadCsv, parseCSV, publicDemoCsv, publicTemplateCsv, type CsvRow } from "@/lib/public-csv";
+import { EXTRA_PRODUCT_PACKS, SUBSCRIPTION_PLANS, calculateJobCredits, PRODUCT_STANDARD_CREDITS } from "@/lib/pricing";
 
 export { downloadCsv, parseCSV };
 
@@ -176,22 +177,9 @@ export const defaultGenerationSettings: GenerationSettings = {
   doNotInvent: true,
 };
 
-export const creditPacks = [
-  { credits: 10000, price: 9, ideal: "validar previews y metadatos" },
-  { credits: 25000, price: 19, ideal: "tienda pequeña" },
-  { credits: 50000, price: 29, ideal: "catálogo en crecimiento" },
-  { credits: 100000, price: 49, ideal: "lote medio" },
-  { credits: 250000, price: 99, ideal: "1.000 productos completos" },
-  { credits: 500000, price: 179, ideal: "catálogo grande" },
-  { credits: 1000000, price: 299, ideal: "agencia y B2B" },
-];
+export const creditPacks = EXTRA_PRODUCT_PACKS.map((pack) => ({ credits: pack.quantity * PRODUCT_STANDARD_CREDITS, products: pack.quantity, price: pack.price, ideal: `${pack.quantity.toLocaleString("es-ES")} productos SEO extra` }));
 
-export const monthlyPlans = [
-  { id: "free", name: "Free", price: "0 €", credits: "10.000 créditos demo", features: ["Diagnóstico CSV", "5 filas preview", "Exportación limitada"] },
-  { id: "starter", name: "Starter", price: "19 €/mes", credits: "50.000 créditos/mes", features: ["Productos SEO", "Metadatos", "Export CSV básico"] },
-  { id: "pro", name: "Pro", price: "49 €/mes", credits: "250.000 créditos/mes", features: ["Categorías SEO", "Export Shopify/Prestashop/WooCommerce", "Score SEO", "Descargas"], featured: true },
-  { id: "agency", name: "Agency", price: "149 €/mes", credits: "1.000.000 créditos/mes", features: ["Multi-proyecto", "Procesamiento prioritario", "Plantillas por sector", "Reportes"] },
-];
+export const monthlyPlans = SUBSCRIPTION_PLANS.map((plan) => ({ id: plan.id, name: plan.name, price: plan.price, credits: `${plan.monthlyProducts.toLocaleString("es-ES")} productos estándar/mes`, products: plan.monthlyProducts, equivalent: plan.equivalent, features: plan.features, featured: plan.featured }));
 
 export function nowLabel() {
   return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date());
@@ -273,10 +261,7 @@ export function analyzeCSV(rows: CsvRow[]) {
 
 export function estimateCredits(rows: CsvRow[], settings: GenerationSettings) {
   const categories = new Set(rows.map((row) => row.categoria).filter(Boolean)).size;
-  if (settings.generationType === "Solo metadatos") return rows.length * 25;
-  if (settings.generationType === "Categorías SEO") return categories * 2500;
-  if (settings.generationType === "Productos + categorías") return rows.length * 250 + categories * 2500;
-  return rows.length * 250;
+  return calculateJobCredits(rows.length, { generationType: settings.generationType, qualityLevel: settings.quality, categories });
 }
 
 function splitFeatures(row: CsvRow) {
@@ -400,8 +385,8 @@ export function createInitialAppState(): AppState {
   const downloads = buildDownloads(completedJob, demoResults).map((download, index) => ({ ...download, id: `DL-DEMO-${index + 1}`, createdAt: "06 jun, 10:47" }));
   return {
     user: { name: "Roger demo", email: "roger@rankelia-demo.com", company: "Demo Commerce" },
-    plan: { name: "Pro beta", monthlyCredits: 250000, status: "Beta privada" },
-    credits: 250000,
+    plan: { name: "Pro beta", monthlyCredits: 150 * PRODUCT_STANDARD_CREDITS, status: "Beta privada" },
+    credits: 150 * PRODUCT_STANDARD_CREDITS,
     promoUsed: false,
     jobs: [
       completedJob,
@@ -410,7 +395,7 @@ export function createInitialAppState(): AppState {
     ],
     downloads,
     transactions: [
-      { id: "TR-001", date: "01 jun", concept: "Plan Pro beta", type: "Plan", credits: 250000, balance: 250000, amount: "49 €", status: "Pagado" },
+      { id: "TR-001", date: "01 jun", concept: "Plan Pro beta", type: "Plan", credits: 150 * PRODUCT_STANDARD_CREDITS, balance: 250000, amount: "49 €", status: "Pagado" },
       { id: "TR-002", date: "06 jun", concept: "Consumo productos-prestashop.csv", type: "Consumo", credits: -125000, balance: 125000, status: "Completado" },
       { id: "TR-003", date: "06 jun", concept: "Créditos beta añadidos", type: "Promo", credits: 125000, balance: 250000, status: "Aplicado" },
     ],

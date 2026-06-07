@@ -35,9 +35,9 @@ export const demoTemplates: Template[] = [
 ];
 
 export const pricingPacks: PricingPack[] = [
-  { name: "Starter", credits: 5000, price: "49 €", description: "Para validar catálogos pequeños y previews SEO." },
-  { name: "Growth", credits: 25000, price: "149 €", description: "Para ecommerce en crecimiento y agencias pequeñas.", featured: true },
-  { name: "Scale", credits: 100000, price: "449 €", description: "Para agencias y catálogos grandes con jobs recurrentes." },
+  { name: "Starter", credits: 50, price: "19 €/mes", description: "50 productos estándar al mes para tiendas pequeñas." },
+  { name: "Pro", credits: 150, price: "39 €/mes", description: "150 productos estándar con exports ecommerce.", featured: true },
+  { name: "Growth", credits: 350, price: "69 €/mes", description: "350 productos estándar para catálogos medianos." },
 ];
 
 export const platforms = ["Shopify", "Prestashop", "WooCommerce", "CSV genérico"];
@@ -50,7 +50,7 @@ export const csvFormats = [
 ];
 
 export const dashboardStats = [
-  { title: "Créditos disponibles", value: "12.480", description: "960 reservados en jobs activos", trend: "+18% vs mes anterior", icon: "◆" },
+  { title: "Productos disponibles", value: "24", description: "Equivalente estándar · créditos internos", trend: "+18% vs mes anterior", icon: "◆" },
   { title: "Jobs activos", value: "2", description: "1 procesando y 1 en cola", trend: "68% avance medio", icon: "◷" },
   { title: "Descargas listas", value: "3", description: "CSV revisables generados", trend: "Última hace 15 h", icon: "↓" },
   { title: "Productos procesados", value: "4.286", description: "Productos + categorías", trend: "+1.240 esta semana", icon: "▦" },
@@ -62,7 +62,7 @@ export const adminStats = [
   { title: "Usuarios demo", value: "128", description: "34 activos esta semana", trend: "+9% WoW", icon: "◎" },
   { title: "Jobs recientes", value: "412", description: "38 en las últimas 24 h", trend: "98,2% success", icon: "◷" },
   { title: "Errores", value: "7", description: "CSV inválido o timeout mock", trend: "Revisar logs", icon: "!" },
-  { title: "Créditos asignados", value: "2,4 M", description: "Saldo agregado clientes", trend: "+180k hoy", icon: "◆" },
+  { title: "Productos asignados", value: "2,4 M", description: "Saldo agregado clientes", trend: "+180k hoy", icon: "◆" },
   { title: "Coste IA estimado", value: "384 €", description: "Mock mensual interno", trend: "0,009 €/fila", icon: "Σ" },
   { title: "Ingresos simulados", value: "12.840 €", description: "MRR + packs mock", trend: "+22% MoM", icon: "€" },
   { title: "Margen estimado", value: "81%", description: "Después de coste IA mock", trend: "Saludable", icon: "%" },

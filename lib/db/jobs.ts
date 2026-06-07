@@ -28,6 +28,18 @@ export type JobRecord = {
   settings: Record<string, unknown>;
   estimated_credits: number;
   average_score: number | null;
+  credits_used?: number;
+  product_equivalent_used?: number;
+  quality_level?: string;
+  processing_attempts?: number;
+  last_worker_error?: string | null;
+  last_heartbeat_at?: string | null;
+  output_csv_path?: string | null;
+  output_html_path?: string | null;
+  output_report_path?: string | null;
+  output_data?: Record<string, unknown> | null;
+  seo_score?: number | null;
+  conversion_score?: number | null;
   error_message: string | null;
   created_at: string;
   updated_at: string;
@@ -81,4 +93,11 @@ export async function getJobRows(jobId: string) {
 export async function getAdminJobs() {
   const supabase = createClient();
   return supabase.from("jobs").select("*, profiles:user_id(email, full_name)").order("created_at", { ascending: false });
+}
+
+export type JobLogRecord = { id: string; job_id: string; user_id: string; level: string; source: string; message: string; context: Record<string, unknown> | null; created_at: string };
+
+export async function getJobLogs(jobId: string) {
+  const supabase = createClient();
+  return supabase.from("job_logs").select("*").eq("job_id", jobId).order("created_at", { ascending: false }).returns<JobLogRecord[]>();
 }

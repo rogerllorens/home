@@ -26,6 +26,8 @@ Configura en `.env.local`:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=tu_url_de_supabase
 NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_anon_key_de_supabase
+SUPABASE_SERVICE_ROLE_KEY=solo_en_worker_local
+WORKER_MAX_JOBS_PER_RUN=1
 ```
 
 Abrir `http://localhost:3000`.
@@ -70,6 +72,19 @@ supabase/sql/003_projects_jobs_storage.sql
 
 La documentación completa de Storage privado, prueba de subida CSV y verificación en Supabase está en `docs/prompt-6-storage-jobs.md`.
 
+
+## Prompt 7: Worker y pricing por productos
+
+Esta fase añade worker local template-based sin IA real, progreso de jobs, logs, outputs CSV/HTML/TXT, descargas reales y pricing visible por productos SEO.
+
+```bash
+# Solo entorno local/servidor worker; nunca frontend
+SUPABASE_SERVICE_ROLE_KEY=tu_service_role_key
+npm run worker:dev
+```
+
+Ejecuta también `supabase/sql/004_worker_logs_processing.sql`. La guía completa está en `docs/prompt-7-worker-processing.md`.
+
 ## Comandos útiles
 
 ```bash
@@ -80,7 +95,7 @@ npm run build
 
 ## Próximas fases previstas
 
-- Prompt 7: worker real, progreso de jobs, reserva de créditos y generación de outputs.
+- Prompt 8: IA real, prompts, modelos y validación JSON avanzada.
 - Worker IA y procesamiento en segundo plano.
 - Stripe Billing y compra de créditos.
 - Admin conectado a datos reales, logs reales y costes IA.

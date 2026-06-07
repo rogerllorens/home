@@ -34,7 +34,7 @@ export function AppTopbar({ onMenu }: { onMenu?: () => void }) {
           <Badge variant="info">{state.plan.name}</Badge>
           <Badge variant="success">{state.credits.toLocaleString("es-ES")} créditos</Badge>
           <span className="text-sm font-semibold text-slate-600">{state.user.name}</span>
-          <Button href="/app/credits">Comprar créditos</Button>
+          <Button href="/app/credits">Comprar productos extra</Button>
           <LogoutButton />
         </div>
       </div>

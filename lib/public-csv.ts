@@ -1,3 +1,4 @@
+import { getProductPackByQuantity, PRODUCT_STANDARD_CREDITS } from "@/lib/pricing";
 export type CsvRow = Record<string, string>;
 
 export type PublicDiagnosis = {
@@ -118,16 +119,9 @@ export function calculateDemoScore(row: CsvRow) {
 }
 
 export function getRecommendedPack(credits: number) {
-  const packs = [
-    { credits: 10000, price: 9 },
-    { credits: 25000, price: 19 },
-    { credits: 50000, price: 29 },
-    { credits: 100000, price: 49 },
-    { credits: 250000, price: 99 },
-    { credits: 500000, price: 179 },
-    { credits: 1000000, price: 299 },
-  ];
-  return packs.find((pack) => pack.credits >= credits) ?? packs[packs.length - 1];
+  const products = Math.max(1, Math.ceil(credits / PRODUCT_STANDARD_CREDITS));
+  const pack = getProductPackByQuantity(products);
+  return { credits: pack.quantity * PRODUCT_STANDARD_CREDITS, price: pack.price, products: pack.quantity };
 }
 
 export function analyzePublicCSV(rows: CsvRow[]): PublicDiagnosis {
@@ -144,7 +138,7 @@ export function analyzePublicCSV(rows: CsvRow[]): PublicDiagnosis {
   const averageCurrentScore = validRows.length ? Math.round(validRows.reduce((sum, row) => sum + calculateDemoScore(row), 0) / validRows.length) : 42;
   const currentScore = Math.max(35, Math.min(65, averageCurrentScore - emptyDescriptions * 2));
   const estimatedScore = Math.max(82, Math.min(90, 86 + Math.round((detectedKeywords / Math.max(validRows.length, 1)) * 4) - insufficientData));
-  const estimatedCredits = validRows.length * 250;
+  const estimatedCredits = validRows.length * PRODUCT_STANDARD_CREDITS;
   const manualHours = Math.round((validRows.length * 8) / 60);
   const rankeliaHours = Math.max(1, Math.round((validRows.length * 0.5) / 60));
   const savedHours = Math.max(0, manualHours - rankeliaHours);

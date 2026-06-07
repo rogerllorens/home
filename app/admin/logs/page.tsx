@@ -1,2 +1,2 @@
-import { AdminLogsPage } from "@/components/admin/AdminPages";
-export default function AdminLogsRoute() { return <AdminLogsPage />; }
+import { RealAdminLogsPage } from "@/components/admin/real/RealAdminLogsPage";
+export default function AdminLogsRoute() { return <RealAdminLogsPage />; }

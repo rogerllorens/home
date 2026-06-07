@@ -12,6 +12,8 @@ export type DownloadRecord = {
   rows_count: number;
   average_score: number | null;
   file_size: number | null;
+  quality_level?: string | null;
+  product_equivalent_used?: number | null;
   expires_at: string | null;
   created_at: string;
 };
@@ -24,4 +26,9 @@ export async function getUserDownloads() {
 export async function createDownloadRecord(data: Omit<DownloadRecord, "id" | "created_at">) {
   const supabase = createClient();
   return supabase.from("downloads").insert(data).select("*").single<DownloadRecord>();
+}
+
+export async function getDownloadById(id: string) {
+  const supabase = createClient();
+  return supabase.from("downloads").select("*").eq("id", id).maybeSingle<DownloadRecord>();
 }

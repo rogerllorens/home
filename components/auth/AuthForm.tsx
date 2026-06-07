@@ -34,7 +34,7 @@ export function AuthForm({ initialMode = "login", nextPath, envReady, setupWarni
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(setupWarning ? { type: "error", text: setupWarning } : null);
 
   const copy = useMemo(() => {
-    if (mode === "register") return { title: "Crea tu cuenta gratis", cta: "Crear cuenta gratis", subtitle: "Guarda tu diagnóstico, recibe 10.000 créditos demo y genera tus primeras filas de muestra." };
+    if (mode === "register") return { title: "Crea tu cuenta gratis", cta: "Crear cuenta gratis", subtitle: "Guarda tu diagnóstico, recibe 3 productos estándar demo y genera tus primeras filas de muestra." };
     if (mode === "reset") return { title: "Recupera tu contraseña", cta: "Enviar enlace de recuperación", subtitle: "Te enviaremos un enlace seguro para restablecer el acceso a tu dashboard." };
     return { title: "Entra en tu cuenta", cta: "Iniciar sesión", subtitle: "Accede a tu dashboard para procesar catálogos, revisar trabajos y descargar resultados SEO." };
   }, [mode]);
@@ -116,7 +116,7 @@ export function AuthForm({ initialMode = "login", nextPath, envReady, setupWarni
         <button className={`flex-1 rounded-xl px-3 py-2 text-sm font-bold ${mode === "register" ? "bg-white text-slate-950 shadow" : "text-slate-500"}`} onClick={() => setMode("register")} type="button">Crear cuenta</button>
       </div>
       <div className="mt-8">
-        <Badge variant="ai">{mode === "register" ? "10.000 créditos demo" : "Dashboard privado"}</Badge>
+        <Badge variant="ai">{mode === "register" ? "3 productos demo" : "Dashboard privado"}</Badge>
         <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950">{copy.title}</h1>
         <p className="mt-3 text-slate-600">{copy.subtitle}</p>
         {intent && <p className="mt-3 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">Continuaremos tu intención de {intent === "credits" ? "comprar créditos" : intent === "plan" ? "elegir plan" : intent} tras iniciar sesión.</p>}
@@ -127,7 +127,7 @@ export function AuthForm({ initialMode = "login", nextPath, envReady, setupWarni
         <div><label className="text-sm font-bold text-slate-700" htmlFor="email">Email</label><input autoComplete="email" className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-blue-500" id="email" onChange={(event) => setEmail(event.target.value)} placeholder="email@empresa.com" required type="email" value={email} /></div>
         {mode !== "reset" && <div><label className="text-sm font-bold text-slate-700" htmlFor="password">Contraseña</label><input autoComplete={mode === "register" ? "new-password" : "current-password"} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-blue-500" id="password" onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" required type="password" value={password} /></div>}
         {mode === "register" && <div><label className="text-sm font-bold text-slate-700" htmlFor="confirmPassword">Confirmar contraseña</label><input autoComplete="new-password" className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-blue-500" id="confirmPassword" onChange={(event) => setConfirmPassword(event.target.value)} placeholder="••••••••" required type="password" value={confirmPassword} /></div>}
-        {mode === "register" && <label className="flex items-start gap-3 rounded-2xl bg-slate-50 p-3 text-sm text-slate-600"><input className="mt-1" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} type="checkbox" />Acepto los términos y la política de privacidad. Sin tarjeta · diagnóstico gratuito · 10.000 créditos demo.</label>}
+        {mode === "register" && <label className="flex items-start gap-3 rounded-2xl bg-slate-50 p-3 text-sm text-slate-600"><input className="mt-1" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} type="checkbox" />Acepto los términos y la política de privacidad. Sin tarjeta · diagnóstico gratuito · 3 productos demo.</label>}
         <Button className="w-full justify-center" disabled={loading || !envReady} type="submit">{loading ? "Procesando…" : copy.cta}</Button>
       </form>
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm font-semibold text-slate-500">

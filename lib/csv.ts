@@ -1,3 +1,4 @@
+import { calculateJobCredits } from "./pricing";
 export type CsvValue = string;
 export type CsvRow = Record<string, CsvValue>;
 
@@ -195,10 +196,7 @@ export function calculateEstimatedScore(summary: Pick<CsvAnalysisSummary, "inval
 
 export function calculateEstimatedCredits(summary: Pick<CsvAnalysisSummary, "validRows" | "categories">, settings?: GenerationCreditSettings) {
   const type = settings?.generationType ?? "Producto completo";
-  if (/solo metadatos|metadata/i.test(type)) return summary.validRows * 25;
-  if (/categor/i.test(type) && !/producto/i.test(type)) return summary.categories * 2500;
-  if (/productos \+ categor/i.test(type)) return summary.validRows * 250 + summary.categories * 2500;
-  return summary.validRows * 250;
+  return calculateJobCredits(summary.validRows, { generationType: type, categories: summary.categories });
 }
 
 export function analyzeCSVRows(rows: CsvRow[], mapping: ColumnMapping, settings?: GenerationCreditSettings): CsvAnalysisSummary {

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "worker:dev": "tsx scripts/process-jobs.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.10.3",
@@ -24,6 +25,7 @@
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.7",
     "tailwindcss": "4.3.0",
+    "tsx": "4.21.0",
     "typescript": "6.0.3"
   }
 }

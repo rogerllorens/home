@@ -22,7 +22,7 @@ export function AuthSidePanel() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {['Shopify', 'Prestashop', 'WooCommerce', 'Sin tarjeta', '10.000 créditos demo'].map((badge) => <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-bold text-slate-100" key={badge}>{badge}</span>)}
+          {['Shopify', 'Prestashop', 'WooCommerce', 'Sin tarjeta', '3 productos demo'].map((badge) => <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-bold text-slate-100" key={badge}>{badge}</span>)}
         </div>
       </div>
     </aside>
