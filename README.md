@@ -95,7 +95,14 @@ npm run build
 
 ## Próximas fases previstas
 
-- Prompt 8: IA real, prompts, modelos y validación JSON avanzada.
-- Worker IA y procesamiento en segundo plano.
-- Stripe Billing y compra de créditos.
-- Admin conectado a datos reales, logs reales y costes IA.
+- Prompt 9: Stripe Billing, checkout, webhooks y consumo real de productos/créditos internos.
+- Prompt 10: hardening de seguridad, legal, performance, deploy y observabilidad.
+- Integraciones directas Shopify/Prestashop/WooCommerce y publicación asistida.
+- Admin avanzado para plantillas IA editables, equipos y auditoría de costes.
+
+
+## Prompt 8 — IA real opcional y fallback seguro
+
+Rankelia ya incluye una capa IA server-side preparada para OpenAI/OpenAI-compatible y futuros providers Qwen, DeepSeek, Claude y Gemini. Ejecuta `supabase/sql/005_ai_generation_fields.sql`, configura las variables `AI_*` y `OPENAI_API_KEY` en `.env.local`, y usa `/app/upload` para generar una preview IA de 3-5 filas.
+
+El worker (`npm run worker:dev`) procesa jobs con `generation_engine='ai'` cuando hay provider configurado. Si no hay API key, el coste supera límites o el JSON no valida, se usa la generación template-based del Prompt 7 como fallback y se registran warnings en `job_logs`. Consulta `docs/prompt-8-ai-generation.md` para detalles de providers, JSON validation, anti-invención, costes y pruebas.
