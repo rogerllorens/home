@@ -1,2 +1,2 @@
-import { AdminJobsPage } from "@/components/admin/AdminPages";
-export default function AdminJobsRoute() { return <AdminJobsPage />; }
+import { RealAdminJobsPage } from "@/components/admin/real/RealAdminJobsPage";
+export default function AdminJobsRoute() { return <RealAdminJobsPage />; }

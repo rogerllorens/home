@@ -95,7 +95,7 @@ export function AuthForm({ initialMode = "login", nextPath, envReady, setupWarni
       }
 
       const origin = window.location.origin;
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/login?mode=reset` });
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/reset-password")}` });
       if (error) throw error;
       setMessage({ type: "success", text: "Te hemos enviado un enlace de recuperación si el email existe en Rankelia." });
     } catch (error) {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { useAppState } from "@/components/app/AppStateProvider";
 import { createClient } from "@/lib/supabase/client";
+import { getOrCreateDefaultProject, updateProject } from "@/lib/db/projects";
 
 const platforms = ["Shopify", "Prestashop", "WooCommerce", "generic"];
 
@@ -31,9 +32,14 @@ export function OnboardingModal() {
       };
       const { error } = await supabase.from("profiles").update(patch).eq("id", auth.user?.id);
       if (error) throw error;
+      if (!skip) {
+        const project = await getOrCreateDefaultProject(auth.user!.id, { name: companyName || "Mi ecommerce", platform, country, language });
+        if (project.error) throw project.error;
+        if (project.data) await updateProject(project.data.id, { name: companyName || project.data.name, platform, country, language });
+      }
       updateAuthProfile(patch);
       setDismissed(true);
-      showToast(skip ? "Onboarding omitido por ahora." : `Proyecto configurado para ${country} · ${language}.`, "success");
+      showToast(skip ? "Onboarding omitido por ahora." : `Proyecto guardado para ${country} · ${language}.`, "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "No hemos podido guardar el onboarding.", "error");
     } finally {

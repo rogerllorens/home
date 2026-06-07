@@ -5,6 +5,8 @@ import { AppStateProvider } from "@/components/app/AppStateProvider";
 import { getCurrentUserContext } from "@/lib/auth";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 
+export const dynamic = "force-dynamic";
+
 export default async function ClientAppLayout({ children }: { children: ReactNode }) {
   if (!hasSupabaseEnv()) redirect("/login?setup=missing-supabase-env&next=/app");
   const auth = await getCurrentUserContext();

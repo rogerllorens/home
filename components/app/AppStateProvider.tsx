@@ -67,7 +67,10 @@ type AppContextValue = {
   setColumnMapping: (mapping: Record<string, string>) => void;
 };
 
-const STORAGE_KEY = "rankelia_app_state_v3";
+const LEGACY_STORAGE_KEY = "rankelia_app_state_v3";
+function getUserScopedStorageKey(auth?: AuthUserContext) {
+  return `rankelia_app_state_${auth?.user?.id ?? "anonymous"}`;
+}
 const AppContext = createContext<AppContextValue | null>(null);
 
 function applyAuthToState(state: AppState, auth?: AuthUserContext): AppState {
@@ -93,8 +96,14 @@ function applyAuthToState(state: AppState, auth?: AuthUserContext): AppState {
 function safeLoadState(initialAuth?: AuthUserContext): AppState {
   if (typeof window === "undefined") return applyAuthToState(createInitialAppState(), initialAuth);
   try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    const base = stored ? { ...createInitialAppState(), ...JSON.parse(stored) } : createInitialAppState();
+    const scopedKey = getUserScopedStorageKey(initialAuth);
+    const stored = window.localStorage.getItem(scopedKey);
+    const legacy = initialAuth?.user ? window.localStorage.getItem(LEGACY_STORAGE_KEY) : null;
+    if (!stored && legacy) {
+      window.localStorage.setItem(scopedKey, legacy);
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+    const base = (stored ?? legacy) ? { ...createInitialAppState(), ...JSON.parse(stored ?? legacy ?? "{}") } : createInitialAppState();
     return applyAuthToState(base, initialAuth);
   } catch {
     return applyAuthToState(createInitialAppState(), initialAuth);
@@ -115,8 +124,8 @@ export function AppStateProvider({ children, initialAuth }: { children: ReactNod
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    window.localStorage.setItem(getUserScopedStorageKey(auth), JSON.stringify(state));
+  }, [auth, state]);
 
 
   const updateAuthProfile = useCallback((profilePatch: Partial<Profile>) => {

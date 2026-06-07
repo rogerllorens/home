@@ -11,6 +11,8 @@ type LoginSearchParams = {
   setup?: string;
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function LoginPage({ searchParams }: { searchParams?: Promise<LoginSearchParams> }) {
   const params = (await searchParams) ?? {};
   const envReady = hasSupabaseEnv();

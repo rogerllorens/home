@@ -1,2 +1,2 @@
-import { UploadPage } from "@/components/app/AppPages";
-export default function PrivateUploadPage() { return <UploadPage />; }
+import { RealUploadPage } from "@/components/app/real/RealUploadPage";
+export default function PrivateUploadPage() { return <RealUploadPage />; }

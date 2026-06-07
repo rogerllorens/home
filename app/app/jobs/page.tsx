@@ -1,2 +1,2 @@
-import { JobsPage } from "@/components/app/AppPages";
-export default function PrivateJobsPage() { return <JobsPage />; }
+import { RealJobsPage } from "@/components/app/real/RealJobsPage";
+export default function PrivateJobsPage() { return <RealJobsPage />; }
