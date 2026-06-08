@@ -43,3 +43,8 @@
 - Verificar que rutas críticas usan datos reales.
 - Verificar que pantallas demo muestran badge explícito.
 - Verificar que fallback IA template queda marcado en logs/job_rows.
+
+## Sanitización y exports
+- CSV injection neutralizada para celdas que empiezan por `=`, `+`, `-` o `@`.
+- HTML report escapa campos de texto y sanea HTML generado antes de mostrarlo.
+- Exports preservan SKU, EAN/GTIN, precio, stock, imagen y URL si estaban en el CSV original.

@@ -16,7 +16,37 @@ function createSlug(text: string) { return text.toLowerCase().normalize("NFD").r
 const pick = (row: CsvRow, mapping: ColumnMapping | undefined, key: keyof ColumnMapping, fallback = "") => (mapping?.[key] ? row[mapping[key]!] : row[key]) || fallback;
 const firstValue = (row: CsvRow, keys: string[]) => keys.map((key) => row[key]).find((value) => value?.trim()) ?? "";
 const split = (value: string) => value.split(/[;,|\n]/).map((item) => item.trim()).filter(Boolean);
-const esc = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+export function sanitizeCsvCell(value: unknown) {
+  const text = String(value ?? "");
+  const trimmedStart = text.trimStart();
+  if (/^[=+\-@]/.test(trimmedStart)) return `'${text}`;
+  return text;
+}
+
+export function escapeHtml(value: unknown) {
+  return String(value ?? "")
+    .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/javascript:/gi, "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+export function sanitizeHtmlFragment(value: unknown) {
+  return String(value ?? "")
+    .replace(/<\/?(?:script|style|iframe|object|embed|link|meta)[^>]*>/gi, "")
+    .replace(/<\/?([a-z0-9-]+)(?:\s[^>]*)?>/gi, (tag, rawName: string) => {
+      const name = rawName.toLowerCase();
+      if (["p", "h2", "h3", "ul", "ol", "li", "strong", "b", "em", "br"].includes(name)) {
+        return tag.startsWith("</") ? `</${name}>` : `<${name}>`;
+      }
+      return escapeHtml(tag);
+    });
+}
+
+const esc = (value: unknown) => `"${sanitizeCsvCell(value).replace(/"/g, '""')}"`;
 const truncate = (value: string, max: number) => value.length <= max ? value : `${value.slice(0, max - 1).trim()}…`;
 
 export function originalDataFromRow(row: CsvRow, mapping?: ColumnMapping) {
@@ -223,7 +253,10 @@ export function buildOutputHTML(results: GenerationOutput[], job: { id: string; 
   const avgConfidence = Math.round(results.reduce((s, r) => s + r.confidence_score, 0) / Math.max(results.length, 1));
   const avgEEAT = Math.round(results.reduce((s, r) => s + r.eeat_score, 0) / Math.max(results.length, 1));
   const avgGeo = Math.round(results.reduce((s, r) => s + r.geo_ai_readiness_score, 0) / Math.max(results.length, 1));
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Rankelia resultados ${job.id}</title><style>body{font-family:system-ui;background:#f8fafc;color:#0f172a;padding:32px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:24px;margin:18px 0}.score{color:#10b981;font-weight:900}.warn{color:#b45309}</style></head><body><h1>Resultados SEO Rankelia</h1><p>Archivo: ${job.original_filename ?? "CSV"} · Plataforma: ${job.platform ?? "generic"} · Revisar antes de publicar.</p><p class="score">Confidence medio ${avgConfidence}/100 · E-E-A-T ${avgEEAT}/100 · GEO/AI readiness ${avgGeo}/100</p>${results.map((r) => `<article class="card"><h2>${r.seo_product_name}</h2><p>${r.short_description}</p><pre>${r.bullet_points}</pre><p><b>Meta title:</b> ${r.meta_title} (${r.meta_title_status})</p><p><b>Meta description:</b> ${r.meta_description} (${r.meta_description_status})</p><p class="score">SEO ${r.seo_score}/100 · Conversión ${r.conversion_score}/100 · Rankelia ${r.rankelia_quality_score}/100</p><p><b>Ready:</b> ${r.ready_to_publish} · Human review: ${r.human_review_required ? "sí" : "no"}</p><p class="warn">${r.quality_warnings}</p></article>`).join("")}</body></html>`;
+  const safeJobId = escapeHtml(job.id);
+  const safeFile = escapeHtml(job.original_filename ?? "CSV");
+  const safePlatform = escapeHtml(job.platform ?? "generic");
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Rankelia resultados ${safeJobId}</title><style>body{font-family:system-ui;background:#f8fafc;color:#0f172a;padding:32px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:24px;margin:18px 0}.score{color:#10b981;font-weight:900}.warn{color:#b45309}</style></head><body><h1>Resultados SEO Rankelia</h1><p>Archivo: ${safeFile} · Plataforma: ${safePlatform} · Revisar antes de publicar.</p><p class="score">Confidence medio ${avgConfidence}/100 · E-E-A-T ${avgEEAT}/100 · GEO/AI readiness ${avgGeo}/100</p>${results.map((r) => `<article class="card"><h2>${escapeHtml(r.seo_product_name)}</h2><p>${escapeHtml(r.short_description)}</p><pre>${escapeHtml(r.bullet_points)}</pre><p><b>Descripción larga saneada:</b></p><div>${sanitizeHtmlFragment(r.long_description_html)}</div><p><b>Meta title:</b> ${escapeHtml(r.meta_title)} (${escapeHtml(r.meta_title_status)})</p><p><b>Meta description:</b> ${escapeHtml(r.meta_description)} (${escapeHtml(r.meta_description_status)})</p><p class="score">SEO ${r.seo_score}/100 · Conversión ${r.conversion_score}/100 · Rankelia ${r.rankelia_quality_score}/100</p><p><b>Ready:</b> ${escapeHtml(r.ready_to_publish)} · Human review: ${r.human_review_required ? "sí" : "no"}</p><p class="warn">${escapeHtml(r.quality_warnings)}</p></article>`).join("")}</body></html>`;
 }
 
 export function buildReportTXT(job: { id: string; original_filename?: string | null; platform?: string; estimated_credits?: number }, results: GenerationOutput[], summary: { failed: number; warnings: number }) {

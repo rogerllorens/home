@@ -32,3 +32,8 @@
 - Job fallido libera reserva.
 - Compra test y suscripción test verificadas.
 - Admin revisa logs, IA cost y billing.
+
+## Cierre de mocks
+- `NEXT_PUBLIC_ENABLE_DEMO=false` en producción.
+- App/Admin demo providers no persisten localStorage ni ejecutan acciones mock sensibles con demo desactivado.
+- Settings/templates bloqueados o marcados v1.1 salvo que se conecten a backend real.

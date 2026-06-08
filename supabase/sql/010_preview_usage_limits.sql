@@ -24,6 +24,10 @@ security definer
 set search_path = public
 as $$
 begin
+  if auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id then
+    raise exception 'Not allowed to increment preview usage for another user';
+  end if;
+
   insert into public.preview_usage(user_id, usage_date, used_count, updated_at)
   values (p_user_id, p_usage_date, 0, now())
   on conflict (user_id, usage_date) do nothing;

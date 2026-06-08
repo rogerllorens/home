@@ -15,6 +15,10 @@ test("production job hardening allows reservation states and blocks direct custo
   assert.match(sql9, /shopify_csv/);
   assert.match(sql9, /audit_events_user_action_created_idx/);
 
+  const sql10 = readFileSync("supabase/sql/010_preview_usage_limits.sql", "utf8");
+  assert.match(sql10, /auth\.role\(\) <> 'service_role'/);
+  assert.match(sql10, /auth\.uid\(\) is distinct from p_user_id/);
+
   const one = await rateLimit("test-job-security", 1, 60);
   const two = await rateLimit("test-job-security", 1, 60);
   assert.equal(one.allowed, true);

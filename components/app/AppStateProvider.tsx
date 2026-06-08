@@ -68,6 +68,7 @@ type AppContextValue = {
 };
 
 const LEGACY_STORAGE_KEY = "rankelia_app_state_v3";
+const DEMO_ENABLED = process.env.NEXT_PUBLIC_ENABLE_DEMO === "true";
 function getUserScopedStorageKey(auth?: AuthUserContext) {
   return `rankelia_app_state_${auth?.user?.id ?? "anonymous"}`;
 }
@@ -94,7 +95,7 @@ function applyAuthToState(state: AppState, auth?: AuthUserContext): AppState {
 }
 
 function safeLoadState(initialAuth?: AuthUserContext): AppState {
-  if (typeof window === "undefined") return applyAuthToState(createInitialAppState(), initialAuth);
+  if (!DEMO_ENABLED || typeof window === "undefined") return applyAuthToState(createInitialAppState(), initialAuth);
   try {
     const scopedKey = getUserScopedStorageKey(initialAuth);
     const stored = window.localStorage.getItem(scopedKey);
@@ -124,6 +125,7 @@ export function AppStateProvider({ children, initialAuth }: { children: ReactNod
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    if (!DEMO_ENABLED) return;
     window.localStorage.setItem(getUserScopedStorageKey(auth), JSON.stringify(state));
   }, [auth, state]);
 
@@ -169,8 +171,8 @@ export function AppStateProvider({ children, initialAuth }: { children: ReactNod
   const handleUploadedFile = useCallback((file: File) => {
     const name = file.name.toLowerCase();
     if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
-      showToast("Excel detectado. En esta beta visual cargaremos el CSV de ejemplo.", "warning");
-      loadExampleCsv();
+      showToast(DEMO_ENABLED ? "Excel detectado. En demo cargaremos el CSV de ejemplo." : "XLS/XLSX no está activo en producción beta. Exporta el archivo a CSV y vuelve a subirlo.", "warning");
+      if (DEMO_ENABLED) loadExampleCsv();
       return;
     }
     if (!name.endsWith(".csv")) {
@@ -194,6 +196,10 @@ export function AppStateProvider({ children, initialAuth }: { children: ReactNod
   }, [showToast]);
 
   const generateFreePreview = useCallback(() => {
+    if (!DEMO_ENABLED) {
+      showToast("Preview demo desactivada en producción. Usa /app/upload para generar previews reales desde el backend.", "warning");
+      return;
+    }
     if (!state.currentCSV) {
       showToast("Analiza un CSV antes de generar preview.", "warning");
       return;
@@ -204,6 +210,10 @@ export function AppStateProvider({ children, initialAuth }: { children: ReactNod
   }, [settings, showToast, state.currentCSV]);
 
   const processFullBatch = useCallback(() => {
+    if (!DEMO_ENABLED) {
+      showToast("Procesamiento demo desactivado en producción. Crea jobs reales desde /app/upload.", "warning");
+      return;
+    }
     if (!state.currentCSV) {
       showToast("Analiza un CSV antes de procesar el lote.", "warning");
       return;

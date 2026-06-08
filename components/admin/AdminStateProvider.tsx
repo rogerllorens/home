@@ -36,10 +36,11 @@ type AdminContextValue = {
 };
 
 const STORAGE_KEY = "rankelia_admin_state_v4";
+const DEMO_ENABLED = process.env.NEXT_PUBLIC_ENABLE_DEMO === "true";
 const AdminContext = createContext<AdminContextValue | null>(null);
 
 function loadInitial() {
-  if (typeof window === "undefined") return createInitialAdminState();
+  if (!DEMO_ENABLED || typeof window === "undefined") return createInitialAdminState();
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     return stored ? { ...createInitialAdminState(), ...JSON.parse(stored) } : createInitialAdminState();
@@ -53,7 +54,7 @@ export function AdminStateProvider({ children }: { children: ReactNode }) {
   const [drawer, setDrawer] = useState<Drawer>(null);
   const [modal, setModal] = useState<Modal>(null);
 
-  useEffect(() => { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }, [state]);
+  useEffect(() => { if (DEMO_ENABLED) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }, [state]);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => { if (event.key === "Escape") { setDrawer(null); setModal(null); } };
     window.addEventListener("keydown", handler);
@@ -66,45 +67,55 @@ export function AdminStateProvider({ children }: { children: ReactNode }) {
     window.setTimeout(() => setToasts((items) => items.filter((toast) => toast.id !== id)), 3600);
   }, []);
 
+  const guardDemoAction = useCallback((actionName: string) => {
+    if (DEMO_ENABLED) return false;
+    showToast(`${actionName} está desactivado en producción; usa el endpoint/API admin real cuando esté disponible.`, "warning");
+    return true;
+  }, [showToast]);
+
   const adminAddCredits = useCallback((userId: string, amount: number, reason: string) => {
+    if (guardDemoAction("Añadir créditos mock")) return;
     setState((current) => ({ ...current,
       users: current.users.map((user) => user.id === userId ? { ...user, credits: user.credits + amount } : user),
       wallets: current.wallets.map((wallet) => wallet.userId === userId ? { ...wallet, balance: wallet.balance + amount } : wallet),
       transactions: [{ id: `TX-${Date.now()}`, date: formatDate(), userId, user: current.users.find(u=>u.id===userId)?.name ?? "Usuario", type: "admin_adjustment", amount, description: reason, status: "applied", origin: "admin" }, ...current.transactions]
     }));
     showToast("Créditos añadidos por admin.", "success");
-  }, [showToast]);
+  }, [guardDemoAction, showToast]);
 
   const adminRefundCredits = useCallback((userId: string, amount: number, reason: string, jobId?: string) => {
+    if (guardDemoAction("Reembolsar créditos mock")) return;
     setState((current) => ({ ...current,
       users: current.users.map((user) => user.id === userId ? { ...user, credits: user.credits + amount } : user),
       wallets: current.wallets.map((wallet) => wallet.userId === userId ? { ...wallet, balance: wallet.balance + amount } : wallet),
       transactions: [{ id: `TX-${Date.now()}`, date: formatDate(), userId, user: current.users.find(u=>u.id===userId)?.name ?? "Usuario", type: "refund", amount, description: reason, jobId, status: "refunded", origin: "admin" }, ...current.transactions]
     }));
     showToast("Créditos reembolsados.", "success");
-  }, [showToast]);
+  }, [guardDemoAction, showToast]);
 
   const adminChangeUserPlan = useCallback((userId: string, plan: AdminUser["plan"]) => {
+    if (guardDemoAction("Cambiar plan mock")) return;
     setState((current) => ({ ...current, users: current.users.map((user) => user.id === userId ? { ...user, plan } : user), wallets: current.wallets.map((wallet) => wallet.userId === userId ? { ...wallet, plan } : wallet) }));
     showToast("Plan actualizado en modo mock.", "success");
-  }, [showToast]);
+  }, [guardDemoAction, showToast]);
 
   const adminReprocessJob = useCallback((jobId: string, mode = "todo") => {
+    if (guardDemoAction("Reprocesar job mock")) return;
     setState((current) => ({ ...current, jobs: current.jobs.map((job) => job.id === jobId ? { ...job, status: "reprocessing", progress: 12, logs: [...job.logs, `Reprocesamiento ${mode} solicitado por admin`] } : job) }));
     showToast("Job enviado a reproceso.", "success");
-  }, [showToast]);
-  const adminCancelJob = useCallback((jobId: string) => { setState((c) => ({ ...c, jobs: c.jobs.map(j => j.id === jobId ? { ...j, status: "cancelled", logs: [...j.logs, "Cancelado por admin"] } : j) })); showToast("Job cancelado.", "warning"); }, [showToast]);
-  const adminMarkJobCompleted = useCallback((jobId: string) => { setState((c) => ({ ...c, jobs: c.jobs.map(j => j.id === jobId ? { ...j, status: "completed", progress: 100, processed: j.rows, failedRows: 0, score: j.score || 84, logs: [...j.logs, "Marcado completado por admin"] } : j) })); showToast("Job marcado como completado.", "success"); }, [showToast]);
+  }, [guardDemoAction, showToast]);
+  const adminCancelJob = useCallback((jobId: string) => { if (guardDemoAction("Cancelar job mock")) return; setState((c) => ({ ...c, jobs: c.jobs.map(j => j.id === jobId ? { ...j, status: "cancelled", logs: [...j.logs, "Cancelado por admin"] } : j) })); showToast("Job cancelado.", "warning"); }, [guardDemoAction, showToast]);
+  const adminMarkJobCompleted = useCallback((jobId: string) => { if (guardDemoAction("Marcar job completado mock")) return; setState((c) => ({ ...c, jobs: c.jobs.map(j => j.id === jobId ? { ...j, status: "completed", progress: 100, processed: j.rows, failedRows: 0, score: j.score || 84, logs: [...j.logs, "Marcado completado por admin"] } : j) })); showToast("Job marcado como completado.", "success"); }, [guardDemoAction, showToast]);
   const adminRefundJobCredits = useCallback((jobId: string) => { const job = state.jobs.find(j=>j.id===jobId); if (job) adminRefundCredits(job.userId, job.credits, `Reembolso job ${job.id}`, job.id); }, [adminRefundCredits, state.jobs]);
 
-  const adminActivateTemplate = useCallback((templateId: string) => { setState((c)=>({ ...c, templates: c.templates.map(t => t.id === templateId ? { ...t, active: !t.active } : t) })); showToast("Plantilla activada/desactivada.", "success"); }, [showToast]);
-  const adminDuplicateTemplate = useCallback((templateId: string) => { setState((c)=>{ const t=c.templates.find(item=>item.id===templateId); return t ? { ...c, templates: [{ ...t, id: `TPL-${Date.now()}`, name: `${t.name} copia`, active: false, updatedAt: "Ahora" }, ...c.templates] } : c; }); showToast("Plantilla duplicada.", "success"); }, [showToast]);
-  const adminCreateTemplateVersion = useCallback((templateId: string) => { setState((c)=>({ ...c, templates: c.templates.map(t => t.id === templateId ? { ...t, version: `v${Number(t.version.replace(/[^0-9]/g, "") || 1)+1}.0`, versions: [...t.versions, `v${t.versions.length + 1}.0`], updatedAt: "Ahora" } : t) })); showToast("Nueva versión creada.", "success"); }, [showToast]);
-  const adminTestPrompt = useCallback((templateId: string) => { const t = state.templates.find(item=>item.id===templateId); if (t) setModal({ type: "testPrompt", template: t }); showToast("Prompt test ejecutado.", "info"); }, [showToast, state.templates]);
+  const adminActivateTemplate = useCallback((templateId: string) => { if (guardDemoAction("Activar template mock")) return; setState((c)=>({ ...c, templates: c.templates.map(t => t.id === templateId ? { ...t, active: !t.active } : t) })); showToast("Plantilla activada/desactivada.", "success"); }, [guardDemoAction, showToast]);
+  const adminDuplicateTemplate = useCallback((templateId: string) => { if (guardDemoAction("Duplicar template mock")) return; setState((c)=>{ const t=c.templates.find(item=>item.id===templateId); return t ? { ...c, templates: [{ ...t, id: `TPL-${Date.now()}`, name: `${t.name} copia`, active: false, updatedAt: "Ahora" }, ...c.templates] } : c; }); showToast("Plantilla duplicada.", "success"); }, [guardDemoAction, showToast]);
+  const adminCreateTemplateVersion = useCallback((templateId: string) => { if (guardDemoAction("Crear versión de template mock")) return; setState((c)=>({ ...c, templates: c.templates.map(t => t.id === templateId ? { ...t, version: `v${Number(t.version.replace(/[^0-9]/g, "") || 1)+1}.0`, versions: [...t.versions, `v${t.versions.length + 1}.0`], updatedAt: "Ahora" } : t) })); showToast("Nueva versión creada.", "success"); }, [guardDemoAction, showToast]);
+  const adminTestPrompt = useCallback((templateId: string) => { if (guardDemoAction("Test prompt mock")) return; const t = state.templates.find(item=>item.id===templateId); if (t) setModal({ type: "testPrompt", template: t }); showToast("Prompt test ejecutado.", "info"); }, [guardDemoAction, showToast, state.templates]);
 
-  const adminResolveLog = useCallback((logId: string) => { setState((c)=>({ ...c, logs: c.logs.map(log => log.id === logId ? { ...log, status: "resuelto" } : log) })); showToast("Log marcado resuelto.", "success"); }, [showToast]);
-  const adminCreateIncident = useCallback((data?: Partial<Incident>) => { setState((c)=>({ ...c, incidents: [{ id: `INC-${Date.now()}`, title: data?.title ?? "Incidencia demo creada", severity: data?.severity ?? "warning", source: data?.source ?? "admin", description: data?.description ?? "Incidencia creada desde backoffice mock.", owner: data?.owner ?? "Ops", status: data?.status ?? "abierta", createdAt: formatDate() }, ...c.incidents] })); showToast("Incidencia creada.", "success"); }, [showToast]);
-  const adminSaveInternalSettings = useCallback((settings: InternalSettings) => { setState((c)=>({ ...c, settings })); showToast("Ajustes internos guardados.", "success"); }, [showToast]);
+  const adminResolveLog = useCallback((logId: string) => { if (guardDemoAction("Resolver log mock")) return; setState((c)=>({ ...c, logs: c.logs.map(log => log.id === logId ? { ...log, status: "resuelto" } : log) })); showToast("Log marcado resuelto.", "success"); }, [guardDemoAction, showToast]);
+  const adminCreateIncident = useCallback((data?: Partial<Incident>) => { if (guardDemoAction("Crear incidencia mock")) return; setState((c)=>({ ...c, incidents: [{ id: `INC-${Date.now()}`, title: data?.title ?? "Incidencia demo creada", severity: data?.severity ?? "warning", source: data?.source ?? "admin", description: data?.description ?? "Incidencia creada desde backoffice mock.", owner: data?.owner ?? "Ops", status: data?.status ?? "abierta", createdAt: formatDate() }, ...c.incidents] })); showToast("Incidencia creada.", "success"); }, [guardDemoAction, showToast]);
+  const adminSaveInternalSettings = useCallback((settings: InternalSettings) => { if (guardDemoAction("Guardar ajustes internos mock")) return; setState((c)=>({ ...c, settings })); showToast("Ajustes internos guardados.", "success"); }, [guardDemoAction, showToast]);
   const createIncidentDemo = useCallback(() => { adminCreateIncident({ title: "Incidencia demo desde topbar", severity: "warning", source: "admin", description: "Seguimiento operativo creado manualmente." }); router.push("/admin/logs"); }, [adminCreateIncident, router]);
 
   const value = useMemo(() => ({ state, toasts, drawer, modal, openDrawer: setDrawer, closeDrawer: () => setDrawer(null), openModal: setModal, closeModal: () => setModal(null), showToast, adminAddCredits, adminRefundCredits, adminChangeUserPlan, adminReprocessJob, adminCancelJob, adminMarkJobCompleted, adminRefundJobCredits, adminActivateTemplate, adminDuplicateTemplate, adminCreateTemplateVersion, adminTestPrompt, adminResolveLog, adminCreateIncident, adminSaveInternalSettings, createIncidentDemo }), [state, toasts, drawer, modal, showToast, adminAddCredits, adminRefundCredits, adminChangeUserPlan, adminReprocessJob, adminCancelJob, adminMarkJobCompleted, adminRefundJobCredits, adminActivateTemplate, adminDuplicateTemplate, adminCreateTemplateVersion, adminTestPrompt, adminResolveLog, adminCreateIncident, adminSaveInternalSettings, createIncidentDemo]);
