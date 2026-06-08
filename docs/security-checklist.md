@@ -11,3 +11,4 @@
 - Admin protegido por rol.
 - No logging de CSV completo, tarjetas, tokens ni claves.
 - IA con fallback y warnings anti-invención.
+- Ejecutar `supabase/sql/007_final_security_hardening.sql` para bloquear escalada de `profiles.role` por clientes y reforzar revokes de wallet/downloads.

@@ -38,3 +38,8 @@
 - Landing, app y admin en móvil, tablet y desktop.
 - Inputs con labels, botones con texto, tablas con scroll.
 - Error/empty/loading states visibles.
+
+## Mocks y fallbacks
+- Verificar que rutas críticas usan datos reales.
+- Verificar que pantallas demo muestran badge explícito.
+- Verificar que fallback IA template queda marcado en logs/job_rows.

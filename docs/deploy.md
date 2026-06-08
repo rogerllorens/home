@@ -8,7 +8,7 @@
 5. Configurar dominio y HTTPS.
 
 ## Supabase
-1. Ejecutar migraciones `001` a `006` en orden.
+1. Ejecutar migraciones `001` a `007` en orden.
 2. Crear buckets privados: `rankelia-inputs`, `rankelia-outputs`, `rankelia-reports`.
 3. Revisar RLS: usuarios solo leen sus datos, admin global, wallets no mutables desde cliente.
 4. Crear primer admin con SQL controlado.

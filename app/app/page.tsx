@@ -1,2 +1,2 @@
-import { DashboardPage } from "@/components/app/AppPages";
-export default function AppDashboardPage() { return <DashboardPage />; }
+import { RealDashboardPage } from "@/components/app/real/RealDashboardPage";
+export default function AppDashboardPage() { return <RealDashboardPage />; }

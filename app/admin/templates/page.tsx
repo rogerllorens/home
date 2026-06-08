@@ -1,2 +1,4 @@
 import { AdminTemplatesPage } from "@/components/admin/AdminPages";
-export default function AdminTemplatesRoute() { return <AdminTemplatesPage />; }
+import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
+export default function AdminTemplatesRoute() { return <div className="space-y-6"><Card><Badge variant="warning">Demo IA templates</Badge><h1 className="mt-3 text-2xl font-black">Plantillas y prompts</h1><p className="mt-2 text-sm text-slate-600">La generación real usa prompts versionados en código y validación JSON. El editor visual admin queda aislado como demo explícita para v1.1.</p></Card><AdminTemplatesPage /></div>; }
