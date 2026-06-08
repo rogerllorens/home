@@ -145,3 +145,11 @@ npm run worker:job -- <JOB_ID>
 ### Producción inicial
 
 Antes de abrir beta: aplica migraciones `001` a `006`, crea buckets privados, configura webhook Stripe real, despliega worker con `SUPABASE_SERVICE_ROLE_KEY`, revisa que no hay secretos en frontend y ejecuta el smoke test E2E completo.
+
+## Cierre beta: garantías de producción inicial
+
+- La creación productiva de jobs pasa por `POST /api/jobs/create`: el cliente sube el CSV a Storage privado, pero el servidor descarga el archivo, recalcula filas/créditos, inserta `job_rows` en batches, crea la reserva de créditos y solo deja el job en `queued` si la reserva existe.
+- En beta solo se procesa CSV real. XLSX queda bloqueado con mensaje explícito y documentado para v1.1.
+- El límite por job se controla con `WORKER_MAX_ROWS_PER_JOB` y `NEXT_PUBLIC_MAX_ROWS_PER_JOB`; ambos deben coincidir para evitar discrepancias entre filas subidas, cobradas y procesadas.
+- `npm run validate:env` valida configuración local; usa `VALIDATE_ENV_MODE=production npm run validate:env` antes de producción.
+- Consulta `docs/PRODUCTION_CHECKLIST.md`, `docs/ENVIRONMENT.md`, `docs/MOCKS_AND_DEMOS.md`, `docs/QA_SMOKE_TEST.md` y `docs/REMAINING_MANUAL_SETUP.md` antes de abrir beta.

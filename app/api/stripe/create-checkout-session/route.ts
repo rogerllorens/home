@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserContext } from "@/lib/auth";
 import { createExtraProductsCheckoutSession, createSubscriptionCheckoutSession, sessionUrl } from "@/lib/stripe/checkout";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,8 @@ export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUserContext();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const limited = await enforceRateLimit(request, "stripe:checkout", user.id, 10, 60);
+    if (limited) return limited;
     const body = await request.json().catch(() => ({})) as { type?: "extra_products" | "subscription"; packId?: string; planId?: string };
     if (body.type === "extra_products") {
       if (!body.packId) return NextResponse.json({ error: "packId requerido" }, { status: 400 });

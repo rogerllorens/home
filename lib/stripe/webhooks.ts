@@ -26,7 +26,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
     if (event.type === "checkout.session.completed") await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session, event.id);
     if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated") await upsertSubscription(event.data.object as Stripe.Subscription);
     if (event.type === "customer.subscription.deleted") await deleteSubscription(event.data.object as Stripe.Subscription);
-    if (event.type === "invoice.payment_succeeded") await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice, event.id);
+    if (event.type === "invoice.payment_succeeded" || event.type === "invoice.paid") await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice, event.id);
     if (event.type === "invoice.payment_failed") await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
     await markProcessed(event.id);
     return { duplicate: false };
@@ -46,6 +46,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
   if (session.mode === "payment" && metadata.item_type === "extra_products") {
     const pack = getExtraProductPackById(metadata.pack_id ?? "");
     if (!pack) throw new Error("Pack de productos desconocido en metadata.");
+    if (typeof session.amount_total === "number" && session.amount_total !== pack.price * 100) throw new Error("Importe Stripe no coincide con el pack interno.");
     const existing = await supabase.from("credit_transactions").select("id").eq("stripe_session_id", session.id).maybeSingle();
     if (!existing.data) await addCredits(supabase, userId, pack.internalCredits, "purchase", `${pack.quantity.toLocaleString("es-ES")} productos extra comprados`, { stripe_session_id: session.id, stripe_event_id: eventId, products: pack.quantity, amount_total: session.amount_total });
   }

@@ -8,7 +8,7 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 
 const titles: Record<string, { title: string; subtitle: string }> = {
   "/app": { title: "Dashboard", subtitle: "Gestiona tus catálogos, trabajos, créditos y descargas SEO desde un solo lugar." },
-  "/app/upload": { title: "Subir archivo", subtitle: "Analiza, mapea y procesa CSV/Excel de productos o categorías." },
+  "/app/upload": { title: "Subir archivo", subtitle: "Analiza, mapea y procesa CSV de productos o categorías." },
   "/app/jobs": { title: "Trabajos", subtitle: "Consulta el estado de tus lotes de productos, categorías y metadatos." },
   "/app/downloads": { title: "Descargas", subtitle: "Resultados generados y listos para importar o revisar." },
   "/app/credits": { title: "Créditos", subtitle: "Usa créditos para productos, categorías, metadatos y previews avanzadas." },

@@ -8,7 +8,7 @@
 
 ## CSV y jobs
 - CSV válido con columnas ecommerce.
-- CSV vacío, sin cabeceras, XLSX y archivo grande muestran errores claros.
+- CSV vacío, sin cabeceras, XLSX bloqueado con mensaje claro y archivo grande muestra límite por job.
 - Mapping de columnas revisable.
 - Preview IA con API key y fallback sin API key.
 - Job creado con saldo suficiente y bloqueado con saldo insuficiente.

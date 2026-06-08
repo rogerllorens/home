@@ -8,4 +8,6 @@ test("final SQL hardening blocks customer role escalation and wallet writes", ()
   assert.match(sql, /role_updates_admin_only/);
   assert.match(sql, /revoke insert, update, delete on public\.credit_wallets from authenticated/i);
   assert.match(sql, /revoke insert, update, delete on public\.downloads from authenticated/i);
+  const sql8 = readFileSync("supabase/sql/008_production_job_creation_hardening.sql", "utf8");
+  assert.match(sql8, /audit_events/);
 });

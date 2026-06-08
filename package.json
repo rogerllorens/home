@@ -11,7 +11,8 @@
     "worker:dev": "tsx scripts/process-jobs.ts",
     "worker:once": "tsx scripts/process-jobs.ts",
     "worker:job": "tsx scripts/process-jobs.ts",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "validate:env": "tsx scripts/validate-env.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.10.3",

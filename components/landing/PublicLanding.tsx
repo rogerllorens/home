@@ -34,7 +34,7 @@ const navItems = [
   ["FAQ", "faq"],
 ];
 
-const heroBadges = ["Excel/CSV", "Shopify", "Prestashop", "WooCommerce", "SEO Score", "Preview gratis", "Sin copiar producto por producto"];
+const heroBadges = ["CSV", "Shopify", "Prestashop", "WooCommerce", "SEO Score", "Preview gratis", "Sin copiar producto por producto"];
 
 const creditPacks = EXTRA_PRODUCT_PACKS.map((pack) => ({ products: pack.quantity, credits: pack.quantity * PRODUCT_STANDARD_CREDITS, price: pack.price, ideal: `${pack.quantity.toLocaleString("es-ES")} productos SEO extra para lotes CSV` }));
 
@@ -79,9 +79,9 @@ const representativeCases = [
 ];
 
 const faqItems = [
-  ["¿Qué es Rankelia.ai?", "Un SaaS de IA para ecommerce SEO que transforma Excel/CSV de productos y categorías en contenido SEO estructurado y exportable."],
+  ["¿Qué es Rankelia.ai?", "Un SaaS de IA para ecommerce SEO que transforma CSV de productos y categorías en contenido SEO estructurado y exportable."],
   ["¿Para qué sirve un generador CSV SEO?", "Sirve para optimizar muchos productos o categorías de golpe sin copiar y pegar ficha por ficha."],
-  ["¿Funciona con Excel?", "Sí. En esta demo los XLS cargan datos de ejemplo; en producción se procesarán XLSX completos."],
+  ["¿Funciona con Excel/XLSX?", "En beta procesamos CSV real. XLSX queda documentado para v1.1 para no prometer una importación que aún no es productiva."],
   ["¿Funciona con CSV?", "Sí. Esta landing ya parsea CSV localmente para mostrar un diagnóstico demo sin backend."],
   ["¿Funciona con Shopify?", "Sí. Rankelia está preparada para exportar columnas como Handle, Body HTML, SEO Title y SEO Description."],
   ["¿Funciona con Prestashop?", "Sí. Prestashop es prioritario para Rankelia, con meta title, meta description, URL rewritten y descripciones."],
@@ -142,7 +142,7 @@ export function PublicLanding() {
     name: "Rankelia.ai",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    description: "Convierte catálogos CSV/Excel en contenido SEO ecommerce revisable y exportable.",
+    description: "Convierte catálogos CSV en contenido SEO ecommerce revisable y exportable.",
     offers: monthlyPlans.map((plan) => ({ "@type": "Offer", name: plan.name, price: plan.price.replace(" €/mes", "").replace(" €", ""), priceCurrency: "EUR" })),
   };
   const faqSchema = { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqItems.slice(0, 8).map(([question, answer]) => ({ "@type": "Question", name: question, acceptedAnswer: { "@type": "Answer", text: answer } })) };
@@ -176,13 +176,12 @@ export function PublicLanding() {
     const lowerName = file.name.toLowerCase();
 
     if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
-      showToast("Excel detectado. En esta demo usaremos datos de ejemplo; en producción procesaremos XLSX completo.", "warning");
-      loadDemoCSV();
+      showToast("XLSX detectado. En beta procesamos CSV real; convierte tu hoja a CSV antes de subirla.", "warning");
       return;
     }
 
     if (!lowerName.endsWith(".csv")) {
-      showToast("Formato no reconocido. Sube un CSV, XLSX o XLS.", "warning");
+      showToast("Formato no reconocido. Sube un CSV.", "warning");
       return;
     }
 
@@ -230,15 +229,15 @@ export function PublicLanding() {
           <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.03fr_0.97fr] lg:px-8 lg:py-20">
             <div>
               <Badge variant="ai">Ecommerce SEO Copilot CSV-first</Badge>
-              <h1 className="mt-6 max-w-4xl text-5xl font-black tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">Optimiza productos y categorías SEO desde un Excel o CSV</h1>
+              <h1 className="mt-6 max-w-4xl text-5xl font-black tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">Optimiza productos y categorías SEO desde un CSV</h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">Sube tu catálogo y Rankelia genera descripciones, metatítulos, metadescripciones, keywords, FAQs, slugs y textos SEO listos para Shopify, Prestashop y WooCommerce.</p>
               <div className="mt-7 flex flex-wrap gap-2">{heroBadges.map((badge) => <Badge key={badge}>{badge}</Badge>)}</div>
               <div id="hero-uploader" className="mt-8 rounded-[2rem] border border-blue-200 bg-white/85 p-4 shadow-2xl shadow-blue-200/40 backdrop-blur">
-                <input ref={fileInputRef} aria-label="Subir archivo CSV o Excel" accept=".csv,.xlsx,.xls" className="sr-only" id="catalog-file" onChange={handleFileUpload} type="file" />
+                <input ref={fileInputRef} aria-label="Subir archivo CSV" accept=".csv,text/csv" className="sr-only" id="catalog-file" onChange={handleFileUpload} type="file" />
                 <label className="block cursor-pointer rounded-[1.5rem] border-2 border-dashed border-blue-200 bg-gradient-to-br from-blue-50 to-violet-50 p-8 text-center transition hover:-translate-y-0.5 hover:border-blue-400" htmlFor="catalog-file">
                   <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-blue-600 to-violet-600 text-2xl text-white shadow-xl shadow-blue-600/25">↑</span>
-                  <span className="mt-5 block text-xl font-black">Arrastra tu Excel o CSV aquí</span>
-                  <span className="mt-2 block text-sm text-slate-600">o haz clic para seleccionar archivo · .csv, .xlsx, .xls</span>
+                  <span className="mt-5 block text-xl font-black">Arrastra tu CSV aquí</span>
+                  <span className="mt-2 block text-sm text-slate-600">o haz clic para seleccionar archivo · .csv</span>
                   <span className="mt-1 block text-sm font-semibold text-blue-700">Analizamos gratis las primeras filas antes de crear cuenta</span>
                 </label>
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row"><Button className="flex-1" onClick={handleAnalyzeClick}>Analizar mi catálogo gratis</Button><Button className="flex-1" onClick={loadDemoCSV} variant="secondary">Usar CSV de ejemplo</Button><Button className="flex-1" onClick={downloadTemplateCSV} variant="secondary">Descargar plantilla CSV</Button></div>
@@ -267,7 +266,7 @@ export function PublicLanding() {
         </section>
 
         <section id="como-funciona" className="dark-radial text-white">
-          <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8"><Badge variant="ai">Workflow completo</Badge><h2 className="mt-4 max-w-3xl text-4xl font-black lg:text-5xl">De CSV desordenado a catálogo SEO listo para importar</h2><div className="mt-10 grid gap-4 md:grid-cols-5">{[["1", "Sube Excel o CSV", "Arrastra tu archivo o usa una plantilla de ejemplo."], ["2", "Detecta problemas", "Identifica columnas, categorías, keywords y campos mejorables."], ["3", "Preview gratuita", "Ves una muestra para validar estilo y calidad."], ["4", "Procesa el lote", "Los archivos grandes podrán ejecutarse en segundo plano."], ["5", "Descarga CSV", "Exporta para Shopify, Prestashop, WooCommerce o CSV genérico."]].map(([step, title, text]) => <div className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5 backdrop-blur" key={step}><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white font-black text-slate-950">{step}</div><h3 className="mt-5 font-black">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{text}</p></div>)}</div><Card className="mt-8 border-cyan-400/20 bg-white/10 text-white"><h3 className="text-2xl font-black">Procesamiento en segundo plano</h3><p className="mt-3 text-slate-300">Cuando el lote sea grande, Rankelia lo procesará como trabajo. Podrás cerrar la página y recibirás un email cuando esté listo. El resultado aparecerá en tu apartado de descargas.</p><Button className="mt-5" onClick={loadDemoCSV}>Probar con CSV de ejemplo</Button></Card></div>
+          <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8"><Badge variant="ai">Workflow completo</Badge><h2 className="mt-4 max-w-3xl text-4xl font-black lg:text-5xl">De CSV desordenado a catálogo SEO listo para importar</h2><div className="mt-10 grid gap-4 md:grid-cols-5">{[["1", "Sube CSV", "Arrastra tu archivo o usa una plantilla de ejemplo."], ["2", "Detecta problemas", "Identifica columnas, categorías, keywords y campos mejorables."], ["3", "Preview gratuita", "Ves una muestra para validar estilo y calidad."], ["4", "Procesa el lote", "Los archivos grandes podrán ejecutarse en segundo plano."], ["5", "Descarga CSV", "Exporta para Shopify, Prestashop, WooCommerce o CSV genérico."]].map(([step, title, text]) => <div className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5 backdrop-blur" key={step}><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white font-black text-slate-950">{step}</div><h3 className="mt-5 font-black">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{text}</p></div>)}</div><Card className="mt-8 border-cyan-400/20 bg-white/10 text-white"><h3 className="text-2xl font-black">Procesamiento en segundo plano</h3><p className="mt-3 text-slate-300">Cuando el lote sea grande, Rankelia lo procesará como trabajo. Podrás cerrar la página y recibirás un email cuando esté listo. El resultado aparecerá en tu apartado de descargas.</p><Button className="mt-5" onClick={loadDemoCSV}>Probar con CSV de ejemplo</Button></Card></div>
         </section>
 
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
@@ -289,7 +288,7 @@ export function PublicLanding() {
         </section>
 
         <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <h2 className="max-w-4xl text-4xl font-black lg:text-5xl">ChatGPT te da texto. Rankelia te devuelve un CSV SEO listo para importar.</h2><p className="mt-4 max-w-2xl text-lg text-slate-600">La diferencia no es solo generar contenido: es organizarlo, escalarlo y exportarlo.</p><div className="mt-8 grid gap-6 lg:grid-cols-2"><Card className="border-amber-200 bg-amber-50/50"><h3 className="text-2xl font-black">Manual / ChatGPT</h3>{["Copiar producto por producto", "Sin formato de importación", "Sin score por fila", "Sin control de duplicados", "Difícil mantener consistencia", "No genera categorías SEO completas", "No detecta campos vacíos del catálogo"].map((item) => <p className="mt-3 rounded-2xl bg-white p-3 text-slate-700" key={item}>⚠ {item}</p>)}</Card><Card className="border-emerald-200 bg-emerald-50/60"><h3 className="text-2xl font-black">Rankelia</h3>{["Procesamiento por Excel/CSV", "Export Shopify/Prestashop/WooCommerce", "Score SEO por fila", "Avisos anti-repetición", "Preview gratuita", "Categorías + productos", "Diagnóstico antes de login"].map((item) => <p className="mt-3 rounded-2xl bg-white p-3 text-slate-700" key={item}>✓ {item}</p>)}</Card></div>
+          <h2 className="max-w-4xl text-4xl font-black lg:text-5xl">ChatGPT te da texto. Rankelia te devuelve un CSV SEO listo para importar.</h2><p className="mt-4 max-w-2xl text-lg text-slate-600">La diferencia no es solo generar contenido: es organizarlo, escalarlo y exportarlo.</p><div className="mt-8 grid gap-6 lg:grid-cols-2"><Card className="border-amber-200 bg-amber-50/50"><h3 className="text-2xl font-black">Manual / ChatGPT</h3>{["Copiar producto por producto", "Sin formato de importación", "Sin score por fila", "Sin control de duplicados", "Difícil mantener consistencia", "No genera categorías SEO completas", "No detecta campos vacíos del catálogo"].map((item) => <p className="mt-3 rounded-2xl bg-white p-3 text-slate-700" key={item}>⚠ {item}</p>)}</Card><Card className="border-emerald-200 bg-emerald-50/60"><h3 className="text-2xl font-black">Rankelia</h3>{["Procesamiento por CSV", "Export Shopify/Prestashop/WooCommerce", "Score SEO por fila", "Avisos anti-repetición", "Preview gratuita", "Categorías + productos", "Diagnóstico antes de login"].map((item) => <p className="mt-3 rounded-2xl bg-white p-3 text-slate-700" key={item}>✓ {item}</p>)}</Card></div>
         </section>
 
         <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -309,7 +308,7 @@ export function PublicLanding() {
         </section>
 
         <section className="dark-radial px-4 py-20 text-white sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-5xl text-center"><Badge variant="ai">Empieza con valor antes de registrarte</Badge><h2 className="mt-5 text-4xl font-black lg:text-6xl">Convierte tu catálogo en una base SEO lista para revisar</h2><p className="mx-auto mt-5 max-w-3xl text-lg text-slate-300">Empieza con un diagnóstico gratuito. Sube tu Excel o CSV y descubre cuántas oportunidades tienes antes de crear cuenta.</p><div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><Button onClick={() => scrollToSection("hero-uploader")}>Analizar mi CSV gratis</Button><Button onClick={loadDemoCSV} variant="secondary">Usar CSV de ejemplo</Button><Button href="/login?mode=register" variant="secondary">Registrarme</Button></div></div>
+          <div className="mx-auto max-w-5xl text-center"><Badge variant="ai">Empieza con valor antes de registrarte</Badge><h2 className="mt-5 text-4xl font-black lg:text-6xl">Convierte tu catálogo en una base SEO lista para revisar</h2><p className="mx-auto mt-5 max-w-3xl text-lg text-slate-300">Empieza con un diagnóstico gratuito. Sube tu CSV y descubre cuántas oportunidades tienes antes de crear cuenta.</p><div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><Button onClick={() => scrollToSection("hero-uploader")}>Analizar mi CSV gratis</Button><Button onClick={loadDemoCSV} variant="secondary">Usar CSV de ejemplo</Button><Button href="/login?mode=register" variant="secondary">Registrarme</Button></div></div>
         </section>
       </main>
 

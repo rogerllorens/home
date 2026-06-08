@@ -3,6 +3,7 @@ import { getCurrentUserContext } from "@/lib/auth";
 import { generateOutputWithAI } from "@/lib/ai";
 import type { CsvRow } from "@/lib/csv";
 import type { AIProcessingSettings } from "@/lib/ai";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ export async function POST(request: Request) {
   try {
   const context = await getCurrentUserContext();
   if (!context.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const limited = await enforceRateLimit(request, "ai:preview", context.user.id, 20, 60);
+  if (limited) return limited;
   const body = await request.json().catch(() => null) as { rows?: CsvRow[]; settings?: AIProcessingSettings } | null;
   const maxRows = Number(process.env.AI_PREVIEW_MAX_ROWS ?? 5);
   const rows = (body?.rows ?? []).slice(0, maxRows);

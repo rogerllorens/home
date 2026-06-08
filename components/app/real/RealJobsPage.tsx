@@ -8,13 +8,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Table, Td } from "@/components/ui/Table";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { useAppState } from "@/components/app/AppStateProvider";
-import { getJobLogs, getJobRows, getUserJobs, updateJob, type JobLogRecord, type JobRecord, type JobRowRecord } from "@/lib/db/jobs";
+import { getJobLogs, getJobRows, getUserJobs, type JobLogRecord, type JobRecord, type JobRowRecord } from "@/lib/db/jobs";
 import { getSignedDownloadUrl } from "@/lib/storage/files";
 
 function statusVariant(status: string): "success" | "warning" | "danger" | "info" | "default" {
   if (status === "completed") return "success";
-  if (status === "failed" || status === "failed_validation" || status === "cancelled") return "danger";
-  if (status === "queued" || status === "ready_for_processing" || status === "processing") return "warning";
+  if (status === "failed" || status === "failed_validation" || status === "cancelled" || status === "insufficient_credits") return "danger";
+  if (status === "queued" || status === "ready_for_processing" || status === "processing" || status === "pending_reservation") return "warning";
   if (status === "analyzed") return "info";
   return "default";
 }
@@ -65,13 +65,14 @@ export function RealJobsPage() {
   }
 
   async function cancelJob(job: JobRecord) {
-    const result = await updateJob(job.id, { status: "cancelled" });
-    if (result.error) return showToast(result.error.message, "error");
-    showToast("Job cancelado.", "warning");
+    const response = await fetch(`/api/jobs/${job.id}/cancel`, { method: "POST" });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) return showToast(payload.error ?? "No se pudo cancelar el job.", "error");
+    showToast("Job cancelado y reserva liberada si existía.", "warning");
     await loadJobs();
   }
 
-  const counts = useMemo(() => ({ total: jobs.length, ready: jobs.filter((j) => j.status === "ready_for_processing").length, processing: jobs.filter((j) => j.status === "processing").length, failed: jobs.filter((j) => j.status.includes("failed")).length, rows: jobs.reduce((sum, job) => sum + job.rows_total, 0) }), [jobs]);
+  const counts = useMemo(() => ({ total: jobs.length, ready: jobs.filter((j) => j.status === "ready_for_processing" || j.status === "queued").length, processing: jobs.filter((j) => j.status === "processing").length, failed: jobs.filter((j) => j.status.includes("failed")).length, rows: jobs.reduce((sum, job) => sum + job.rows_total, 0) }), [jobs]);
 
   if (loading) return <Card><p className="font-bold text-slate-600">Cargando jobs reales…</p></Card>;
 

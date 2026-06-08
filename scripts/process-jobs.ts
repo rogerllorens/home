@@ -85,11 +85,20 @@ async function processJob(job: Job) {
     const text = await downloadInputFile(job);
     const parsed = parseCSV(text);
     const mapping = Object.keys(job.column_mapping ?? {}).length ? job.column_mapping! : autoMapColumns(parsed.headers);
-    const rows = parsed.rows.slice(0, maxRows);
+    if (parsed.rows.length > maxRows) {
+      const message = `CSV exceeds worker limit of ${maxRows} rows. Split the file into smaller jobs.`;
+      const existing = await supabase.from("credit_reservations").select("id").eq("job_id", job.id).eq("status", "reserved").maybeSingle<{ id: string }>();
+      if (existing.data?.id) await supabase.rpc("release_reserved_credits", { p_reservation_id: existing.data.id, p_reason: message });
+      await supabase.from("jobs").update({ status: "failed_validation", error_message: message, last_worker_error: message, finished_at: new Date().toISOString() }).eq("id", job.id);
+      await createJobLog(job.id, job.user_id, "warning", "Job rejected by worker row limit", { parsedRows: parsed.rows.length, maxRows, reservationReleased: Boolean(existing.data?.id) });
+      return;
+    }
+    const rows = parsed.rows;
     await createJobLog(job.id, job.user_id, "info", "CSV downloaded and parsed", { rows: rows.length, columns: parsed.headers });
 
     const settings: Record<string, unknown> & { generation_type: string; platform: string; language: string; country: string; tone: string; column_mapping: ColumnMapping; generation_engine: "ai" | "template" } = { ...(job.settings ?? {}), generation_type: job.generation_type, platform: job.platform, language: job.language, country: job.country, tone: job.tone, column_mapping: mapping, generation_engine: (job.generation_engine === "template" || job.settings?.generation_engine === "template") ? "template" : "ai" };
-    const estimatedReservationCredits = job.estimated_credits ?? calculateJobCredits(rows.length, { generationType: job.generation_type, qualityLevel: String(settings.quality_level ?? settings.quality ?? "standard") });
+    const estimatedReservationCredits = calculateJobCredits(rows.length, { generationType: job.generation_type, qualityLevel: String(settings.quality_level ?? settings.quality ?? "standard") });
+    if (job.estimated_credits && job.estimated_credits !== estimatedReservationCredits) await createJobLog(job.id, job.user_id, "warning", "Worker recalculated credits different from stored estimate", { stored: job.estimated_credits, recalculated: estimatedReservationCredits });
     const existingReservation = await supabase.from("credit_reservations").select("id,amount,status").eq("job_id", job.id).eq("status", "reserved").maybeSingle<{ id: string; amount: number; status: string }>();
     if (existingReservation.data?.id) reservationId = existingReservation.data.id;
     else {

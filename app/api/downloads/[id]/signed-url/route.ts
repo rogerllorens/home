@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUserContext, isAdminRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { validateStoragePathOwnership } from "@/lib/storage/files";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const { id } = await params;
   const auth = await getCurrentUserContext();
   if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const limited = await enforceRateLimit(_request, "downloads:signed-url", auth.user.id, 60, 60);
+  if (limited) return limited;
   const supabase = await createClient();
   const { data: download, error } = await supabase.from("downloads").select("*").eq("id", id).maybeSingle<{ id: string; user_id: string; storage_bucket: string; storage_path: string }>();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

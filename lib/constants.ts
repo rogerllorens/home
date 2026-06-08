@@ -1,6 +1,6 @@
 export const APP_NAME = "Rankelia.ai";
 export const POSITIONING = "Ecommerce SEO Copilot CSV-first";
-export const VALUE_PROPOSITION = "Sube un Excel o CSV y convierte tu catálogo en contenido SEO ecommerce listo para revisar e importar.";
+export const VALUE_PROPOSITION = "Sube un CSV y convierte tu catálogo en contenido SEO ecommerce listo para revisar e importar.";
 
 export const brandColors = {
   background: "#F8FAFC",
