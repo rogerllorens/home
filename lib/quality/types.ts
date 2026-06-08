@@ -1,0 +1,35 @@
+export type QualityStatus = "ok" | "warning" | "error";
+export type PublishReadiness = "ready" | "ready_with_warnings" | "needs_review" | "not_ready";
+
+export type QualityAudit = {
+  meta_title_length: number;
+  meta_title_status: QualityStatus;
+  meta_title_issues: string;
+  meta_description_length: number;
+  meta_description_status: QualityStatus;
+  meta_description_issues: string;
+  slug_status: QualityStatus;
+  slug_issues: string;
+  schema_status: QualityStatus;
+  schema_issues: string;
+  claim_status: QualityStatus;
+  unsupported_claims_detected: string;
+  keyword_stuffing_status: QualityStatus;
+  keyword_stuffing_issues: string;
+  missing_data: string;
+  eeat_score: number;
+  eeat_warnings: string;
+  geo_ai_readiness_score: number;
+  geo_ai_warnings: string;
+  internal_linking_warnings: string;
+  platform_export_status: QualityStatus;
+  platform_export_warnings: string;
+  ready_to_publish: PublishReadiness;
+  human_review_required: boolean;
+  main_quality_issue: string;
+  blocking_issues: string;
+  non_blocking_warnings: string;
+  rankelia_quality_score: number;
+  confidence_score: number;
+  generated_at: string;
+};
