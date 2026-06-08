@@ -27,3 +27,8 @@ Limitaciones: impuestos, combinaciones, atributos, multitienda, idiomas y catego
 ## Warnings por plataforma
 
 Cada export añade `Rankelia Warnings` cuando faltan SKU, precio, imagen, slug, categoría, HTML, metadatos o cuando el formato requiere revisión manual por variantes/taxonomía/plugins. Estos warnings también aparecen en reportes para revisión humana.
+
+
+## Audit columns
+
+Rankelia Generic CSV incluye `meta_title_length`, `meta_title_status`, `meta_description_length`, `slug_status`, `schema_status`, `claim_status`, `unsupported_claims_detected`, `keyword_stuffing_status`, `missing_data`, `eeat_score`, `geo_ai_readiness_score`, `platform_export_status`, `ready_to_publish`, `human_review_required`, `main_quality_issue`, `blocking_issues`, `non_blocking_warnings`, `rankelia_quality_score`, `confidence_score`, `prompt_version`, `model_used`, `fallback_used` y `generated_at`.

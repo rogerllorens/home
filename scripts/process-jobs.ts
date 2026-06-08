@@ -22,6 +22,27 @@ async function createJobLog(jobId: string, userId: string, level: "info" | "warn
   await supabase.from("job_logs").insert({ job_id: jobId, user_id: userId, level, source, message, context: context ?? null });
 }
 
+
+async function recoverStaleProcessingJobs() {
+  const staleMinutes = Number(process.env.WORKER_STALE_JOB_MINUTES ?? 30);
+  const maxAttempts = Number(process.env.WORKER_MAX_ATTEMPTS ?? 3);
+  const cutoff = new Date(Date.now() - staleMinutes * 60_000).toISOString();
+  const { data, error } = await supabase.from("jobs").select("id,user_id,processing_attempts").eq("status", "processing").lt("last_heartbeat_at", cutoff).returns<Array<{ id: string; user_id: string; processing_attempts: number | null }>>();
+  if (error) throw error;
+  for (const job of data ?? []) {
+    const attempts = job.processing_attempts ?? 0;
+    if (attempts >= maxAttempts) {
+      const reservation = await supabase.from("credit_reservations").select("id").eq("job_id", job.id).eq("status", "reserved").maybeSingle<{ id: string }>();
+      if (reservation.data?.id) await supabase.rpc("release_reserved_credits", { p_reservation_id: reservation.data.id, p_reason: "Worker stale job exceeded max attempts" });
+      await supabase.from("jobs").update({ status: "failed", last_worker_error: "Worker heartbeat stale and max attempts reached", finished_at: new Date().toISOString() }).eq("id", job.id);
+      await createJobLog(job.id, job.user_id, "error", "Stale processing job failed and reservation released", { attempts, maxAttempts, cutoff });
+    } else {
+      await supabase.from("jobs").update({ status: "retrying", last_worker_error: "Worker heartbeat stale; job returned to queue" }).eq("id", job.id);
+      await createJobLog(job.id, job.user_id, "warning", "Stale processing job moved to retrying", { attempts, maxAttempts, cutoff });
+    }
+  }
+}
+
 async function getPendingJobs() {
   const jobId = process.argv[2];
   if (jobId) {
@@ -29,13 +50,13 @@ async function getPendingJobs() {
     if (error) throw error;
     return data ?? [];
   }
-  const { data, error } = await supabase.from("jobs").select("*").in("status", ["queued", "ready_for_processing"]).order("created_at", { ascending: true }).limit(maxJobs).returns<Job[]>();
+  const { data, error } = await supabase.from("jobs").select("*").in("status", ["queued", "ready_for_processing", "retrying"]).order("created_at", { ascending: true }).limit(maxJobs).returns<Job[]>();
   if (error) throw error;
   return data ?? [];
 }
 
 async function claimJob(job: Job) {
-  const { data, error } = await supabase.from("jobs").update({ status: "processing", processing_attempts: (job.processing_attempts ?? 0) + 1, started_at: new Date().toISOString(), last_heartbeat_at: new Date().toISOString(), last_worker_error: null }).eq("id", job.id).in("status", ["queued", "ready_for_processing"]).select("*").maybeSingle<Job>();
+  const { data, error } = await supabase.from("jobs").update({ status: "processing", processing_attempts: (job.processing_attempts ?? 0) + 1, started_at: new Date().toISOString(), last_heartbeat_at: new Date().toISOString(), last_worker_error: null }).eq("id", job.id).in("status", ["queued", "ready_for_processing", "retrying"]).select("*").maybeSingle<Job>();
   if (error) throw error;
   return data;
 }
@@ -224,6 +245,7 @@ function normalizeRow(row: CsvRow, mapping: ColumnMapping): CsvRow {
 function platformDownloadType(platform: string) { if (/shopify/i.test(platform)) return "shopify_csv"; if (/prestashop|presta/i.test(platform)) return "prestashop_csv"; if (/woo/i.test(platform)) return "woocommerce_csv"; return "rankelia_csv"; }
 
 async function main() {
+  await recoverStaleProcessingJobs();
   const jobs = await getPendingJobs();
   if (!jobs.length) console.info("No pending jobs.");
   for (const job of jobs) await processJob(job);

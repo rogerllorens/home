@@ -7,7 +7,7 @@
 - `WORKER_MAX_ROWS_PER_JOB` y `NEXT_PUBLIC_MAX_ROWS_PER_JOB` deben coincidir para no cobrar filas que el worker no procese.
 
 ## Supabase
-- Ejecutar migraciones `001` a `009` en orden.
+- Ejecutar migraciones `001` a `010` en orden.
 - Confirmar RLS activo en perfiles, proyectos, uploads, jobs, job_rows, downloads, wallets, transactions, reservations, billing y audit_events.
 - Crear buckets privados `rankelia-inputs`, `rankelia-outputs`, `rankelia-reports`.
 - Verificar que customer solo lee sus datos y no puede insertar/update en `jobs`, `job_rows`, wallets, transactions, payment_events ni downloads.

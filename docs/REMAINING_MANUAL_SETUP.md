@@ -1,6 +1,6 @@
 # Setup manual pendiente
 
-- Crear proyecto Supabase, copiar URL/anon/service role y ejecutar migraciones `001` a `009`.
+- Crear proyecto Supabase, copiar URL/anon/service role y ejecutar migraciones `001` a `010`.
 - Crear buckets privados `rankelia-inputs`, `rankelia-outputs`, `rankelia-reports`.
 - Registrar usuario propietario y convertirlo en admin desde SQL Editor.
 - Crear productos/precios Stripe para Starter, Pro, Growth, Agency y packs 25-10000 productos; copiar price IDs.

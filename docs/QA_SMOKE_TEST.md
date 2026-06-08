@@ -1,6 +1,6 @@
 # QA smoke test beta
 
-1. Ejecutar migraciones `001`-`009` y crear buckets privados.
+1. Ejecutar migraciones `001`-`010` y crear buckets privados.
 2. Crear usuario A, iniciar sesión y confirmar wallet Free (3 productos estándar).
 3. Entrar en `/app/upload`, subir CSV válido, revisar mapeo y preview IA/fallback.
 4. Confirmar job: `/api/jobs/create` debe crear job, insertar todas las filas permitidas y reservar créditos server-side.

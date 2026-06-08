@@ -14,6 +14,7 @@ export const categoryAIOutputSchema = z.object({
   slug: z.string().min(2).max(120),
   faqs: z.array(faqSchema).min(2).max(8),
   subcategory_suggestions: z.array(z.string()).max(12),
+  buying_guide_points: z.array(z.string()).max(12).default([]),
   internal_link_suggestions: z.array(z.string()).max(8),
   schema_collection_page_json: z.record(z.string(), z.unknown()),
   cta: z.string().min(2).max(120),

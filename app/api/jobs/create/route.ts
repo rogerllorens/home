@@ -80,9 +80,13 @@ export async function POST(request: Request) {
   if (!allowedGenerationTypes.has(generationType)) return NextResponse.json({ error: "Tipo de generación no permitido." }, { status: 400 });
 
   const qualityLevel = normalizeQualityLevel(body.qualityLevel ?? "standard");
-  const subscription = await createServiceClient().from("subscriptions").select("plan_id,status").eq("user_id", context.user.id).order("created_at", { ascending: false }).limit(1).maybeSingle<{ plan_id: string; status: string }>();
+  const service = createServiceClient();
+  const subscription = await service.from("subscriptions").select("plan_id,status").eq("user_id", context.user.id).order("created_at", { ascending: false }).limit(1).maybeSingle<{ plan_id: string; status: string }>();
   const planId = subscription.data?.plan_id ?? "free";
   const planLimits = getPlanLimits(planId);
+  const activeStatuses = ["pending_reservation", "queued", "ready_for_processing", "processing", "retrying"];
+  const activeJobs = await service.from("jobs").select("id", { count: "exact", head: true }).eq("user_id", context.user.id).in("status", activeStatuses);
+  if ((activeJobs.count ?? 0) >= planLimits.maxConcurrentJobs) return NextResponse.json({ error: `Tu plan permite ${planLimits.maxConcurrentJobs} job(s) activo(s). Espera a que termine uno antes de crear otro.`, activeJobs: activeJobs.count ?? 0, maxConcurrentJobs: planLimits.maxConcurrentJobs }, { status: 429 });
   if (!isQualityAllowed(planId, qualityLevel)) return NextResponse.json({ error: `Tu plan actual no permite calidad ${qualityLevel}. Los productos extra aumentan volumen, pero no desbloquean calidad premium.` }, { status: 403 });
   if (!isGenerationTypeAllowed(planId, generationType)) return NextResponse.json({ error: "Tu plan actual no permite este tipo de generación." }, { status: 403 });
   if (!isExportFormatAllowed(planId, platform)) return NextResponse.json({ error: "Tu plan actual no permite este formato de exportación." }, { status: 403 });
@@ -95,7 +99,7 @@ export async function POST(request: Request) {
   let reservationId: string | null = null;
   let supabase: ReturnType<typeof createServiceClient> | null = null;
   try {
-    supabase = createServiceClient();
+    supabase = service;
     const downloaded = await supabase.storage.from(INPUT_BUCKET).download(body.inputFilePath);
     if (downloaded.error || !downloaded.data) throw downloaded.error ?? new Error("No se pudo leer el CSV privado.");
     const text = await downloaded.data.text();

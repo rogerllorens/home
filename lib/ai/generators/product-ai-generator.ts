@@ -1,5 +1,6 @@
 import type { CsvRow } from "../../csv";
 import { productAIOutputSchema } from "../schemas/product-output-schema";
+import { categoryAIOutputSchema } from "../schemas/category-output-schema";
 import { metadataAIOutputSchema } from "../schemas/metadata-output-schema";
 import { callAIModel } from "../providers";
 import { buildMessages, buildRepairMessages } from "../prompt-registry";
@@ -7,12 +8,13 @@ import { extractJSONFromText, validateWithSchema } from "../json-validator";
 import { routeModelByQuality, shouldUseAI } from "../model-router";
 import { estimatePromptUsage, getCostLimits } from "../cost-estimator";
 import { detectKeywordStuffing, detectUnsupportedClaims } from "../claim-detector";
-import { normalizeProductOutput } from "../output-normalizer";
+import { normalizeCategoryOutput, normalizeProductOutput } from "../output-normalizer";
 import type { AIProcessingSettings, AIRowResult, PromptKind } from "../types";
 import { processRowWithFallback } from "./fallback";
 
 function promptKind(settings: AIProcessingSettings): PromptKind {
   const type = String(settings.generation_type ?? settings.generationType ?? "").toLowerCase();
+  if (/products[_ -]?categories|productos.*categor|producto.*categor/.test(type)) return "product";
   if (type.includes("metadata")) return "metadata";
   if (type.includes("categor")) return "category";
   return "product";
@@ -27,9 +29,9 @@ async function repairJSON(raw: string, route: ReturnType<typeof routeModelByQual
 export async function generateOutputWithAI(row: CsvRow, settings: AIProcessingSettings): Promise<AIRowResult> {
   if (!shouldUseAI(settings)) return processRowWithFallback(row, settings, "generation_engine=template");
   const kind = promptKind(settings);
-  const route = routeModelByQuality(settings, kind === "category" ? "product" : kind);
+  const route = routeModelByQuality(settings, kind);
   if (!route.configured) return processRowWithFallback(row, settings, route.reason ?? "AI provider not configured");
-  const { messages, promptVersion } = buildMessages(kind === "category" ? "product" : kind, route.tier, row, settings);
+  const { messages, promptVersion } = buildMessages(kind, route.tier, row, settings);
   route.promptVersion = promptVersion;
   const promptText = messages.map((message) => message.content).join("\n");
   const estimated = estimatePromptUsage(route, promptText);
@@ -44,16 +46,17 @@ export async function generateOutputWithAI(row: CsvRow, settings: AIProcessingSe
       const response = await callAIModel(route, messages);
       rawText = response.text;
       let parsed = extractJSONFromText(response.text);
-      let validation = kind === "metadata" ? validateWithSchema(parsed, metadataAIOutputSchema) : validateWithSchema(parsed, productAIOutputSchema);
+      const schema = kind === "category" ? categoryAIOutputSchema : kind === "metadata" ? metadataAIOutputSchema : productAIOutputSchema;
+      let validation = validateWithSchema(parsed, schema as never);
       let jsonRepaired = false;
       let usage = response.usage;
       if (!validation.ok) {
         lastErrors = validation.errors;
         try {
-          const repair = await repairJSON(response.text, route, kind === "metadata" ? "MetadataAIOutput" : "ProductAIOutput");
+          const repair = await repairJSON(response.text, route, kind === "category" ? "CategoryAIOutput" : kind === "metadata" ? "MetadataAIOutput" : "ProductAIOutput");
           if (repair) {
             parsed = extractJSONFromText(repair.text);
-            validation = kind === "metadata" ? validateWithSchema(parsed, metadataAIOutputSchema) : validateWithSchema(parsed, productAIOutputSchema);
+            validation = validateWithSchema(parsed, schema as never);
             usage = { inputTokens: response.usage.inputTokens + repair.usage.inputTokens, outputTokens: response.usage.outputTokens + repair.usage.outputTokens, cost: response.usage.cost + repair.usage.cost };
             jsonRepaired = true;
           }
@@ -62,7 +65,7 @@ export async function generateOutputWithAI(row: CsvRow, settings: AIProcessingSe
         }
       }
       if (!validation.ok || !validation.data) throw new Error(validation.ok ? "JSON validation failed" : validation.errors.join("; "));
-      const output = normalizeProductOutput(validation.data, row, settings);
+      const output = kind === "category" ? normalizeCategoryOutput(validation.data as never, row, settings) : normalizeProductOutput(validation.data as never, row, settings);
       const unsupportedClaims = detectUnsupportedClaims(row, output);
       const stuffing = detectKeywordStuffing(output) ? ["Posible keyword stuffing detectado."] : [];
       const warnings = Array.from(new Set([...unsupportedClaims.map((claim) => `Claim no soportado detectado: ${claim}`), ...stuffing]));

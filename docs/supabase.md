@@ -1,6 +1,6 @@
 # Supabase Rankelia
 
-Ejecuta migraciones en orden `001` a `007`. Mantén privados los buckets `rankelia-inputs`, `rankelia-outputs` y `rankelia-reports`.
+Ejecuta migraciones en orden `001` a `010`. Mantén privados los buckets `rankelia-inputs`, `rankelia-outputs` y `rankelia-reports`.
 
 Tablas principales: profiles, wallets, transactions, reservations, projects, uploads, jobs, rows, downloads, logs, billing y subscriptions.
 

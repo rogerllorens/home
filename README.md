@@ -144,7 +144,7 @@ npm run worker:job -- <JOB_ID>
 
 ### Producción inicial
 
-Antes de abrir beta: aplica migraciones `001` a `006`, crea buckets privados, configura webhook Stripe real, despliega worker con `SUPABASE_SERVICE_ROLE_KEY`, revisa que no hay secretos en frontend y ejecuta el smoke test E2E completo.
+Antes de abrir beta: aplica migraciones `001` a `010`, crea buckets privados, configura webhook Stripe real, despliega worker con `SUPABASE_SERVICE_ROLE_KEY`, revisa que no hay secretos en frontend y ejecuta el smoke test E2E completo.
 
 ## Cierre beta: garantías de producción inicial
 
@@ -157,3 +157,8 @@ Antes de abrir beta: aplica migraciones `001` a `006`, crea buckets privados, co
 ## Exports ecommerce CSV
 
 El worker genera Rankelia Generic CSV y, cuando aplica, un CSV orientado a Shopify, WooCommerce o PrestaShop. No es integración API ni publicación automática; consulta `docs/EXPORTS.md` para columnas, warnings y limitaciones por plataforma.
+
+
+## Quality Engine SEO/GEO
+
+Rankelia recalcula scores propios y añade audit columns para metadatos, slug, schema, claims, missing data, E-E-A-T, GEO/AI readiness y publish readiness. Consulta `docs/QUALITY_ENGINE.md` y `docs/OBSERVABILITY.md`.
