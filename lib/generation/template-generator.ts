@@ -71,7 +71,7 @@ export function generateProductTemplateResult(row: CsvRow, settings: WorkerGener
     `¿Se puede importar en ecommerce?\nSí, el resultado se entrega en CSV/HTML para revisión e importación.`
   ];
   if (quality !== "standard") faqs.push(`¿Qué datos conviene completar?\nCaracterísticas, medidas, imágenes reales, precio y atributos verificables.`);
-  if (quality === "premium") faqs.push(`¿Qué aporta Premium?\nMás contexto, recomendaciones y validaciones mock anti-invenciones para equipos SEO.`);
+  if (quality === "premium") faqs.push(`¿Qué aporta Premium?\nMás contexto, recomendaciones y validaciones anti-invenciones para equipos SEO.`);
   const slug = createSlug(`${primaryKeyword}-${brand || category}`);
   const metaTitle = truncate(`${primaryKeyword} ${brand ? `| ${brand}` : `| ${category}`}`, 60);
   const metaDescription = truncate(`${productName} con ${featureList.slice(0, 3).join(", ") || "contenido estructurado"}. Revisa ficha SEO, metas, FAQs y schema antes de importar.`, 158);
@@ -92,16 +92,59 @@ export function generateProductTemplateResult(row: CsvRow, settings: WorkerGener
 
 export function generateCategoryTemplateResult(row: CsvRow, settings: WorkerGenerationSettings = {}) { return generateProductTemplateResult({ ...row, nombre_producto: row.categoria || row.nombre_producto || "Categoría ecommerce" }, settings); }
 export function generateMetadataTemplateResult(row: CsvRow, settings: WorkerGenerationSettings = {}) { const result = generateProductTemplateResult(row, settings); return { ...result, long_description_html: "", faqs: "", schema_product_json: "" }; }
-export function generateOutputForRow(row: CsvRow, settings: WorkerGenerationSettings = {}) { if (/categor/i.test(settings.generation_type || settings.generationType || "")) return generateCategoryTemplateResult(row, settings); if (/metadata/i.test(settings.generation_type || "")) return generateMetadataTemplateResult(row, settings); return generateProductTemplateResult(row, settings); }
-
-export function buildOutputCSV(results: GenerationOutput[], platform = "generic") {
-  const common = ["sku","nombre_producto","marca","categoria","seo_product_name","keyword_principal","keywords_secundarias","keywords_long_tail","entidades_relacionadas","short_description","long_description_html","bullet_points","meta_title","meta_description","slug","faqs","schema_product_json","image_alt_texts","internal_link_suggestions","cta","seo_score","conversion_score","quality_warnings","quality_level","product_equivalent_used","internal_credits_used","status","error_message"];
-  const platformHeaders = /shopify/i.test(platform) ? ["Handle","Title","Body HTML","Vendor","Tags","SEO Title","SEO Description","Image Alt Text"] : /prestashop/i.test(platform) ? ["Reference","Name","Short description","Description","Meta title","Meta description","URL rewritten","Categories"] : /woo/i.test(platform) ? ["Name","SKU","Short description","Description","Categories","Tags","Yoast title","Yoast description"] : [];
-  const headers = [...platformHeaders, ...common];
-  return [headers.join(","), ...results.map((r) => headers.map((h) => esc(platformValue(h, r) ?? (r as unknown as Record<string, unknown>)[h])).join(","))].join("\n");
+export function generateOutputForRow(row: CsvRow, settings: WorkerGenerationSettings = {}) {
+  const generationType = String(settings.generation_type || settings.generationType || "").toLowerCase();
+  if (/products[_ -]?categories|productos.*categor|producto.*categor/.test(generationType)) return generateProductTemplateResult(row, settings);
+  if (/metadata|metadatos/.test(generationType)) return generateMetadataTemplateResult(row, settings);
+  if (/categor/.test(generationType)) return generateCategoryTemplateResult(row, settings);
+  return generateProductTemplateResult(row, settings);
 }
 
-function platformValue(header: string, r: GenerationOutput) { const map: Record<string, unknown> = { Handle: r.slug, Title: r.seo_product_name, "Body HTML": r.long_description_html, Vendor: r.marca, Tags: r.keywords_secundarias, "SEO Title": r.meta_title, "SEO Description": r.meta_description, "Image Alt Text": r.image_alt_texts, Reference: r.sku, Name: r.seo_product_name, "Short description": r.short_description, Description: r.long_description_html, "Meta title": r.meta_title, "Meta description": r.meta_description, "URL rewritten": r.slug, Categories: r.categoria, SKU: r.sku, "Yoast title": r.meta_title, "Yoast description": r.meta_description }; return map[header]; }
+export type ExportPlatform = "rankelia" | "shopify" | "woocommerce" | "prestashop" | "generic";
+
+type ExportRow = GenerationOutput & { price?: string; stock?: string; image_url?: string; product_url?: string; tags?: string };
+
+function splitList(value: string) { return value.split(/[;\n|]/).map((item) => item.trim()).filter(Boolean); }
+function first(value: string) { return splitList(value)[0] ?? ""; }
+function tags(r: ExportRow) { return Array.from(new Set([r.categoria, ...splitList(r.keywords_secundarias), ...splitList(r.keywords_long_tail)].filter(Boolean))).join(", "); }
+function platformWarnings(r: ExportRow, platform: ExportPlatform) {
+  const warnings = splitList(r.quality_warnings);
+  if (!r.sku) warnings.push("Falta SKU/reference: revisar antes de importar.");
+  if (!r.slug) warnings.push("Slug/handle vacío: generado automáticamente o requiere revisión.");
+  if (!r.long_description_html) warnings.push("HTML de descripción vacío.");
+  if (!r.categoria) warnings.push("Categoría vacía o pendiente de mapear.");
+  if (r.status === "failed") warnings.push("Fila fallida: no importar sin revisar.");
+  if (r.meta_title.length > 70) warnings.push("Meta title largo para SERP/CMS.");
+  if (r.meta_description.length > 170) warnings.push("Meta description larga para SERP/CMS.");
+  if (platform !== "rankelia" && platform !== "generic") warnings.push("Export CSV orientado: probar primero con 5-10 productos y ajustar configuración de tienda.");
+  if (platform === "shopify") warnings.push("Variantes complejas y taxonomía Shopify requieren revisión manual.");
+  if (platform === "woocommerce") warnings.push("Campos Yoast requieren plugin Yoast; variables/atributos avanzados no cubiertos en beta.");
+  if (platform === "prestashop") warnings.push("Impuestos, combinaciones y categorías PrestaShop pueden requerir ajuste manual.");
+  return Array.from(new Set(warnings)).join(" | ");
+}
+
+function rankeliaRow(r: ExportRow) { return { sku: r.sku, nombre_original: r.nombre_producto, nombre_seo: r.seo_product_name, marca: r.marca, categoria: r.categoria, subcategoria: "", keyword_principal: r.keyword_principal, keywords_secundarias: r.keywords_secundarias, keywords_long_tail: r.keywords_long_tail, entidades_relacionadas: r.entidades_relacionadas, descripcion_corta: r.short_description, descripcion_larga_html: r.long_description_html, bullet_points: r.bullet_points, beneficios: r.benefits, caracteristicas_tecnicas: r.technical_features, casos_uso: r.use_cases, meta_title: r.meta_title, meta_description: r.meta_description, slug: r.slug, faqs_json: r.faqs, schema_product_json: r.schema_product_json, alt_texts: r.image_alt_texts, tags: tags(r), enlaces_internos_sugeridos: r.internal_link_suggestions, cta: r.cta, seo_score: r.seo_score, conversion_score: r.conversion_score, quality_warnings: platformWarnings(r, "rankelia"), status: r.status, error_message: r.error_message }; }
+function shopifyRow(r: ExportRow) { return { Handle: r.slug, Title: r.seo_product_name, "Body (HTML)": r.long_description_html, Vendor: r.marca, "Product Category": r.categoria, Type: r.categoria, Tags: tags(r), Published: "FALSE", "Option1 Name": "Title", "Option1 Value": "Default Title", "Variant SKU": r.sku, "Variant Price": r.price ?? "", "Image Src": r.image_url ?? "", "Image Alt Text": first(r.image_alt_texts), "SEO Title": r.meta_title, "SEO Description": r.meta_description, Status: "draft", "Rankelia Warnings": platformWarnings(r, "shopify") }; }
+function wooRow(r: ExportRow) { return { Type: "simple", SKU: r.sku, Name: r.seo_product_name, Published: "0", "Short description": r.short_description, Description: r.long_description_html, "Regular price": r.price ?? "", Categories: r.categoria, Tags: tags(r), Images: r.image_url ?? "", "Meta: _yoast_wpseo_title": r.meta_title, "Meta: _yoast_wpseo_metadesc": r.meta_description, "Rankelia Warnings": platformWarnings(r, "woocommerce") }; }
+function prestaRow(r: ExportRow) { return { ID: "", Name: r.seo_product_name, Categories: r.categoria, "Price tax excluded": r.price ?? "", Reference: r.sku, "Short description": r.short_description, Description: r.long_description_html, "Meta title": r.meta_title, "Meta keywords": r.keywords_secundarias, "Meta description": r.meta_description, "URL rewritten": r.slug, "Image URLs": r.image_url ?? "", Active: "0", "Rankelia Warnings": platformWarnings(r, "prestashop") }; }
+function rowsToCsv(rows: Array<Record<string, unknown>>) { const headers = Object.keys(rows[0] ?? {}); return [headers.join(","), ...rows.map((row) => headers.map((header) => esc(row[header])).join(","))].join("\n"); }
+
+export function buildOutputCSV(results: GenerationOutput[], platform: ExportPlatform | string = "rankelia") {
+  if (/shopify/i.test(platform)) return rowsToCsv(results.map((r) => shopifyRow(r)));
+  if (/woo/i.test(platform)) return rowsToCsv(results.map((r) => wooRow(r)));
+  if (/presta/i.test(platform)) return rowsToCsv(results.map((r) => prestaRow(r)));
+  return rowsToCsv(results.map((r) => rankeliaRow(r)));
+}
+
+export function buildPlatformWarnings(row: GenerationOutput, platform: ExportPlatform | string) {
+  const normalized: ExportPlatform = /shopify/i.test(platform) ? "shopify" : /woo/i.test(platform) ? "woocommerce" : /presta/i.test(platform) ? "prestashop" : "rankelia";
+  return platformWarnings(row, normalized);
+}
+
+export const validateShopifyExportRow = (row: GenerationOutput) => buildPlatformWarnings(row, "shopify").split(" | ").filter(Boolean);
+export const validateWooCommerceExportRow = (row: GenerationOutput) => buildPlatformWarnings(row, "woocommerce").split(" | ").filter(Boolean);
+export const validatePrestaShopExportRow = (row: GenerationOutput) => buildPlatformWarnings(row, "prestashop").split(" | ").filter(Boolean);
+
 
 export function buildOutputHTML(results: GenerationOutput[], job: { id: string; original_filename?: string | null; platform?: string }) {
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Rankelia resultados ${job.id}</title><style>body{font-family:system-ui;background:#f8fafc;color:#0f172a;padding:32px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:24px;margin:18px 0}.score{color:#10b981;font-weight:900}.warn{color:#b45309}</style></head><body><h1>Resultados SEO Rankelia</h1><p>Archivo: ${job.original_filename ?? "CSV"} · Plataforma: ${job.platform ?? "generic"} · Revisar antes de publicar.</p>${results.map((r) => `<article class="card"><h2>${r.seo_product_name}</h2><p>${r.short_description}</p><pre>${r.bullet_points}</pre><p><b>Meta title:</b> ${r.meta_title}</p><p><b>Meta description:</b> ${r.meta_description}</p><p class="score">SEO ${r.seo_score}/100 · Conversión ${r.conversion_score}/100</p><p class="warn">${r.quality_warnings}</p></article>`).join("")}</body></html>`;
@@ -111,7 +154,7 @@ export function buildReportTXT(job: { id: string; original_filename?: string | n
   const avg = Math.round(results.reduce((s, r) => s + r.seo_score, 0) / Math.max(results.length, 1));
   const products = results.reduce((s, r) => s + r.product_equivalent_used, 0);
   const credits = results.reduce((s, r) => s + r.internal_credits_used, 0);
-  return `Informe de calidad Rankelia.ai\n\nJob: ${job.id}\nArchivo original: ${job.original_filename ?? "CSV"}\nFecha: ${new Date().toISOString()}\nPlataforma: ${job.platform ?? "generic"}\nProductos equivalentes consumidos (mock): ${products}\nCréditos internos usados (mock): ${credits}\nFilas procesadas: ${results.length}\nFilas fallidas: ${summary.failed}\nScore medio: ${avg}/100\nCréditos estimados: ${job.estimated_credits ?? credits}\nWarnings detectados: ${summary.warnings}\n\nRecomendaciones:\n- Revisar certificaciones, compatibilidades y claims antes de publicar.\n- Añadir imágenes reales y alt text validado.\n- Completar medidas, precios y características técnicas.\n- Revisar metadatos en el CMS antes de importar.\n- No publicar sin revisión humana.\n\nPróximos pasos:\n- Prompt 8 conectará IA real y validación JSON avanzada.\n- Prompt 9 activará Stripe y consumo real de productos/uso.`;
+  return `Informe de calidad Rankelia.ai\n\nJob: ${job.id}\nArchivo original: ${job.original_filename ?? "CSV"}\nFecha: ${new Date().toISOString()}\nPlataforma: ${job.platform ?? "generic"}\nProductos equivalentes consumidos: ${products}\nCréditos internos usados: ${credits}\nFilas procesadas: ${results.length}\nFilas fallidas: ${summary.failed}\nScore medio: ${avg}/100\nCréditos estimados: ${job.estimated_credits ?? credits}\nWarnings detectados: ${summary.warnings}\n\nRecomendaciones:\n- Revisar certificaciones, compatibilidades y claims antes de publicar.\n- Añadir imágenes reales y alt text validado.\n- Completar medidas, precios y características técnicas.\n- Revisar metadatos en el CMS antes de importar.\n- No publicar sin revisión humana.\n\nNotas de importación:\n- Los CSV de plataforma son orientados a importación manual y deben probarse primero con 5-10 productos.\n- Rankelia no publica automáticamente ni garantiza compatibilidad con variantes, impuestos, atributos o categorías específicas de cada tienda.`;
 }
 
 export function buildErrorsCSV(failedRows: Array<{ row_index: number; sku?: string; nombre_producto?: string; error_message: string; detected_issues?: string[] }>) {

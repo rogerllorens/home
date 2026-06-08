@@ -83,11 +83,13 @@ export type JobRowRecord = {
   updated_at: string;
 };
 
+/** @deprecated Productive jobs must be created through POST /api/jobs/create so credits, rows and status are recalculated server-side. */
 export async function createJobRecord(data: Partial<JobRecord> & { user_id: string; job_type: string }) {
   const supabase = createClient();
   return supabase.from("jobs").insert(data).select("*").single<JobRecord>();
 }
 
+/** @deprecated Productive job state changes must use server routes (/api/jobs/*) or the worker service role. */
 export async function updateJob(id: string, data: Partial<JobRecord>) {
   const supabase = createClient();
   return supabase.from("jobs").update(data).eq("id", id).select("*").single<JobRecord>();
@@ -103,6 +105,7 @@ export async function getJobById(id: string) {
   return supabase.from("jobs").select("*").eq("id", id).maybeSingle<JobRecord>();
 }
 
+/** @deprecated Productive job_rows are inserted server-side in batches by POST /api/jobs/create or the worker. */
 export async function createJobRows(rows: Array<Omit<JobRowRecord, "id" | "created_at" | "updated_at">>) {
   const supabase = createClient();
   return supabase.from("job_rows").insert(rows).select("*").returns<JobRowRecord[]>();

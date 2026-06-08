@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { PRODUCT_STANDARD_CREDITS, calculateJobCredits, getExtraProductPackById, getRecommendedPackForDeficit, getPlanInternalCredits, formatCreditsAsProducts } from "../lib/pricing";
+import { PRODUCT_STANDARD_CREDITS, calculateJobCredits, getExtraProductPackById, getRecommendedPackForDeficit, getPlanInternalCredits, formatCreditsAsProducts, normalizeGenerationType } from "../lib/pricing";
 
 test("pricing constants convert products to internal credits", () => {
   assert.equal(PRODUCT_STANDARD_CREDITS, 500);
@@ -13,6 +13,8 @@ test("job cost respects generation quality", () => {
   assert.equal(calculateJobCredits(3, { qualityLevel: "pro", generationType: "product_complete" }), 3000);
   assert.equal(calculateJobCredits(3, { qualityLevel: "premium", generationType: "product_complete" }), 6000);
   assert.equal(calculateJobCredits(3, { generationType: "metadata_only" }), 150);
+  assert.equal(normalizeGenerationType("products_categories"), "products_categories");
+  assert.equal(calculateJobCredits(3, { generationType: "products_categories", qualityLevel: "standard", categories: 2 }), 11500);
 });
 
 test("recommended pack covers deficit without exposing credit packs publicly", () => {

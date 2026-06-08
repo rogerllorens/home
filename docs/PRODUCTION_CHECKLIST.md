@@ -7,7 +7,7 @@
 - `WORKER_MAX_ROWS_PER_JOB` y `NEXT_PUBLIC_MAX_ROWS_PER_JOB` deben coincidir para no cobrar filas que el worker no procese.
 
 ## Supabase
-- Ejecutar migraciones `001` a `008` en orden.
+- Ejecutar migraciones `001` a `009` en orden.
 - Confirmar RLS activo en perfiles, proyectos, uploads, jobs, job_rows, downloads, wallets, transactions, reservations, billing y audit_events.
 - Crear buckets privados `rankelia-inputs`, `rankelia-outputs`, `rankelia-reports`.
 - Verificar que customer solo lee sus datos y no puede insertar/update en `jobs`, `job_rows`, wallets, transactions, payment_events ni downloads.
@@ -25,3 +25,8 @@
 - Configurar Resend (`RESEND_API_KEY`, `EMAIL_FROM`) o asumir noop documentado.
 - Configurar Sentry y Upstash/Redis antes de multi-instancia; el rate limit in-memory es solo beta/dev.
 - Confirmar que sin IA key se usa fallback explícito y no se vende como IA real.
+
+## Exports CSV ecommerce
+- Probar manualmente Rankelia Generic CSV y el formato elegido en una tienda de prueba.
+- Shopify/WooCommerce/PrestaShop son exports CSV orientados; no son sincronización API ni importación garantizada.
+- Revisar `Rankelia Warnings` por fila antes de importar.

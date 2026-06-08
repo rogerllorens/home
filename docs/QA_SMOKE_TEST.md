@@ -1,6 +1,6 @@
 # QA smoke test beta
 
-1. Ejecutar migraciones `001`-`008` y crear buckets privados.
+1. Ejecutar migraciones `001`-`009` y crear buckets privados.
 2. Crear usuario A, iniciar sesión y confirmar wallet Free (3 productos estándar).
 3. Entrar en `/app/upload`, subir CSV válido, revisar mapeo y preview IA/fallback.
 4. Confirmar job: `/api/jobs/create` debe crear job, insertar todas las filas permitidas y reservar créditos server-side.
@@ -10,3 +10,5 @@
 8. Comprar productos extra con Stripe test y reenviar webhook duplicado: saldo solo aumenta una vez.
 9. Contratar plan test y verificar grant por invoice.
 10. Entrar como admin y revisar usuarios, jobs, wallets, reservations, payment_events y logs.
+11. Verificar downloads: Rankelia Generic CSV + CSV de plataforma elegida cuando aplique.
+12. Abrir `Rankelia Warnings` y confirmar que faltas de SKU/precio/imagen aparecen.

@@ -7,8 +7,8 @@
 El proyecto incluye:
 
 - Landing pública premium con uploader visual, diagnóstico demo, pricing, FAQ y CTAs conectados al registro real.
-- App privada cliente con subida CSV real, proyectos/jobs/descargas iniciales en Supabase y mocks restantes para créditos, plantillas, facturación y ajustes.
-- Admin interno separado con backoffice mock para usuarios, jobs, créditos, plantillas, logs y operaciones.
+- App privada cliente con subida CSV real, proyectos/jobs/descargas, wallet/billing y plantillas/settings demo aislados por flag.
+- Admin interno separado con backoffice real para usuarios/jobs/créditos/logs y módulos demo privados aislados por flag.
 - Supabase Auth real preparado para Next.js App Router con `@supabase/ssr`.
 - Rutas `/app/*` protegidas para usuarios autenticados y `/admin/*` restringidas a `profiles.role = 'admin'`.
 - SQL base para `profiles`, `credit_wallets`, `credit_transactions`, `projects`, `file_uploads`, `jobs`, `job_rows`, `downloads`, triggers y políticas RLS.
@@ -153,3 +153,7 @@ Antes de abrir beta: aplica migraciones `001` a `006`, crea buckets privados, co
 - El límite por job se controla con `WORKER_MAX_ROWS_PER_JOB` y `NEXT_PUBLIC_MAX_ROWS_PER_JOB`; ambos deben coincidir para evitar discrepancias entre filas subidas, cobradas y procesadas.
 - `npm run validate:env` valida configuración local; usa `VALIDATE_ENV_MODE=production npm run validate:env` antes de producción.
 - Consulta `docs/PRODUCTION_CHECKLIST.md`, `docs/ENVIRONMENT.md`, `docs/MOCKS_AND_DEMOS.md`, `docs/QA_SMOKE_TEST.md` y `docs/REMAINING_MANUAL_SETUP.md` antes de abrir beta.
+
+## Exports ecommerce CSV
+
+El worker genera Rankelia Generic CSV y, cuando aplica, un CSV orientado a Shopify, WooCommerce o PrestaShop. No es integración API ni publicación automática; consulta `docs/EXPORTS.md` para columnas, warnings y limitaciones por plataforma.

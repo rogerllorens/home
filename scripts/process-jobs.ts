@@ -40,6 +40,14 @@ async function claimJob(job: Job) {
   return data;
 }
 
+
+async function getUserEmailForJob(userId: string) {
+  const profile = await supabase.from("profiles").select("email").eq("id", userId).maybeSingle<{ email: string | null }>();
+  if (profile.data?.email) return profile.data.email;
+  const customer = await supabase.from("billing_customers").select("email").eq("user_id", userId).maybeSingle<{ email: string | null }>();
+  return customer.data?.email ?? null;
+}
+
 async function downloadInputFile(job: Job) {
   if (!job.input_bucket || !job.input_file_path) throw new Error("Job without input storage path.");
   const { data, error } = await supabase.storage.from(job.input_bucket).download(job.input_file_path);
@@ -107,6 +115,8 @@ async function processJob(job: Job) {
         const message = reserved.error?.message ?? "No se pudo reservar saldo.";
         await supabase.from("jobs").update({ status: "insufficient_credits", error_message: message, last_worker_error: message, finished_at: new Date().toISOString() }).eq("id", job.id);
         await createJobLog(job.id, job.user_id, "warning", "Insufficient credits: job not processed", { estimatedReservationCredits, error: message });
+        const email = await getUserEmailForJob(job.user_id);
+        await sendJobFailedEmail({ email }, job, `Productos insuficientes para reservar el lote: ${message}`);
         return;
       }
       reservationId = reserved.data.id;
@@ -145,19 +155,36 @@ async function processJob(job: Job) {
     const warnings = results.filter((row) => row.quality_warnings).length;
     const creditsUsed = results.reduce((sum, row) => sum + row.internal_credits_used, 0) || calculateJobCredits(results.length, { generationType: job.generation_type, qualityLevel: String(settings.quality_level ?? settings.quality ?? "standard") });
     const productEquivalent = results.reduce((sum, row) => sum + row.product_equivalent_used, 0);
-    const csv = buildOutputCSV(results, job.platform);
+    const rankeliaCsv = buildOutputCSV(results, "rankelia");
+    const selectedPlatform = platformDownloadType(job.platform);
+    const platformCsv = selectedPlatform === "rankelia_csv" ? null : buildOutputCSV(results, job.platform);
     const html = buildOutputHTML(results, job);
-    const report = `${buildReportTXT({ ...job, estimated_credits: job.estimated_credits ?? undefined }, results, { failed, warnings })}\n\nIA Prompt 8:\nProvider: ${aiStats.provider ?? "template"}\nModelo: ${aiStats.model ?? "template"}\nPrompt version: ${aiStats.promptVersion ?? "template-v1.0.0"}\nInput tokens estimados: ${aiStats.inputTokens}\nOutput tokens estimados: ${aiStats.outputTokens}\nCoste IA estimado: ${aiStats.aiCost.toFixed(6)}\nFallback rows: ${aiStats.fallbackCount}\nValidation errors: ${aiStats.validationErrorCount}\nUnsupported claims: ${aiStats.unsupportedClaimCount}\n`;
-    const csvPath = outputPath(job, "output.csv");
+    const report = `${buildReportTXT({ ...job, estimated_credits: job.estimated_credits ?? undefined }, results, { failed, warnings })}
+
+IA y costes:
+Provider: ${aiStats.provider ?? "template"}
+Modelo: ${aiStats.model ?? "template"}
+Prompt version: ${aiStats.promptVersion ?? "template-v1.0.0"}
+Input tokens estimados: ${aiStats.inputTokens}
+Output tokens estimados: ${aiStats.outputTokens}
+Coste IA estimado: ${aiStats.aiCost.toFixed(6)}
+Fallback rows: ${aiStats.fallbackCount}
+Validation errors: ${aiStats.validationErrorCount}
+Unsupported claims: ${aiStats.unsupportedClaimCount}
+`;
+    const rankeliaPath = outputPath(job, "output_rankelia.csv");
+    const platformPath = platformCsv ? outputPath(job, `output_${selectedPlatform.replace("_csv", "")}.csv`) : null;
     const htmlPath = outputPath(job, "output.html");
     const reportPath = outputPath(job, "report.txt");
-    await uploadOutputFile(OUTPUT_BUCKET, csvPath, csv, "text/csv;charset=utf-8");
+    await uploadOutputFile(OUTPUT_BUCKET, rankeliaPath, rankeliaCsv, "text/csv;charset=utf-8");
+    if (platformCsv && platformPath) await uploadOutputFile(OUTPUT_BUCKET, platformPath, platformCsv, "text/csv;charset=utf-8");
     await uploadOutputFile(OUTPUT_BUCKET, htmlPath, html, "text/html;charset=utf-8");
     await uploadOutputFile(REPORT_BUCKET, reportPath, report, "text/plain;charset=utf-8");
     const downloads = [
-      { user_id: job.user_id, project_id: job.project_id, job_id: job.id, file_type: platformDownloadType(job.platform), filename: `${job.original_filename ?? "rankelia"}-optimizado.csv`, storage_bucket: OUTPUT_BUCKET, storage_path: csvPath, rows_count: results.length, average_score: averageScore, file_size: csv.length, quality_level: settings.quality_level ?? settings.quality ?? "standard", product_equivalent_used: productEquivalent },
-      { user_id: job.user_id, project_id: job.project_id, job_id: job.id, file_type: "html", filename: `${job.original_filename ?? "rankelia"}.html`, storage_bucket: OUTPUT_BUCKET, storage_path: htmlPath, rows_count: results.length, average_score: averageScore, file_size: html.length, quality_level: settings.quality_level ?? settings.quality ?? "standard", product_equivalent_used: productEquivalent },
-      { user_id: job.user_id, project_id: job.project_id, job_id: job.id, file_type: "report_txt", filename: `informe-${job.original_filename ?? job.id}.txt`, storage_bucket: REPORT_BUCKET, storage_path: reportPath, rows_count: results.length, average_score: averageScore, file_size: report.length, quality_level: settings.quality_level ?? settings.quality ?? "standard", product_equivalent_used: productEquivalent },
+      { user_id: job.user_id, project_id: job.project_id, job_id: job.id, file_type: "rankelia_csv", filename: `${job.original_filename ?? "rankelia"}-rankelia.csv`, storage_bucket: OUTPUT_BUCKET, storage_path: rankeliaPath, rows_count: results.length, average_score: averageScore, file_size: rankeliaCsv.length, quality_level: settings.quality_level ?? settings.quality ?? "standard", product_equivalent_used: productEquivalent },
+      ...(platformCsv && platformPath ? [{ user_id: job.user_id, project_id: job.project_id, job_id: job.id, file_type: selectedPlatform, filename: `${job.original_filename ?? "rankelia"}-${selectedPlatform.replace("_csv", "")}.csv`, storage_bucket: OUTPUT_BUCKET, storage_path: platformPath, rows_count: results.length, average_score: averageScore, file_size: platformCsv.length, quality_level: settings.quality_level ?? settings.quality ?? "standard", product_equivalent_used: productEquivalent }] : []),
+      { user_id: job.user_id, project_id: job.project_id, job_id: job.id, file_type: "html_report", filename: `${job.original_filename ?? "rankelia"}.html`, storage_bucket: OUTPUT_BUCKET, storage_path: htmlPath, rows_count: results.length, average_score: averageScore, file_size: html.length, quality_level: settings.quality_level ?? settings.quality ?? "standard", product_equivalent_used: productEquivalent },
+      { user_id: job.user_id, project_id: job.project_id, job_id: job.id, file_type: "txt_report", filename: `informe-${job.original_filename ?? job.id}.txt`, storage_bucket: REPORT_BUCKET, storage_path: reportPath, rows_count: results.length, average_score: averageScore, file_size: report.length, quality_level: settings.quality_level ?? settings.quality ?? "standard", product_equivalent_used: productEquivalent },
     ];
     if (failedRows.length) {
       const errorsCsv = buildErrorsCSV(failedRows);
@@ -171,9 +198,10 @@ async function processJob(job: Job) {
       if (consumed.error) await createJobLog(job.id, job.user_id, "error", "Could not consume reserved credits", { reservationId, error: consumed.error.message });
       else await createJobLog(job.id, job.user_id, "info", "Credits consumed for completed job", { reservationId, creditsUsed });
     }
-    await supabase.from("jobs").update({ status: failedRows.length || aiStats.fallbackCount || warnings ? "completed_with_warnings" : "completed", rows_processed: processed, rows_failed: failed, credits_used: creditsUsed, product_equivalent_used: productEquivalent, average_score: averageScore, output_csv_path: csvPath, output_html_path: htmlPath, output_report_path: reportPath, finished_at: new Date().toISOString(), last_heartbeat_at: new Date().toISOString(), quality_level: settings.quality_level ?? settings.quality ?? "standard", generation_engine: settings.generation_engine, ...serializeAIStats(aiStats) }).eq("id", job.id);
-    await createJobLog(job.id, job.user_id, "info", "Job completed", { processed, failed, averageScore, downloads: downloads.length, email: "prepared", ai: aiStats });
-    await sendJobCompletedEmail({ email: null }, job, downloads);
+    await supabase.from("jobs").update({ status: failedRows.length || aiStats.fallbackCount || warnings ? "completed_with_warnings" : "completed", rows_processed: processed, rows_failed: failed, credits_used: creditsUsed, product_equivalent_used: productEquivalent, average_score: averageScore, output_csv_path: rankeliaPath, output_html_path: htmlPath, output_report_path: reportPath, finished_at: new Date().toISOString(), last_heartbeat_at: new Date().toISOString(), quality_level: settings.quality_level ?? settings.quality ?? "standard", generation_engine: settings.generation_engine, ...serializeAIStats(aiStats) }).eq("id", job.id);
+    const email = await getUserEmailForJob(job.user_id);
+    await createJobLog(job.id, job.user_id, "info", "Job completed", { processed, failed, averageScore, downloads: downloads.length, email: email ? "queued" : "missing", ai: aiStats });
+    await sendJobCompletedEmail({ email }, job, downloads);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Worker failed";
     if (reservationId) {
@@ -182,8 +210,9 @@ async function processJob(job: Job) {
       else await createJobLog(job.id, job.user_id, "warning", "Credits released after job failure", { reservationId });
     }
     await supabase.from("jobs").update({ status: "failed", error_message: message, last_worker_error: message, finished_at: new Date().toISOString() }).eq("id", job.id);
-    await createJobLog(job.id, job.user_id, "error", "Job failed", { error: message });
-    await sendJobFailedEmail({ email: null }, job, message);
+    const email = await getUserEmailForJob(job.user_id);
+    await createJobLog(job.id, job.user_id, "error", "Job failed", { error: message, email: email ? "queued" : "missing" });
+    await sendJobFailedEmail({ email }, job, message);
   }
 }
 
@@ -192,7 +221,7 @@ function normalizeRow(row: CsvRow, mapping: ColumnMapping): CsvRow {
   for (const [key, header] of Object.entries(mapping)) if (header) out[key] = row[header] ?? out[key] ?? "";
   return out;
 }
-function platformDownloadType(platform: string) { if (/shopify/i.test(platform)) return "csv_shopify"; if (/prestashop/i.test(platform)) return "csv_prestashop"; if (/woo/i.test(platform)) return "csv_woocommerce"; return "csv_generic"; }
+function platformDownloadType(platform: string) { if (/shopify/i.test(platform)) return "shopify_csv"; if (/prestashop|presta/i.test(platform)) return "prestashop_csv"; if (/woo/i.test(platform)) return "woocommerce_csv"; return "rankelia_csv"; }
 
 async function main() {
   const jobs = await getPendingJobs();

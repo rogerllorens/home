@@ -10,7 +10,7 @@ export const FREE_PRODUCTS = 3;
 export const QUALITY_OPTIONS = [
   { id: "standard" as const, label: "Estándar", multiplier: 1, credits: PRODUCT_STANDARD_CREDITS, description: "Meta title, metadescripción, slug, descripción HTML, 3 FAQs, tags y schema básico." },
   { id: "pro" as const, label: "Pro", multiplier: 2, credits: PRODUCT_PRO_CREDITS, description: "Todo estándar + descripción larga, 5 FAQs, enlaces internos, warnings y notas de conversión." },
-  { id: "premium" as const, label: "Premium", multiplier: 4, credits: PRODUCT_PREMIUM_CREDITS, description: "Todo Pro + revisión avanzada mock, bloque comparativo, informe detallado y validación anti-claims." },
+  { id: "premium" as const, label: "Premium", multiplier: 4, credits: PRODUCT_PREMIUM_CREDITS, description: "Todo Pro + validación avanzada anti-claims, bloque comparativo, informe detallado y revisión de calidad." },
 ];
 
 export const SUBSCRIPTION_PLANS = [
@@ -54,11 +54,18 @@ export function getVisibleProductCountFromCredits(credits: number) { return Math
 export function formatCreditsAsProducts(credits: number) { return `${getVisibleProductCountFromCredits(credits).toLocaleString("es-ES")} productos estándar equivalentes`; }
 export function getProductPackByQuantity(quantity: number) { return EXTRA_PRODUCT_PACKS.find((pack) => pack.quantity >= quantity) ?? EXTRA_PRODUCT_PACKS[EXTRA_PRODUCT_PACKS.length - 1]; }
 export function getRecommendedPackForDeficit(deficitCredits: number) { return getProductPackByQuantity(Math.ceil(deficitCredits / PRODUCT_STANDARD_CREDITS)); }
+export function normalizeGenerationType(value = "product_complete") {
+  const type = value.toLowerCase().trim();
+  if (/products[_ -]?categories|productos\s*\+\s*categor/i.test(type)) return "products_categories";
+  if (/solo metadatos|metadata/i.test(type)) return "metadata_only";
+  if (/categories_seo|categor/i.test(type) && !/product|producto/i.test(type)) return "categories_seo";
+  return "product_complete";
+}
 export function calculateJobCredits(rowCount: number, settings?: { generationType?: string; quality?: string; qualityLevel?: string; categories?: number }) {
-  const generationType = settings?.generationType ?? "Producto completo";
-  if (/solo metadatos|metadata/i.test(generationType)) return rowCount * METADATA_CREDITS;
-  if (/categor/i.test(generationType) && !/producto/i.test(generationType)) return (settings?.categories ?? rowCount) * CATEGORY_SEO_CREDITS;
-  if (/productos \+ categor/i.test(generationType)) return calculateProductEquivalentCredits(rowCount, settings?.qualityLevel ?? settings?.quality) + (settings?.categories ?? 0) * CATEGORY_SEO_CREDITS;
+  const generationType = normalizeGenerationType(settings?.generationType ?? "product_complete");
+  if (generationType === "metadata_only") return rowCount * METADATA_CREDITS;
+  if (generationType === "categories_seo") return (settings?.categories ?? rowCount) * CATEGORY_SEO_CREDITS;
+  if (generationType === "products_categories") return calculateProductEquivalentCredits(rowCount, settings?.qualityLevel ?? settings?.quality) + (settings?.categories ?? 0) * CATEGORY_SEO_CREDITS;
   return calculateProductEquivalentCredits(rowCount, settings?.qualityLevel ?? settings?.quality);
 }
 export function calculateProductEquivalentUsed(rowCount: number, qualityLevel: string = "standard") { return rowCount * getQualityMultiplier(qualityLevel); }

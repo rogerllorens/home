@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserContext } from "@/lib/auth";
 import { analyzeCSVRows, autoMapColumns, parseCSV, type ColumnMapping, type CsvRow } from "@/lib/csv";
-import { calculateJobCredits, calculateProductEquivalentUsed, normalizeQualityLevel } from "@/lib/pricing";
+import { calculateJobCredits, calculateProductEquivalentUsed, normalizeGenerationType, normalizeQualityLevel } from "@/lib/pricing";
 import { INPUT_BUCKET, sanitizeFilename, validateStoragePathOwnership } from "@/lib/storage/files";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { getPlanLimits, isExportFormatAllowed, isGenerationTypeAllowed, isQualityAllowed } from "@/lib/plan-limits";
 
 export const dynamic = "force-dynamic";
 
@@ -24,12 +25,7 @@ const allowedPlatforms = new Set(["generic", "CSV genérico", "Shopify", "WooCom
 const allowedGenerationTypes = new Set(["product_complete", "products_categories", "metadata_only", "categories_seo"]);
 const batchSize = 500;
 
-function toDbGenerationType(value = "product_complete") {
-  if (/metadata|solo metadatos/i.test(value)) return "metadata_only";
-  if (/categor/i.test(value) && !/producto/i.test(value)) return "categories_seo";
-  if (/productos.*categor|products_categories/i.test(value)) return "products_categories";
-  return "product_complete";
-}
+function toDbGenerationType(value = "product_complete") { return normalizeGenerationType(value); }
 
 function normalizePlatform(value = "generic") {
   if (/shopify/i.test(value)) return "Shopify";
@@ -84,10 +80,16 @@ export async function POST(request: Request) {
   if (!allowedGenerationTypes.has(generationType)) return NextResponse.json({ error: "Tipo de generación no permitido." }, { status: 400 });
 
   const qualityLevel = normalizeQualityLevel(body.qualityLevel ?? "standard");
+  const subscription = await createServiceClient().from("subscriptions").select("plan_id,status").eq("user_id", context.user.id).order("created_at", { ascending: false }).limit(1).maybeSingle<{ plan_id: string; status: string }>();
+  const planId = subscription.data?.plan_id ?? "free";
+  const planLimits = getPlanLimits(planId);
+  if (!isQualityAllowed(planId, qualityLevel)) return NextResponse.json({ error: `Tu plan actual no permite calidad ${qualityLevel}. Los productos extra aumentan volumen, pero no desbloquean calidad premium.` }, { status: 403 });
+  if (!isGenerationTypeAllowed(planId, generationType)) return NextResponse.json({ error: "Tu plan actual no permite este tipo de generación." }, { status: 403 });
+  if (!isExportFormatAllowed(planId, platform)) return NextResponse.json({ error: "Tu plan actual no permite este formato de exportación." }, { status: 403 });
   const language = (body.language ?? "es").slice(0, 10);
   const country = (body.country ?? "ES").slice(0, 10);
   const tone = (body.tone ?? "profesional").slice(0, 80);
-  const maxRows = Number(process.env.WORKER_MAX_ROWS_PER_JOB ?? 5000);
+  const maxRows = Math.min(Number(process.env.WORKER_MAX_ROWS_PER_JOB ?? 5000), planLimits.maxProductsPerJob);
 
   let jobId: string | null = null;
   let reservationId: string | null = null;

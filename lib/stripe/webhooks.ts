@@ -3,14 +3,20 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { getPlanByStripePriceId } from "./config";
 import { getExtraProductPackById, getPlanById } from "@/lib/pricing";
 import { addCredits } from "@/lib/billing/credits";
+import { getStripe } from "./client";
 
 const unixToIso = (value?: number | null) => value ? new Date(value * 1000).toISOString() : null;
+
+function sanitizeStripeEvent(event: Stripe.Event) {
+  const object = event.data.object as { id?: string; object?: string; customer?: unknown; subscription?: unknown; amount_total?: unknown; amount_paid?: unknown; currency?: unknown; metadata?: unknown };
+  return { id: event.id, type: event.type, created: event.created, livemode: event.livemode, object: object.object, object_id: object.id, customer: object.customer ? String(object.customer) : null, subscription: object.subscription ? String(object.subscription) : null, amount_total: object.amount_total ?? object.amount_paid ?? null, currency: object.currency ?? null, metadata_keys: object.metadata ? Object.keys(object.metadata as Record<string, unknown>) : [] };
+}
 
 async function recordEvent(event: Stripe.Event) {
   const supabase = createServiceClient();
   const existing = await supabase.from("payment_events").select("id,processed").eq("stripe_event_id", event.id).maybeSingle();
   if (existing.data?.processed) return { supabase, duplicate: true };
-  if (!existing.data) await supabase.from("payment_events").insert({ stripe_event_id: event.id, event_type: event.type, payload: event as unknown as Record<string, unknown>, processed: false });
+  if (!existing.data) await supabase.from("payment_events").insert({ stripe_event_id: event.id, event_type: event.type, payload: sanitizeStripeEvent(event), processed: false });
   return { supabase, duplicate: false };
 }
 
@@ -80,10 +86,24 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice, eventId: s
   const plan = getPlanByStripePriceId(priceId);
   if (!plan) return;
   const customer = String(inv.customer ?? "");
-  const billingCustomer = await supabase.from("billing_customers").select("user_id").eq("stripe_customer_id", customer).maybeSingle<{ user_id: string }>();
-  if (!billingCustomer.data?.user_id) throw new Error("Invoice sin usuario resoluble.");
+  const subscriptionId = typeof inv.subscription === "string" ? inv.subscription : inv.subscription?.id;
+  let userId: string | undefined;
+  if (subscriptionId) {
+    const localSub = await supabase.from("subscriptions").select("user_id").eq("stripe_subscription_id", subscriptionId).maybeSingle<{ user_id: string }>();
+    userId = localSub.data?.user_id;
+    if (!userId) {
+      const stripeSub = await getStripe().subscriptions.retrieve(subscriptionId).catch(() => null);
+      userId = stripeSub?.metadata?.user_id;
+      if (stripeSub && userId) await supabase.from("subscriptions").upsert({ user_id: userId, stripe_customer_id: customer, stripe_subscription_id: subscriptionId, plan_id: plan.id, status: stripeSub.status, price_id: priceId, product_allowance: plan.monthlyProducts, internal_credit_allowance: plan.monthlyProducts * 500 }, { onConflict: "stripe_subscription_id" });
+    }
+  }
+  if (!userId) {
+    const billingCustomer = await supabase.from("billing_customers").select("user_id").eq("stripe_customer_id", customer).maybeSingle<{ user_id: string }>();
+    userId = billingCustomer.data?.user_id;
+  }
+  if (!userId) throw new Error("Invoice sin usuario resoluble.");
   const credits = plan.monthlyProducts * 500;
-  await addCredits(supabase, billingCustomer.data.user_id, credits, "subscription_grant", `${plan.monthlyProducts} productos estándar del plan ${plan.name}`, { stripe_invoice_id: invoiceId, stripe_event_id: eventId, plan_id: plan.id, products: plan.monthlyProducts, period: inv.lines?.data?.[0]?.period ?? null });
+  await addCredits(supabase, userId, credits, "subscription_grant", `${plan.monthlyProducts} productos estándar del plan ${plan.name}`, { stripe_invoice_id: invoiceId, stripe_event_id: eventId, plan_id: plan.id, products: plan.monthlyProducts, period: inv.lines?.data?.[0]?.period ?? null });
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
