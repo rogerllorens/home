@@ -1,0 +1,2 @@
+import type { AuditFinding } from "../types";
+export type AdvancedGeoAeoAudit = { geo_aeo_score: number; geo_aeo_status: "excellent" | "good" | "needs_work" | "poor"; entity_clarity_score: number; answer_readiness_score: number; content_structure_score: number; ai_citation_friendly: boolean; extractable_answers_present: boolean; geo_aeo_strengths: string[]; geo_aeo_issues: AuditFinding[]; geo_aeo_recommendations: AuditFinding[] };

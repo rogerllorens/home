@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, work]
+  push:
+    branches: [main, work]
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: NEXT_TELEMETRY_DISABLED=1 npm run build
+      - run: npm run validate:env
+      - run: git diff --check
+      - run: npm audit --omit=dev
+        continue-on-error: true
+
+  supabase-integration-placeholder:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Supabase local integration tests are prepared for a manual workflow once Supabase CLI/Docker secrets are configured."

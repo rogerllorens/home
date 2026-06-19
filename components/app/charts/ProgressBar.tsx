@@ -1,0 +1,1 @@
+export function AppProgressBar({ value }: { value: number | null | undefined }) { const safe = Math.max(0, Math.min(100, Math.round(Number(value ?? 0)))); return <div aria-label={`Progreso ${safe}%`} className="h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-blue-600" style={{ width: `${safe}%` }} /></div>; }
