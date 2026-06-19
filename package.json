@@ -12,7 +12,10 @@
     "worker:once": "tsx scripts/process-jobs.ts",
     "worker:job": "tsx scripts/process-jobs.ts",
     "test": "tsx --test tests/*.test.ts",
-    "validate:env": "tsx scripts/validate-env.ts"
+    "validate:env": "tsx scripts/validate-env.ts",
+    "cleanup:orphan-uploads": "tsx scripts/cleanup-orphan-uploads.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@supabase/ssr": "0.10.3",
@@ -30,6 +33,7 @@
     "@types/react-dom": "19.2.3",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.7",
+    "prettier": "^3.7.4",
     "tailwindcss": "4.3.0",
     "tsx": "4.21.0",
     "typescript": "6.0.3"

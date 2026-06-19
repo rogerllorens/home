@@ -5,6 +5,7 @@ import { validateAuditUrl } from "@/lib/audit/url-validation";
 import { saveFreeSeoAudit } from "@/lib/audit/repository";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 type Body = { url?: string; email?: string };
 

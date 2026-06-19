@@ -28,6 +28,8 @@ export type ValidatedAuditUrl = {
   normalizedUrl: string;
   domain: string;
   url: URL;
+  resolvedIp: string;
+  resolvedFamily: 4 | 6;
 };
 
 export type SafeFetchResult = {

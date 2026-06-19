@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { getCurrentUserContext } from "@/lib/auth";
 import { analyzeCSVRows, autoMapColumns, parseCSV, type ColumnMapping, type CsvRow } from "@/lib/csv";
@@ -24,6 +25,43 @@ type CreateJobPayload = {
 const allowedPlatforms = new Set(["generic", "CSV genérico", "Shopify", "WooCommerce", "Prestashop", "PrestaShop"]);
 const allowedGenerationTypes = new Set(["product_complete", "products_categories", "metadata_only", "categories_seo"]);
 const batchSize = 500;
+
+function normalizeForHash(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizeForHash);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nestedValue]) => [key, normalizeForHash(nestedValue)]),
+    );
+  }
+
+  return value;
+}
+
+function stableHash(value: unknown) {
+  return crypto
+    .createHash("sha256")
+    .update(JSON.stringify(normalizeForHash(value)))
+    .digest("hex");
+}
+function validIdempotencyKey(value: string | null) {
+  return Boolean(value && value.length <= 120 && /^[a-zA-Z0-9._:-]+$/.test(value));
+}
+async function findCachedIdempotency(service: ReturnType<typeof createServiceClient>, key: string, userId: string, requestHash: string) {
+  const existing = await service.from("idempotency_keys").select("request_hash,response,status_code,user_id").eq("key", key).maybeSingle<{ request_hash: string | null; response: unknown; status_code: number; user_id: string }>();
+  if (!existing.data) return null;
+  if (existing.data.user_id !== userId) return NextResponse.json({ error: "idempotency_key_forbidden" }, { status: 403 });
+  if (existing.data.request_hash !== requestHash) return NextResponse.json({ error: "idempotency_key_reused_with_different_payload" }, { status: 409 });
+  return NextResponse.json(existing.data.response, { status: existing.data.status_code });
+}
+async function cacheIdempotency(service: ReturnType<typeof createServiceClient>, key: string | null, userId: string, requestHash: string, response: Record<string, unknown>, statusCode = 200) {
+  if (!key) return;
+  await service.from("idempotency_keys").upsert({ key, user_id: userId, endpoint: "POST /api/jobs/create", request_hash: requestHash, response, status_code: statusCode, expires_at: new Date(Date.now() + 24 * 3600_000).toISOString() }, { onConflict: "key" });
+}
 
 function toDbGenerationType(value = "product_complete") { return normalizeGenerationType(value); }
 
@@ -66,6 +104,9 @@ export async function POST(request: Request) {
   if (limited) return limited;
 
   const body = (await request.json().catch(() => null)) as CreateJobPayload | null;
+  const idempotencyKey = request.headers.get("Idempotency-Key");
+  if (idempotencyKey && !validIdempotencyKey(idempotencyKey)) return NextResponse.json({ error: "Idempotency-Key inválida." }, { status: 400 });
+  const requestHash = stableHash({ ...body, user_id: context.user.id });
   if (!body?.inputFilePath || !validateStoragePathOwnership(context.user.id, body.inputFilePath)) {
     return NextResponse.json({ error: "Ruta de archivo inválida o ajena al usuario." }, { status: 400 });
   }
@@ -81,6 +122,10 @@ export async function POST(request: Request) {
 
   const qualityLevel = normalizeQualityLevel(body.qualityLevel ?? "standard");
   const service = createServiceClient();
+  if (idempotencyKey) {
+    const cached = await findCachedIdempotency(service, idempotencyKey, context.user.id, requestHash);
+    if (cached) return cached;
+  }
   const subscription = await service.from("subscriptions").select("plan_id,status").eq("user_id", context.user.id).order("created_at", { ascending: false }).limit(1).maybeSingle<{ plan_id: string; status: string }>();
   const planId = subscription.data?.plan_id ?? "free";
   const planLimits = getPlanLimits(planId);
@@ -163,9 +208,12 @@ export async function POST(request: Request) {
     await Promise.all([
       supabase.from("jobs").update({ status: "queued", reserved_credits: estimatedCredits }).eq("id", jobId),
       supabase.from("profiles").update({ company_name: context.profile?.company_name || project.name, default_platform: platform, onboarding_completed: true }).eq("id", context.user.id),
+      supabase.from("pending_uploads").update({ status: "consumed", job_id: jobId, consumed_at: new Date().toISOString() }).eq("user_id", context.user.id).eq("storage_bucket", INPUT_BUCKET).eq("storage_path", body.inputFilePath).eq("status", "pending"),
     ]);
 
-    return NextResponse.json({ jobId, reservationId, status: "queued", estimatedCredits, estimatedProducts: Math.ceil(estimatedCredits / 500), rowsTotal: parsed.rows.length, rowsValid: analysis.validRows, warnings: analysis.issues.slice(0, 10) });
+    const responseBody = { jobId, reservationId, status: "queued", estimatedCredits, estimatedProducts: Math.ceil(estimatedCredits / 500), rowsTotal: parsed.rows.length, rowsValid: analysis.validRows, warnings: analysis.issues.slice(0, 10) };
+    await cacheIdempotency(supabase, idempotencyKey, context.user.id, requestHash, responseBody);
+    return NextResponse.json(responseBody);
   } catch (error) {
     if (reservationId && supabase) await supabase.rpc("release_reserved_credits", { p_reservation_id: reservationId, p_reason: "Job creation failed after reservation" });
     if (jobId && supabase) await supabase.from("jobs").update({ status: "failed", error_message: error instanceof Error ? error.message : "Job creation failed", finished_at: new Date().toISOString() }).eq("id", jobId);

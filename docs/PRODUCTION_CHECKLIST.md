@@ -51,3 +51,12 @@
 - [ ] Test Product, Organization, Breadcrumb and FAQ schema examples.
 - [ ] Verify llms.txt download/copy on mobile and desktop.
 - [ ] Confirm copy does not promise rich results, rankings or AI visibility.
+
+## Prompt 0 hardening checks
+
+- Configure Upstash Redis; production validation fails without it.
+- Keep `NEXT_PUBLIC_ENABLE_DEMO=false` in production.
+- Confirm security headers/CSP in staging.
+- Verify Free Audit DNS rebinding protection with redirect/private-IP tests.
+- Schedule `npm run cleanup:orphan-uploads` as a daily trusted cron.
+- Use `Idempotency-Key` for job creation retries/double-clicks.

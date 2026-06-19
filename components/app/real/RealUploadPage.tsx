@@ -165,15 +165,17 @@ export function RealUploadPage() {
     try {
       const platform = settings.platform === "CSV genérico" ? auth.profile?.default_platform ?? "generic" : settings.platform;
       const draftJobId = crypto.randomUUID();
+      const idempotencyKey = crypto.randomUUID();
       const storagePath = buildInputFilePath(auth.user.id, draftJobId, sanitizeFilename(fileName));
       const blob = file ?? new Blob([csvText], { type: "text/csv;charset=utf-8" });
       const uploaded = await uploadInputFile(blob, storagePath);
       if (uploaded.error) throw uploaded.error;
+      await fetch("/api/uploads/pending", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ storagePath }) }).catch(() => null);
       showToast("Archivo guardado en Storage privado. Rankelia validará créditos y filas en servidor.", "success");
 
       const response = await fetch("/api/jobs/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
         body: JSON.stringify({
           inputFilePath: storagePath,
           originalFilename: fileName,

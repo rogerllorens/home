@@ -5,6 +5,8 @@ type Bucket = { count: number; resetAt: number };
 const memoryBuckets = new Map<string, Bucket>();
 
 function nowMs() { return Date.now(); }
+export function hasDistributedRateLimitEnv() { return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN); }
+export function memoryRateLimitAllowed() { return process.env.NODE_ENV !== "production" || process.env.ALLOW_IN_MEMORY_RATE_LIMIT === "true"; }
 
 export function getClientIp(request: Request) {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
@@ -28,9 +30,7 @@ async function redisRateLimit(key: string, limit: number, windowSeconds: number)
   return { allowed: true, remaining: Math.max(limit - count, 0), resetAt };
 }
 
-export async function rateLimit(key: string, limit: number, windowSeconds: number): Promise<RateLimitResult> {
-  const distributed = await redisRateLimit(key, limit, windowSeconds).catch(() => null);
-  if (distributed) return distributed;
+function memoryRateLimit(key: string, limit: number, windowSeconds: number): RateLimitResult {
   const resetAt = nowMs() + windowSeconds * 1000;
   const bucket = memoryBuckets.get(key);
   if (!bucket || bucket.resetAt <= nowMs()) {
@@ -42,8 +42,19 @@ export async function rateLimit(key: string, limit: number, windowSeconds: numbe
   return { allowed: true, remaining: Math.max(limit - bucket.count, 0), resetAt: bucket.resetAt };
 }
 
+export async function rateLimit(key: string, limit: number, windowSeconds: number): Promise<RateLimitResult> {
+  const distributed = await redisRateLimit(key, limit, windowSeconds).catch(() => null);
+  if (distributed) return distributed;
+  if (!memoryRateLimitAllowed()) throw new Error("Distributed rate limiting is required in production. Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.");
+  return memoryRateLimit(key, limit, windowSeconds);
+}
+
 export async function enforceRateLimit(request: Request, scope: string, identifier: string, limit: number, windowSeconds: number) {
-  const result = await rateLimit(`${scope}:${identifier}:${getClientIp(request)}`, limit, windowSeconds);
-  if (!result.allowed) return Response.json({ error: "Demasiadas solicitudes. Inténtalo de nuevo en unos segundos.", retryAfterSeconds: result.retryAfterSeconds }, { status: 429, headers: { "Retry-After": String(result.retryAfterSeconds) } });
-  return null;
+  try {
+    const result = await rateLimit(`${scope}:${identifier}:${getClientIp(request)}`, limit, windowSeconds);
+    if (!result.allowed) return Response.json({ error: "Demasiadas solicitudes. Inténtalo de nuevo en unos segundos.", retryAfterSeconds: result.retryAfterSeconds }, { status: 429, headers: { "Retry-After": String(result.retryAfterSeconds) } });
+    return null;
+  } catch (error) {
+    return Response.json({ error: "rate_limit_not_configured", message: error instanceof Error ? error.message : "Rate limit unavailable." }, { status: 503 });
+  }
 }

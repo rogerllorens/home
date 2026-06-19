@@ -3,7 +3,7 @@ import net from "node:net";
 import type { ValidatedAuditUrl } from "./types";
 
 const BLOCKED_SUFFIXES = [".local", ".internal", ".test", ".localhost"];
-const BLOCKED_HOSTS = new Set(["localhost", "metadata.google.internal"]);
+const BLOCKED_HOSTS = new Set(["localhost", "metadata.google.internal", "169.254.169.254"]);
 
 function normalizeInput(input: string) {
   const trimmed = input.trim();
@@ -14,14 +14,14 @@ function normalizeInput(input: string) {
 
 function isPrivateIpv4(ip: string) {
   const parts = ip.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part))) return true;
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) return true;
   const [a, b] = parts;
-  return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+  return a === 10 || a === 127 || a === 0 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 192 && b === 0) || a >= 224;
 }
 
 function isPrivateIpv6(ip: string) {
   const lower = ip.toLowerCase();
-  return lower === "::1" || lower.startsWith("fc") || lower.startsWith("fd") || lower.startsWith("fe80:") || lower.startsWith("::ffff:127.") || lower.startsWith("::ffff:10.") || lower.startsWith("::ffff:192.168.");
+  return lower === "::1" || lower === "::" || lower.startsWith("fc") || lower.startsWith("fd") || lower.startsWith("fe80:") || lower.startsWith("::ffff:127.") || lower.startsWith("::ffff:10.") || lower.startsWith("::ffff:192.168.") || /^::ffff:172\.(1[6-9]|2\d|3[01])\./.test(lower);
 }
 
 export function isPrivateOrLocalAddress(address: string) {
@@ -32,11 +32,23 @@ export function isPrivateOrLocalAddress(address: string) {
 }
 
 function assertSafeHostname(hostname: string) {
-  const host = hostname.toLowerCase();
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (BLOCKED_HOSTS.has(host) || BLOCKED_SUFFIXES.some((suffix) => host.endsWith(suffix))) throw new Error("Dominio interno o local bloqueado.");
-  if (host === "169.254.169.254") throw new Error("Endpoint metadata cloud bloqueado.");
   const ipVersion = net.isIP(host);
   if (ipVersion && isPrivateOrLocalAddress(host)) throw new Error("IP privada o local bloqueada.");
+}
+
+async function resolvePublicAddress(hostname: string): Promise<{ address: string; family: 4 | 6 }> {
+  hostname = hostname.replace(/^\[|\]$/g, "");
+  const literal = net.isIP(hostname);
+  if (literal) {
+    if (isPrivateOrLocalAddress(hostname)) throw new Error("IP privada o local bloqueada.");
+    return { address: hostname, family: literal as 4 | 6 };
+  }
+  const records = await dns.lookup(hostname, { all: true, verbatim: false });
+  const publicRecords = records.filter((record): record is { address: string; family: 4 | 6 } => (record.family === 4 || record.family === 6) && !isPrivateOrLocalAddress(record.address));
+  if (!publicRecords.length) throw new Error("El dominio no resuelve a una IP pública válida.");
+  return publicRecords[0];
 }
 
 export async function validateAuditUrl(input: string, options: { resolveDns?: boolean } = {}): Promise<ValidatedAuditUrl> {
@@ -48,11 +60,7 @@ export async function validateAuditUrl(input: string, options: { resolveDns?: bo
   if (url.port && !["80", "443"].includes(url.port)) throw new Error("Puerto no permitido para auditoría pública.");
   if (url.pathname.length > 1024) throw new Error("El path de la URL es demasiado largo.");
   assertSafeHostname(url.hostname);
-  if (options.resolveDns !== false && !net.isIP(url.hostname)) {
-    const records = await dns.lookup(url.hostname, { all: true, verbatim: false });
-    if (!records.length) throw new Error("No se pudo resolver el dominio.");
-    if (records.some((record) => isPrivateOrLocalAddress(record.address))) throw new Error("El dominio resuelve a una IP privada o local.");
-  }
+  const resolved = options.resolveDns === false ? { address: "0.0.0.0", family: 4 as const } : await resolvePublicAddress(url.hostname);
   if (url.pathname === "") url.pathname = "/";
-  return { inputUrl: input.trim(), normalizedUrl: url.toString(), domain: url.hostname, url };
+  return { inputUrl: input.trim(), normalizedUrl: url.toString(), domain: url.hostname, url, resolvedIp: resolved.address, resolvedFamily: resolved.family };
 }
