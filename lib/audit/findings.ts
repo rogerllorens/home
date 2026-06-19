@@ -1,0 +1,14 @@
+import type { AuditFinding, ParsedHtmlSummary, RobotsSitemapAudit, SchemaAudit } from "./types";
+
+export function buildBaseFindings(parsed: ParsedHtmlSummary, robots: RobotsSitemapAudit, schema: SchemaAudit): AuditFinding[] {
+  const findings: AuditFinding[] = [];
+  if (!parsed.title) findings.push({ severity: "critical", category: "seo", title: "Title ausente", description: "No se encontró etiqueta <title> en el HTML público.", recommendation: "Añade un title único, descriptivo y orientado a intención de búsqueda.", impact: "high", effort: "low" });
+  else if (parsed.titleLength < 30 || parsed.titleLength > 65) findings.push({ severity: "warning", category: "seo", title: "Longitud de title mejorable", description: `El title tiene ${parsed.titleLength} caracteres.`, recommendation: "Mantén el title aproximadamente entre 30 y 65 caracteres.", impact: "medium", effort: "low" });
+  if (!parsed.metaDescription) findings.push({ severity: "critical", category: "seo", title: "Meta description ausente", description: "No se detectó meta description.", recommendation: "Añade una descripción útil y honesta para mejorar el snippet potencial.", impact: "high", effort: "low" });
+  else if (parsed.metaDescriptionLength < 80 || parsed.metaDescriptionLength > 160) findings.push({ severity: "warning", category: "seo", title: "Meta description fuera de rango", description: `La meta description tiene ${parsed.metaDescriptionLength} caracteres.`, recommendation: "Apunta a 80-160 caracteres con una propuesta clara.", impact: "medium", effort: "low" });
+  if (parsed.h1Texts.length !== 1) findings.push({ severity: parsed.h1Texts.length ? "warning" : "critical", category: "seo", title: parsed.h1Texts.length ? "Múltiples H1" : "H1 ausente", description: `Se detectaron ${parsed.h1Texts.length} H1.`, recommendation: "Usa un H1 principal claro para la página.", impact: "medium", effort: "low" });
+  if (!robots.sitemapFound) findings.push({ severity: "opportunity", category: "technical", title: "Sitemap no detectado", description: "No se encontró sitemap.xml en robots.txt ni /sitemap.xml.", recommendation: "Publica un sitemap con productos, categorías y páginas clave.", impact: "medium", effort: "medium" });
+  if (!schema.productSchemaFound) findings.push({ severity: "opportunity", category: "schema", title: "Product schema no detectado", description: "No se detectó schema Product en la home auditada.", recommendation: "Añade schema en fichas de producto y breadcrumbs donde corresponda.", impact: "medium", effort: "medium", cta_type: "upload_catalog" });
+  for (const warning of schema.warnings) findings.push({ severity: "warning", category: "schema", title: "Aviso de schema", description: warning, recommendation: "Revisa el JSON-LD y usa datos reales, sin inventar ratings ni precios.", impact: "medium", effort: "medium" });
+  return findings;
+}

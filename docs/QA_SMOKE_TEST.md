@@ -1,0 +1,44 @@
+# QA smoke test beta
+
+1. Ejecutar migraciones `001`-`010` y crear buckets privados.
+2. Crear usuario A, iniciar sesión y confirmar wallet Free (3 productos estándar).
+3. Entrar en `/app/upload`, subir CSV válido, revisar mapeo y preview IA/fallback.
+4. Confirmar job: `/api/jobs/create` debe crear job, insertar todas las filas permitidas y reservar créditos server-side.
+5. Ejecutar `npm run worker:once`; comprobar progreso, job_rows, downloads y consumo/liberación de reserva.
+6. Descargar CSV, HTML y TXT con signed URLs; usuario B no debe poder acceder.
+7. Probar CSV inválido, CSV > `WORKER_MAX_ROWS_PER_JOB` y saldo insuficiente.
+8. Comprar productos extra con Stripe test y reenviar webhook duplicado: saldo solo aumenta una vez.
+9. Contratar plan test y verificar grant por invoice.
+10. Entrar como admin y revisar usuarios, jobs, wallets, reservations, payment_events y logs.
+11. Verificar downloads: Rankelia Generic CSV + CSV de plataforma elegida cuando aplique.
+12. Abrir `Rankelia Warnings` y confirmar que faltas de SKU/precio/imagen aparecen.
+
+## Free SEO Audit
+
+1. Desde la home, introducir `https://example.com` y confirmar resultado visual.
+2. Probar `http://localhost`, `http://127.0.0.1`, `http://192.168.1.1` y confirmar bloqueo SSRF.
+3. Verificar que no se devuelve HTML crudo ni stack trace.
+4. Confirmar CTA a subir catálogo, registro y Search Console próximamente.
+
+## PageSpeed Audit
+
+1. With `PAGESPEED_ENABLED=false`, run Free SEO Audit and confirm basic report works.
+2. With missing API key, confirm UI shows PageSpeed unavailable without failing the audit.
+3. With a test key, confirm mobile/desktop scores and Core Web Vitals render.
+4. Re-run same URL and verify cache/rate-limit behavior.
+
+## Schema/GEO/llms.txt
+
+1. Audit a Shopify-like page with Product schema.
+2. Audit a page with invalid JSON-LD and confirm the audit still completes.
+3. Confirm GEO/AEO cards render and explain that visibility is not guaranteed.
+4. Download and copy llms.txt; verify it includes home, sitemap if detected and price/stock disclaimer.
+
+## Smoke Image SEO / ALT text
+
+1. Subir CSV con `Image Src` y `Image Alt Text` y comprobar que el ALT existente se preserva.
+2. Subir CSV WooCommerce con `Images` separadas por coma y comprobar galería.
+3. Subir CSV PrestaShop con `Image URLs` y revisar export.
+4. Subir producto sin imagen y comprobar warning `no image URL`.
+5. Exportar Shopify y comprobar `Image Src` + `Image Alt Text`.
+6. Abrir HTML/TXT report y verificar resumen Image SEO sin HTML/CSV injection.

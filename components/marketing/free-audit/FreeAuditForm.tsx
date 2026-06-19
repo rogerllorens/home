@@ -1,0 +1,6 @@
+import { FormEvent } from "react";
+import { Button } from "@/components/ui/Button";
+
+export function FreeAuditForm({ url, email, loading, onUrlChange, onEmailChange, onSubmit }: { url: string; email: string; loading: boolean; onUrlChange: (value: string) => void; onEmailChange: (value: string) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
+  return <form className="mt-8 grid gap-3 lg:grid-cols-[1.2fr_0.8fr_auto]" onSubmit={onSubmit}><label className="sr-only" htmlFor="audit-url">URL de ecommerce</label><input className="min-h-14 rounded-2xl border border-slate-200 px-5 text-base font-semibold outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" id="audit-url" onChange={(event) => onUrlChange(event.target.value)} placeholder="https://mitienda.com" required type="text" value={url} /><label className="sr-only" htmlFor="audit-email">Email opcional</label><input className="min-h-14 rounded-2xl border border-slate-200 px-5 text-base outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" id="audit-email" onChange={(event) => onEmailChange(event.target.value)} placeholder="Email opcional para guardar" type="email" value={email} /><Button className="min-h-14" disabled={loading} type="submit">{loading ? "Analizando…" : "Analizar mi tienda"}</Button></form>;
+}
