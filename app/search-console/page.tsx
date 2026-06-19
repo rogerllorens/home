@@ -1,0 +1,6 @@
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+
+export const metadata = { title: "Search Console Opportunity Engine | Rankelia.ai", description: "Próximamente: prioriza productos con queries reales, CTR bajo, posiciones 4-15 e impresiones sin clics." };
+export default function SearchConsolePage() { return <main className="mx-auto max-w-6xl px-4 py-20"><Badge variant="warning">Próximamente</Badge><h1 className="mt-5 text-5xl font-black">Search Console Opportunity Engine</h1><p className="mt-5 max-w-3xl text-lg text-slate-600">Rankelia está preparado para priorizar oportunidades con datos reales de GSC: posiciones 4-15, CTR bajo y productos con impresiones sin clics. Esta conexión aún no está activa en beta.</p><div className="mt-10 grid gap-5 md:grid-cols-3">{["Queries reales", "Quick wins", "Priorización por producto"].map((item) => <Card key={item}><h2 className="text-xl font-black">{item}</h2><p className="mt-2 text-slate-600">La integración se activará cuando el conector GSC esté listo y validado.</p></Card>)}</div><div className="mt-10"><Button href="/">Auditar SEO gratis ahora</Button></div></main>; }

@@ -1,0 +1,1 @@
+export function LlmsTxtPreview({ content }: { content: string }) { return <pre className="max-h-80 overflow-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100 whitespace-pre-wrap">{content}</pre>; }
