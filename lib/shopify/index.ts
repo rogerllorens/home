@@ -15,3 +15,5 @@ export * from "./change-sets";
 export * from "./dry-run";
 export * from "./apply";
 export * from "./rollback";
+export * from "./live-product";
+export * from "./mutations";

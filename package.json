@@ -27,7 +27,8 @@
     "smoke:shopify": "tsx scripts/smoke-shopify.ts",
     "smoke:stripe": "tsx scripts/smoke-stripe.ts",
     "smoke:storage": "tsx scripts/smoke-storage.ts",
-    "smoke:worker": "tsx scripts/smoke-worker.ts"
+    "smoke:worker": "tsx scripts/smoke-worker.ts",
+    "smoke:rls": "tsx scripts/smoke-rls.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.10.3",

@@ -57,3 +57,26 @@ test("Shopify apply worker is gated by write feature flag and exact confirmation
   assert.match(rollbackLib, /REVERTIR CAMBIOS/);
   assert.match(applyLib, /write_products/);
 });
+
+test("Prompt 9 Shopify closure blocks apply without live verification and image ALT flag", () => {
+  const migration = readFileSync("supabase/sql/023_launch_closure_safety.sql", "utf8");
+  const dryRun = readFileSync("lib/shopify/dry-run.ts", "utf8");
+  const apply = readFileSync("lib/shopify/apply.ts", "utf8");
+  const mutations = readFileSync("lib/shopify/mutations.ts", "utf8");
+  assert.match(migration, /live_check_status/);
+  assert.match(migration, /needs_resync/);
+  assert.match(dryRun, /fetchLiveShopifyProduct/);
+  assert.match(dryRun, /live_check_status/);
+  assert.match(apply, /live_check_status", "verified"/);
+  assert.match(apply, /live_value_changed_before_apply/);
+  assert.match(mutations, /SHOPIFY_IMAGE_ALT_WRITE_ENABLED/);
+  assert.match(mutations, /shopify_image_alt_write_not_validated/);
+});
+
+test("RLS smoke script is wired and skips without staging users", () => {
+  const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+  const script = readFileSync("scripts/smoke-rls.ts", "utf8");
+  assert.equal(pkg.scripts["smoke:rls"], "tsx scripts/smoke-rls.ts");
+  assert.match(script, /RLS_SMOKE_USER_A_ID/);
+  assert.match(script, /SKIP: missing RLS smoke env/);
+});

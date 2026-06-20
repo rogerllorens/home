@@ -6,9 +6,9 @@ export async function POST(request: Request) { const event = await verifyShopify
     const payload = JSON.parse(event.rawBody || "{}") as { current?: string[]; access_scopes?: string[] };
     await supabase.from("shopify_stores").update({ granted_scopes: payload.current ?? payload.access_scopes ?? [], last_error: null }).eq("id", store.id);
   }
-  if ((event.topic === "products/create" || event.topic === "products/update") && store) await supabase.from("shopify_stores").update({ last_error: "shopify_product_changed_needs_resync" }).eq("id", store.id);
+  if ((event.topic === "products/create" || event.topic === "products/update") && store) await supabase.from("shopify_stores").update({ last_error: "shopify_product_changed_needs_resync", needs_resync: true }).eq("id", store.id);
   if (event.topic === "products/delete" && store) {
     const payload = JSON.parse(event.rawBody || "{}") as { admin_graphql_api_id?: string; id?: number | string };
-    await supabase.from("shopify_products").update({ status: "deleted", last_synced_at: new Date().toISOString() }).eq("store_id", store.id).eq("shopify_product_gid", payload.admin_graphql_api_id ?? `gid://shopify/Product/${payload.id}`);
+    await supabase.from("shopify_products").update({ status: "deleted", deleted_at: new Date().toISOString(), stale_at: new Date().toISOString(), last_synced_at: new Date().toISOString() }).eq("store_id", store.id).eq("shopify_product_gid", payload.admin_graphql_api_id ?? `gid://shopify/Product/${payload.id}`);
   }
   return NextResponse.json({ ok: true }); }

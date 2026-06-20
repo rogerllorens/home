@@ -65,3 +65,10 @@ Search Console data can be delayed, aggregated and absent for small sites. CTR a
 - GSC, Resend, Stripe, Storage and Shopify smoke scripts skip without real credentials.
 - `npm audit --omit=dev` may still report upstream framework advisories until patched dependency versions are available and tested.
 - `format:check` can remain a separate repo-wide formatting PR; do not mix mass formatting with feature work.
+
+## Prompt 9 final closure limitations
+
+- Shopify apply is blocked unless dry run has a live Shopify verification. Without Shopify env/token, apply remains disabled.
+- Image ALT write to Shopify is not enabled by default; it requires `SHOPIFY_IMAGE_ALT_WRITE_ENABLED=true` plus a dedicated staging smoke.
+- RLS smoke requires staging users and cannot be proven locally without Supabase env.
+- Paid self-serve should remain disabled until Stripe smoke passes in test mode.

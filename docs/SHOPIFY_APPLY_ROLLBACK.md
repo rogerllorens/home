@@ -33,3 +33,11 @@ npm run rollback:shopify -- --run-id=<rollback_run_id>
 ```
 
 Both scripts skip when `SHOPIFY_WRITE_ENABLED` is not true.
+
+## Prompt 9 closure
+
+Dry run now attempts a live Shopify product fetch when Shopify env and encrypted store token are available. If live check is not configured, missing, or fails, the item is blocked and apply cannot enqueue/process it.
+
+Apply re-fetches the live Shopify product immediately before mutation execution. If the live value differs from the dry-run value, the item is marked as conflict and skipped; the run can become partial/failed and must be reviewed item by item.
+
+`images.altText` remains prepared for preview/export, but Shopify image ALT write is blocked unless `SHOPIFY_IMAGE_ALT_WRITE_ENABLED=true` and a staging smoke test validates the mutation for the configured API version.

@@ -32,6 +32,6 @@ export async function syncShopifyProducts(client: SupabaseClient, args: { runId?
     const wait = respectShopifyGraphqlCostBudget(graphqlResult.cost);
     if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
   } while (after && seen < max);
-  if (args.runId && !args.dryRun) await client.from("shopify_sync_runs").update({ status: "completed", products_seen: seen, products_created: seen, finished_at: new Date().toISOString() }).eq("id", args.runId).eq("user_id", args.userId);
+  if (args.runId && !args.dryRun) { await client.from("shopify_sync_runs").update({ status: "completed", products_seen: seen, products_created: seen, finished_at: new Date().toISOString() }).eq("id", args.runId).eq("user_id", args.userId); await client.from("shopify_stores").update({ needs_resync: false, last_sync_at: new Date().toISOString(), last_error: null }).eq("id", args.storeId).eq("user_id", args.userId); }
   return { productsSeen: seen, dryRun: Boolean(args.dryRun) };
 }
