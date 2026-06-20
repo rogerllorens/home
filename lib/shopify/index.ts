@@ -9,3 +9,9 @@ export * from "./mapper";
 export * from "./repository";
 export * from "./scopes";
 export * from "./sync";
+
+export * from "./field-policy";
+export * from "./change-sets";
+export * from "./dry-run";
+export * from "./apply";
+export * from "./rollback";

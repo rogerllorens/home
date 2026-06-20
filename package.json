@@ -21,7 +21,13 @@
     "seed:ai-templates": "tsx scripts/seed-ai-templates.ts",
     "smoke:resend": "tsx scripts/smoke-resend.ts",
     "smoke:gsc": "tsx scripts/smoke-gsc.ts",
-    "sync:shopify": "tsx scripts/sync-shopify.ts"
+    "sync:shopify": "tsx scripts/sync-shopify.ts",
+    "apply:shopify": "tsx scripts/apply-shopify-change-set.ts",
+    "rollback:shopify": "tsx scripts/rollback-shopify-apply-run.ts",
+    "smoke:shopify": "tsx scripts/smoke-shopify.ts",
+    "smoke:stripe": "tsx scripts/smoke-stripe.ts",
+    "smoke:storage": "tsx scripts/smoke-storage.ts",
+    "smoke:worker": "tsx scripts/smoke-worker.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.10.3",

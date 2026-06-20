@@ -200,3 +200,7 @@ Rankelia now includes foundations for AI Template Studio: prompt templates, prom
 ## Shopify read/import foundation
 
 Rankelia now includes a Shopify read-only foundation: OAuth with HMAC/state, encrypted tokens, GraphQL Admin API product sync, webhook verification and `/app/integrations/shopify`. Shopify write/apply is intentionally disabled until safe change sets and rollback ship.
+
+## Prompt 8 launch readiness
+
+Shopify read/import now upserts synchronized products into `shopify_products` and `catalog_items`. Shopify apply/rollback is code-prepared behind change sets, dry run, `write_products`, `SHOPIFY_WRITE_ENABLED`, explicit confirmation and pre-apply snapshots. Do not enable Shopify writes until staging smoke tests validate one product apply and rollback.

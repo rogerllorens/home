@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getShopifyConfig } from "./config";
 import { SHOPIFY_PRODUCTS_QUERY, type ShopifyProductNode } from "./products";
 import { shopifyGraphqlRequest, respectShopifyGraphqlCostBudget } from "./graphql-client";
-import { mapShopifyProductRecord } from "./mapper";
+import { mapShopifyProductRecord, mapShopifyProductToCatalogItem } from "./mapper";
 
 type ProductsResponse = { products: { pageInfo: { hasNextPage: boolean; endCursor: string | null }; edges: Array<{ node: ShopifyProductNode }> } };
 type ShopifyStoreRow = { id: string; myshopify_domain: string; access_token_encrypted: string };
@@ -19,11 +19,19 @@ export async function syncShopifyProducts(client: SupabaseClient, args: { runId?
     const graphqlResult: Awaited<ReturnType<typeof shopifyGraphqlRequest<ProductsResponse>>> = await shopifyGraphqlRequest<ProductsResponse>({ store, query: SHOPIFY_PRODUCTS_QUERY, variables: { first: Math.min(config.batchSize, max - seen), after } });
     const products: ShopifyProductNode[] = graphqlResult.data.products.edges.map((edge: { node: ShopifyProductNode }) => edge.node);
     seen += products.length;
-    if (!args.dryRun && products.length) await client.from("shopify_products").upsert(products.map((product) => mapShopifyProductRecord(product, args.userId, store.id)), { onConflict: "store_id,shopify_product_gid" });
+    if (!args.dryRun && products.length) {
+      for (const product of products) {
+        const catalogPayload = { ...mapShopifyProductToCatalogItem(product, args.userId), shopify_store_id: store.id, shopify_product_gid: product.id, import_source_type: "shopify" };
+        const catalog = await client.from("catalog_items").upsert(catalogPayload, { onConflict: "shopify_store_id,shopify_product_gid" }).select("id").single();
+        const productPayload = { ...mapShopifyProductRecord(product, args.userId, store.id), catalog_item_id: catalog.data?.id ?? null };
+        await client.from("shopify_products").upsert(productPayload, { onConflict: "store_id,shopify_product_gid" });
+        await client.from("shopify_product_snapshots").insert({ user_id: args.userId, store_id: store.id, shopify_product_gid: product.id, snapshot_type: "sync", snapshot: product, source: "shopify_sync" });
+      }
+    }
     after = graphqlResult.data.products.pageInfo.hasNextPage ? graphqlResult.data.products.pageInfo.endCursor : null;
     const wait = respectShopifyGraphqlCostBudget(graphqlResult.cost);
     if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
   } while (after && seen < max);
-  if (args.runId && !args.dryRun) await client.from("shopify_sync_runs").update({ status: "completed", products_seen: seen, finished_at: new Date().toISOString() }).eq("id", args.runId).eq("user_id", args.userId);
+  if (args.runId && !args.dryRun) await client.from("shopify_sync_runs").update({ status: "completed", products_seen: seen, products_created: seen, finished_at: new Date().toISOString() }).eq("id", args.runId).eq("user_id", args.userId);
   return { productsSeen: seen, dryRun: Boolean(args.dryRun) };
 }

@@ -57,3 +57,11 @@ Search Console data can be delayed, aggregated and absent for small sites. CTR a
 - AI Template Studio has traceability columns and admin APIs, but full visual prompt editor/tester UX still needs polish.
 - GSC code enqueues sync, but real production smoke requires Google credentials and connected property.
 - Legacy `.xls` remains safe rejection.
+
+## Prompt 8 launch limitations
+
+- Shopify write/apply/rollback code is implemented behind strong gates, but must pass real staging smoke tests before being exposed broadly.
+- Shopify image alt mutation is policy-allowed but should remain blocked or tested per API version before bulk use.
+- GSC, Resend, Stripe, Storage and Shopify smoke scripts skip without real credentials.
+- `npm audit --omit=dev` may still report upstream framework advisories until patched dependency versions are available and tested.
+- `format:check` can remain a separate repo-wide formatting PR; do not mix mass formatting with feature work.

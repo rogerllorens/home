@@ -15,6 +15,6 @@ export async function GET(request: Request) {
   const scopes = (token.scope ?? getReadScopes().join(",")).split(",").map((scope) => scope.trim()).filter(Boolean);
   if (!scopes.includes("read_products")) return NextResponse.redirect(new URL("/app/integrations/shopify?error=missing_read_products", request.url));
   await supabase.from("shopify_oauth_states").update({ consumed_at: new Date().toISOString() }).eq("id", oauthState.id);
-  await supabase.from("shopify_stores").upsert({ user_id: oauthState.user_id, shop_domain: shop, myshopify_domain: shop, access_token_encrypted: encryptShopifyToken(token.access_token), granted_scopes: scopes, status: "connected", read_connected_at: new Date().toISOString(), disconnected_at: null, last_error: null }, { onConflict: "user_id,myshopify_domain" });
+  await supabase.from("shopify_stores").upsert({ user_id: oauthState.user_id, shop_domain: shop, myshopify_domain: shop, access_token_encrypted: encryptShopifyToken(token.access_token), granted_scopes: scopes, status: "connected", read_connected_at: new Date().toISOString(), write_connected_at: scopes.includes("write_products") ? new Date().toISOString() : null, disconnected_at: null, last_error: null }, { onConflict: "user_id,myshopify_domain" });
   return NextResponse.redirect(new URL(oauthState.redirect_after ?? "/app/integrations/shopify", request.url));
 }
