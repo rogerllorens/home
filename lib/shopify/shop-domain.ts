@@ -1,0 +1,2 @@
+export function normalizeShopDomain(input: string) { const value = input.trim().toLowerCase(); if (!value || value.includes("/") || value.includes(":") || /\s/.test(value)) throw new Error("invalid_shop_domain"); if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(value)) throw new Error("invalid_shop_domain"); return value; }
+export function isValidShopDomain(input: string) { try { normalizeShopDomain(input); return true; } catch { return false; } }

@@ -1,0 +1,1 @@
+export type GscMetric = { page_url?: string; query?: string; clicks: number; impressions: number; ctr: number; position: number; matched_catalog_item_id?: string | null; matched_proposal_id?: string | null; match_confidence?: number | null };

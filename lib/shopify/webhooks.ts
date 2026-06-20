@@ -1,0 +1,3 @@
+import { hashPayload, verifyShopifyWebhookHmac } from "./hmac";
+import { normalizeShopDomain } from "./shop-domain";
+export async function verifyShopifyWebhookRequest(request: Request) { const rawBody = await request.text(); const hmacValid = await verifyShopifyWebhookHmac(rawBody, request.headers.get("x-shopify-hmac-sha256")); const topic = request.headers.get("x-shopify-topic") ?? "unknown"; const shopDomain = normalizeShopDomain(request.headers.get("x-shopify-shop-domain") ?? ""); const deliveryId = request.headers.get("x-shopify-webhook-id") ?? hashPayload(rawBody); return { rawBody, hmacValid, topic, shopDomain, deliveryId, payloadHash: hashPayload(rawBody) }; }

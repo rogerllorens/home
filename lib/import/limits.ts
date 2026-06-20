@@ -1,0 +1,2 @@
+export const IMPORT_LIMITS = { maxFileSizeBytes: 10 * 1024 * 1024, maxRowsFreePreview: 50, maxRowsPerJobFallback: 5000, maxColumns: 150, maxCellLength: 10000, maxSheets: 25, maxXmlNodes: 50000, maxXmlDepth: 12, maxPastedChars: 2_000_000 } as const;
+export function assertImportFileSize(size: number) { if (size > IMPORT_LIMITS.maxFileSizeBytes) throw new Error("El archivo supera 10MB. Divide el catálogo antes de importarlo."); }

@@ -1,0 +1,3 @@
+import type { ReactNode } from "react";
+import { Card } from "@/components/ui/Card";
+export function AppEmptyState({ title, description, action, icon = "·" }: { title: string; description: string; action?: ReactNode; icon?: string }) { return <Card className="text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-xl font-black text-blue-700">{icon}</div><h2 className="mt-4 text-2xl font-black text-slate-950">{title}</h2><p className="mx-auto mt-2 max-w-xl text-sm text-slate-600">{description}</p>{action ? <div className="mt-5">{action}</div> : null}</Card>; }

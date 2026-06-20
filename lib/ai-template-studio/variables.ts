@@ -1,0 +1,2 @@
+import type { CsvRow } from "@/lib/csv";
+export function buildProductPromptVariables(row: CsvRow, extra: Record<string, unknown> = {}) { return { input_json: row, product_name: row.product_name ?? row.title ?? row.name ?? "", sku: row.sku ?? row.SKU ?? "", category: row.category ?? row.categories ?? "", brand: row.brand ?? row.vendor ?? "", description: row.description ?? row.body_html ?? "", meta_title: row.meta_title ?? "", meta_description: row.meta_description ?? "", manual_instructions: extra.manual_instructions ?? "", ...extra }; }

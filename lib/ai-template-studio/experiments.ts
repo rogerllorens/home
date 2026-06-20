@@ -1,0 +1,2 @@
+import crypto from "node:crypto";
+export function chooseExperimentVariant(input: { experimentId: string; variantA: string; variantB: string; split?: number; stickyKey: string }) { const split = Math.min(0.99, Math.max(0.01, input.split ?? 0.5)); const hash = crypto.createHash("sha256").update(`${input.experimentId}:${input.stickyKey}`).digest(); const value = hash.readUInt32BE(0) / 0xffffffff; return value < split ? input.variantA : input.variantB; }

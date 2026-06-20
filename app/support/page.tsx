@@ -1,0 +1,8 @@
+import { Button } from "@/components/ui/Button";
+
+export const metadata = { title: "Soporte | Rankelia.ai", description: "Contacto y soporte para Rankelia.ai." };
+
+export default function SupportPage() {
+  const email = process.env.SUPPORT_EMAIL ?? "soporte@rankelia.ai";
+  return <main className="bg-slate-50 px-4 py-16"><section className="mx-auto max-w-4xl rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-slate-200"><p className="text-sm font-bold uppercase tracking-[0.3em] text-blue-600">Soporte</p><h1 className="mt-4 text-4xl font-black text-slate-950">¿Necesitas ayuda con un CSV, job o pago?</h1><p className="mt-4 text-slate-600">Escríbenos con tu email de cuenta, ID del job si aplica y una descripción breve. No incluyas claves API, tarjetas ni datos sensibles innecesarios.</p><div className="mt-8 grid gap-4 md:grid-cols-3"><div className="rounded-3xl bg-slate-50 p-5"><h2 className="font-black">CSV y jobs</h2><p className="mt-2 text-sm text-slate-600">Errores de parseo, mapping, worker o descargas.</p></div><div className="rounded-3xl bg-slate-50 p-5"><h2 className="font-black">Billing</h2><p className="mt-2 text-sm text-slate-600">Checkout, productos extra, suscripciones y wallet.</p></div><div className="rounded-3xl bg-slate-50 p-5"><h2 className="font-black">IA</h2><p className="mt-2 text-sm text-slate-600">Warnings, claims, fallback y validación JSON.</p></div></div><div className="mt-8 flex flex-col gap-3 sm:flex-row"><Button href={`mailto:${email}`}>Contactar por email</Button><Button href="/privacy" variant="secondary">Privacidad</Button></div></section></main>;
+}
