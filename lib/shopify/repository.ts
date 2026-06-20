@@ -1,0 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+export async function listShopifyStores(client: SupabaseClient, userId: string) { return (await client.from("shopify_stores").select("id,shop_domain,myshopify_domain,store_name,status,granted_scopes,last_sync_at,last_error,created_at").eq("user_id", userId).order("created_at", { ascending: false })).data ?? []; }
+export async function enqueueShopifySyncRun(client: SupabaseClient, userId: string, storeId: string, mode = "manual") { return await client.from("shopify_sync_runs").insert({ user_id: userId, store_id: storeId, status: "queued", mode, sync_type: "products" }).select("id,status").single(); }
+export async function getOwnedShopifyStore(client: SupabaseClient, userId: string, storeId: string) { return (await client.from("shopify_stores").select("*").eq("id", storeId).eq("user_id", userId).maybeSingle()).data; }

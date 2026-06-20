@@ -196,3 +196,7 @@ The free audit now supports optional email report consent, conversion summaries,
 ## AI Template Studio
 
 Rankelia now includes foundations for AI Template Studio: prompt templates, prompt versions, sector rules, model configs, routing rules, AI generation runs, cost monitoring helpers and seed/smoke scripts. Run `npm run seed:ai-templates -- --dry-run` to inspect the initial template/sector/model seed without writing to Supabase.
+
+## Shopify read/import foundation
+
+Rankelia now includes a Shopify read-only foundation: OAuth with HMAC/state, encrypted tokens, GraphQL Admin API product sync, webhook verification and `/app/integrations/shopify`. Shopify write/apply is intentionally disabled until safe change sets and rollback ship.

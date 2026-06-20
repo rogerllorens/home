@@ -49,3 +49,11 @@ Search Console data can be delayed, aggregated and absent for small sites. CTR a
 - Anthropic/Claude and Gemini are prepared as paused model configs, not claimed as production-tested adapters.
 - Resend/GSC smoke scripts skip without real credentials.
 - `.xls` legacy remains safe rejection.
+
+## Prompt 7 limitations
+
+- Shopify write/apply is not active; only read/import foundation is implemented.
+- Shopify sync worker needs production scheduling and real app credentials.
+- AI Template Studio has traceability columns and admin APIs, but full visual prompt editor/tester UX still needs polish.
+- GSC code enqueues sync, but real production smoke requires Google credentials and connected property.
+- Legacy `.xls` remains safe rejection.

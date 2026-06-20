@@ -80,6 +80,12 @@ export type OptimizationProposalVersion = {
   recommendations: string[];
   model_used: string | null;
   prompt_version: string | null;
+  provider?: string | null;
+  template_id?: string | null;
+  prompt_version_id?: string | null;
+  sector_rule_id?: string | null;
+  ai_generation_run_id?: string | null;
+  token_usage?: Record<string, unknown>;
   generation_engine: string | null;
   fallback_used: boolean;
   human_review_required: boolean;

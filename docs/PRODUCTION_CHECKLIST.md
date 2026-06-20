@@ -96,3 +96,11 @@
 - Verify `/auditoria/[token]` reports are server-rendered and tokens are not database IDs.
 - Confirm public reports do not expose email, IP or user-agent hashes.
 - Run a Resend real-delivery smoke test before enabling paid traffic.
+
+## Prompt 7 launch blockers
+
+- Configure and smoke test Shopify app credentials, redirect URL and webhook secret.
+- Keep `SHOPIFY_WRITE_ENABLED=false` until Prompt 8 apply/rollback is complete.
+- Run real Google Search Console OAuth/sync smoke with cron/worker.
+- Run Resend smoke with verified domain.
+- Confirm Supabase RLS for Shopify, GSC, imports, jobs, proposals and AI runs with real users.

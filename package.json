@@ -20,7 +20,8 @@
     "sync:gsc": "tsx scripts/sync-gsc.ts",
     "seed:ai-templates": "tsx scripts/seed-ai-templates.ts",
     "smoke:resend": "tsx scripts/smoke-resend.ts",
-    "smoke:gsc": "tsx scripts/smoke-gsc.ts"
+    "smoke:gsc": "tsx scripts/smoke-gsc.ts",
+    "sync:shopify": "tsx scripts/sync-shopify.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.10.3",

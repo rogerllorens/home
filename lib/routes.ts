@@ -10,6 +10,7 @@ export const appRoutes = [
   { label: "Catálogo", href: "/app/catalog", icon: "◎" },
   { label: "Oportunidades", href: "/app/opportunities", icon: "↗" },
   { label: "Search Console", href: "/app/search-console", icon: "⌁" },
+  { label: "Shopify", href: "/app/integrations/shopify", icon: "S" },
   { label: "Propuestas", href: "/app/proposals", icon: "✦" },
   { label: "Jobs", href: "/app/jobs", icon: "◷" },
   { label: "Descargas", href: "/app/downloads", icon: "↓" },
