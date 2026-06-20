@@ -188,3 +188,7 @@ Rankelia now includes a readonly GSC integration: OAuth connection, encrypted to
 ## Universal import
 
 Rankelia now normalizes CSV/TSV, Windows-1252 CSV, XLSX, pasted tables and basic XML into an internal UTF-8 CSV before creating jobs. The upload flow exposes platform detection, mapping confidence, row warnings and downloadable templates while preserving the existing jobs/proposals/GSC/export pipeline. Legacy binary `.xls` is detected with a safe error; save as `.xlsx`, CSV or paste the table. See `docs/UNIVERSAL_IMPORT.md`.
+
+## Free audit conversion
+
+The free audit now supports optional email report consent, conversion summaries, secure `/auditoria/[token]` public reports and CTAs into signup/upload. Email reports use Resend only when `EMAIL_REPORTS_ENABLED=true`; otherwise the audit still returns the visual report and public URL. See `docs/FREE_AUDIT_CONVERSION.md`.

@@ -81,3 +81,13 @@
 6. Review mapping confidence and row warnings.
 7. Create a job from the normalized import.
 8. Run the worker and verify proposals, catalog items, opportunities, GSC matching and approved exports still work.
+
+## Free audit conversion smoke test
+
+1. Run a free audit without email and verify the visual report appears.
+2. Run a free audit with email + report consent and verify the API returns a public report URL.
+3. Open `/auditoria/[token]` and confirm no email/IP/user-agent is shown.
+4. Click “Empezar a optimizar mi tienda” and verify the register URL includes `source=audit_report` and `auditToken`.
+5. Upload a multi-sheet XLSX and verify sheet metadata can be shown.
+6. Paste table data, apply bulk trim/remove-empty helpers and create a job.
+7. Import a Merchant-like XML feed with CDATA and repeated image links.

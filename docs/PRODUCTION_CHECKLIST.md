@@ -88,3 +88,11 @@
 - Verify private Storage remains the only persisted input path for normalized job files.
 - Confirm `.xls` legacy files show the safe rejection message unless a binary XLS parser is explicitly added and tested.
 - Re-run the import smoke test for CSV, Windows-1252, XLSX, pasted tables and XML before launch.
+
+## Free audit conversion checklist
+
+- Apply migrations 018 and 019.
+- Configure `EMAIL_REPORTS_ENABLED`, `RESEND_API_KEY`, `EMAIL_FROM` and `EMAIL_REPLY_TO` if email reports are enabled.
+- Verify `/auditoria/[token]` reports are server-rendered and tokens are not database IDs.
+- Confirm public reports do not expose email, IP or user-agent hashes.
+- Run a Resend real-delivery smoke test before enabling paid traffic.

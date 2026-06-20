@@ -35,3 +35,10 @@ Search Console data can be delayed, aggregated and absent for small sites. CTR a
 - XML support is basic product/feed XML, not arbitrary ERP schemas.
 - Rankelia does not execute formulas/macros and does not preserve spreadsheet formatting.
 - Very large catalogs should be split into batches according to plan and import limits.
+
+## Free audit conversion limitations
+
+- Email rendering is implemented and unit-tested, but real Resend delivery still needs staging/production smoke credentials.
+- Public audit reports expire by token; users must rerun the audit after expiration.
+- Import history data model exists, but full retry UI is still a follow-up.
+- Legacy `.xls` remains a safe rejection.

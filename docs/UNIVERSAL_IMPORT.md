@@ -11,3 +11,7 @@ Supported upload flow:
 Limits are intentionally conservative: 10 MB files, 150 columns, 10,000 characters per cell, 25 XLSX sheets, 50,000 XML nodes, XML depth 12 and 2,000,000 pasted characters.
 
 Security: Rankelia does not execute macros, does not evaluate formulas, blocks XML DOCTYPE/ENTITY, does not fetch URLs from imported content and keeps CSV injection protections for exports.
+
+## Prompt 5 polish
+
+Prompt 5 adds reusable sheet-selection UI, safe bulk correction helpers and an `import_runs` history table. Legacy `.xls` remains a safe rejection. XML feed parsing now handles CDATA and repeated Merchant-style image fields more gracefully.

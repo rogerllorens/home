@@ -5,6 +5,7 @@ const strict = ["production", "worker", "stripe", "supabase", "ai"].includes(mod
 const pagespeedEnabled = process.env.PAGESPEED_ENABLED !== "false";
 const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO === "true";
 const emailEnabled = process.env.EMAIL_ENABLED === "true";
+const emailReportsEnabled = process.env.EMAIL_REPORTS_ENABLED === "true";
 const fallbackOnly = process.env.AI_USE_FALLBACK === "template-only" || process.env.AI_PROVIDER === "template";
 const gscEnabled = process.env.GSC_ENABLED === "true";
 
@@ -15,7 +16,7 @@ const groups: EnvGroup[] = [
   { name: "worker", required: strict ? ["WORKER_MAX_JOBS_PER_RUN", "WORKER_MAX_ROWS_PER_JOB", "WORKER_STALE_JOB_MINUTES", "WORKER_MAX_ATTEMPTS"] : [], recommended: ["WORKER_MAX_JOBS_PER_RUN", "WORKER_MAX_ROWS_PER_JOB", "WORKER_STALE_JOB_MINUTES", "WORKER_MAX_ATTEMPTS"] },
   { name: "rate-limit", required: strict ? ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"] : [], recommended: ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"] },
   { name: "ai", required: strict && !fallbackOnly ? ["AI_PROVIDER"] : [], recommended: ["OPENAI_API_KEY", "QWEN_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "AI_USE_FALLBACK", "AI_ROW_TIMEOUT_MS"] },
-  { name: "email", required: strict && emailEnabled ? ["RESEND_API_KEY", "EMAIL_FROM"] : [], recommended: ["RESEND_API_KEY", "EMAIL_FROM", "SUPPORT_EMAIL"] },
+  { name: "email", required: strict && (emailEnabled || emailReportsEnabled) ? ["RESEND_API_KEY", "EMAIL_FROM"] : [], recommended: ["EMAIL_REPORTS_ENABLED", "RESEND_API_KEY", "EMAIL_FROM", "EMAIL_REPLY_TO", "SUPPORT_EMAIL"] },
   { name: "observability", required: [], recommended: ["SENTRY_DSN", "SENTRY_ENVIRONMENT"] },
   { name: "pagespeed", required: strict && pagespeedEnabled ? ["PAGESPEED_API_KEY"] : [], recommended: ["PAGESPEED_API_KEY", "PAGESPEED_ENABLED", "PAGESPEED_TIMEOUT_MS", "PAGESPEED_CACHE_TTL_HOURS", "PAGESPEED_MAX_URLS_PER_DAY"] },
   { name: "gsc", required: strict && gscEnabled ? ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI", "GOOGLE_TOKEN_ENCRYPTION_KEY", "GOOGLE_GSC_SCOPES"] : [], recommended: ["GSC_ENABLED", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI", "GOOGLE_TOKEN_ENCRYPTION_KEY", "GOOGLE_GSC_SCOPES", "GSC_SYNC_ROW_LIMIT", "GSC_SYNC_MAX_ROWS_PER_DIMENSION"] },
@@ -38,6 +39,7 @@ for (const group of groups) {
 if (strict && demoEnabled) { console.log("[ERROR] app: NEXT_PUBLIC_ENABLE_DEMO must be false in production."); failures += 1; }
 if (strict && !process.env.UPSTASH_REDIS_REST_URL) console.log("[ERROR] rate-limit: UPSTASH_REDIS_REST_URL y UPSTASH_REDIS_REST_TOKEN son obligatorios en producción: el rate limiting en memoria no protege entornos serverless multi-instancia.");
 if (!process.env.RESEND_API_KEY) console.log("[INFO] email: Resend is noop until RESEND_API_KEY and EMAIL_FROM are configured.");
+if (strict && emailReportsEnabled && (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM)) { console.log("[ERROR] email: EMAIL_REPORTS_ENABLED=true requires RESEND_API_KEY and EMAIL_FROM in production."); failures += 1; }
 if (!process.env.UPSTASH_REDIS_REST_URL) console.log(strict ? "[ERROR] rate-limit: memory fallback is forbidden in production." : "[INFO] rate-limit: using in-memory fallback only for development/test; configure Upstash for production.");
 if (fallbackOnly) console.log("[WARN] ai: template-only/fallback mode limits production quality; configure a real provider before public launch.");
 if (gscEnabled) {
