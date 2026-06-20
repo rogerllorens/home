@@ -180,3 +180,7 @@ Rankelia now supports a proposals workflow: generated `job_rows.output_data` rem
 ## Dashboard privado
 
 La app privada incluye dashboard real, catálogo, oportunidades internas, propuestas versionadas, jobs detail y descargas agrupadas. Las oportunidades actuales no usan Search Console: se basan en scores, warnings, propuestas y estado de aprobación/exportación.
+
+
+## Google Search Console
+Rankelia now includes a readonly GSC integration: OAuth connection, encrypted tokens, property selection, 28/90 day sync, URL/query/page+query metrics, catalog matching and GSC opportunity scoring. Configure `GSC_ENABLED=true` and Google OAuth/encryption env vars before exposing it in production.

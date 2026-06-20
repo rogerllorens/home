@@ -12,3 +12,6 @@ Rankelia now separates generation from review. A `job_row` can create a `catalog
 6. Approved-only exports include only proposals with `approved_version_id`.
 
 Rankelia does not publish changes automatically and does not guarantee rankings.
+
+## GSC-assisted review
+Proposal detail can show matched Search Console demand and a contextual action that pre-fills regeneration instructions with the top real query. This does not call Google from the frontend and does not promise ranking improvements.

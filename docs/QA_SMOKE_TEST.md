@@ -61,3 +61,12 @@
 4. `/app/jobs/[id]` muestra progreso, ETA, propuestas y logs.
 5. Aprobar una propuesta cambia el dashboard hacia descarga aprobada.
 6. `/app/downloads` etiqueta exports completos y solo aprobados.
+
+## GSC smoke test
+1. Set `GSC_ENABLED=true` with Google OAuth secrets and encryption key.
+2. Connect Search Console from `/app/search-console`.
+3. Confirm readonly consent and property list.
+4. Select a property and sync 28/90 days.
+5. Verify top GSC opportunities in `/app/opportunities?source=gsc`.
+6. Open matched catalog/proposal detail and confirm query/page metrics.
+7. Disconnect and verify tokens are nulled and UI returns to disconnected state.

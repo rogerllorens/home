@@ -23,3 +23,6 @@
 ## PageSpeed Insights
 
 Set `PAGESPEED_ENABLED=true` and `PAGESPEED_API_KEY` to enrich free audits with mobile/desktop performance. Tune `PAGESPEED_TIMEOUT_MS`, `PAGESPEED_CACHE_TTL_HOURS` and `PAGESPEED_MAX_URLS_PER_DAY` to control latency and quota.
+
+## Google Search Console
+`GSC_ENABLED=false` by default. To enable, configure Google OAuth client credentials, `GOOGLE_REDIRECT_URI`, readonly `GOOGLE_GSC_SCOPES`, a strong `GOOGLE_TOKEN_ENCRYPTION_KEY`, and sync row/time limits. Production validation fails if GSC is enabled without secure OAuth/encryption configuration.

@@ -25,3 +25,6 @@
 - Los gráficos son ligeros CSS/SVG y no sustituyen analítica avanzada.
 - La búsqueda de catálogo es básica y limitada para evitar cargas grandes.
 - La regeneración por campo sigue siendo beta template-safe hasta integrar prompts IA por scope.
+
+## GSC limitations
+Search Console data can be delayed, aggregated and absent for small sites. CTR and position are averages, not guarantees. Matching is conservative and can leave URLs unmatched. Rankelia infers opportunities from Google data plus internal quality scores; Google does not recommend or approve those actions.

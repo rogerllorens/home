@@ -16,7 +16,8 @@
     "cleanup:orphan-uploads": "tsx scripts/cleanup-orphan-uploads.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "backfill:proposals": "tsx scripts/backfill-proposals-from-job-rows.ts"
+    "backfill:proposals": "tsx scripts/backfill-proposals-from-job-rows.ts",
+    "sync:gsc": "tsx scripts/sync-gsc.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.10.3",

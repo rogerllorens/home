@@ -73,3 +73,11 @@
 - Aplicar migraciones hasta `015_optimization_proposals_versions.sql` antes de usar catálogo/propuestas.
 - Validar `/api/app/dashboard`, `/api/app/catalog`, `/api/app/opportunities` y `/api/app/jobs/[id]` con usuarios reales y RLS.
 - Confirmar que `NEXT_PUBLIC_ENABLE_DEMO=false` no expone rutas inactivas en navegación privada.
+
+## GSC production checklist
+- Configure Google OAuth consent and authorized redirect URI.
+- Use readonly Search Console scope only.
+- Generate a base64 32-byte `GOOGLE_TOKEN_ENCRYPTION_KEY` and keep it secret.
+- Run a staging OAuth connection and 28/90 sync before exposing the nav.
+- Configure daily cron with `npm run sync:gsc` and conservative limits.
+- Verify user A cannot view/sync user B properties or metrics.

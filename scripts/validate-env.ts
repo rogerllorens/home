@@ -6,6 +6,7 @@ const pagespeedEnabled = process.env.PAGESPEED_ENABLED !== "false";
 const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO === "true";
 const emailEnabled = process.env.EMAIL_ENABLED === "true";
 const fallbackOnly = process.env.AI_USE_FALLBACK === "template-only" || process.env.AI_PROVIDER === "template";
+const gscEnabled = process.env.GSC_ENABLED === "true";
 
 const groups: EnvGroup[] = [
   { name: "app", required: ["APP_URL", "NEXT_PUBLIC_APP_URL"], recommended: ["NEXT_PUBLIC_ENABLE_DEMO"] },
@@ -17,6 +18,7 @@ const groups: EnvGroup[] = [
   { name: "email", required: strict && emailEnabled ? ["RESEND_API_KEY", "EMAIL_FROM"] : [], recommended: ["RESEND_API_KEY", "EMAIL_FROM", "SUPPORT_EMAIL"] },
   { name: "observability", required: [], recommended: ["SENTRY_DSN", "SENTRY_ENVIRONMENT"] },
   { name: "pagespeed", required: strict && pagespeedEnabled ? ["PAGESPEED_API_KEY"] : [], recommended: ["PAGESPEED_API_KEY", "PAGESPEED_ENABLED", "PAGESPEED_TIMEOUT_MS", "PAGESPEED_CACHE_TTL_HOURS", "PAGESPEED_MAX_URLS_PER_DAY"] },
+  { name: "gsc", required: strict && gscEnabled ? ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI", "GOOGLE_TOKEN_ENCRYPTION_KEY", "GOOGLE_GSC_SCOPES"] : [], recommended: ["GSC_ENABLED", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI", "GOOGLE_TOKEN_ENCRYPTION_KEY", "GOOGLE_GSC_SCOPES", "GSC_SYNC_ROW_LIMIT", "GSC_SYNC_MAX_ROWS_PER_DIMENSION"] },
 ];
 
 let failures = 0;
@@ -38,6 +40,16 @@ if (strict && !process.env.UPSTASH_REDIS_REST_URL) console.log("[ERROR] rate-lim
 if (!process.env.RESEND_API_KEY) console.log("[INFO] email: Resend is noop until RESEND_API_KEY and EMAIL_FROM are configured.");
 if (!process.env.UPSTASH_REDIS_REST_URL) console.log(strict ? "[ERROR] rate-limit: memory fallback is forbidden in production." : "[INFO] rate-limit: using in-memory fallback only for development/test; configure Upstash for production.");
 if (fallbackOnly) console.log("[WARN] ai: template-only/fallback mode limits production quality; configure a real provider before public launch.");
+if (gscEnabled) {
+  const gscMissing = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI", "GOOGLE_TOKEN_ENCRYPTION_KEY", "GOOGLE_GSC_SCOPES"].filter((key) => !process.env[key]);
+  if (gscMissing.length) console.log(strict ? `[ERROR] gsc: GSC_ENABLED=true but missing ${gscMissing.join(", ")}` : `[WARN] gsc: GSC_ENABLED=true but missing ${gscMissing.join(", ")}`);
+  if (strict) failures += gscMissing.length;
+  const scopes = (process.env.GOOGLE_GSC_SCOPES ?? "").split(/\s+/).filter(Boolean);
+  if (!scopes.length || scopes.some((scope) => scope !== "https://www.googleapis.com/auth/webmasters.readonly")) { console.log("[ERROR] gsc: GOOGLE_GSC_SCOPES must be readonly only (https://www.googleapis.com/auth/webmasters.readonly)."); if (strict) failures += 1; }
+  const key = process.env.GOOGLE_TOKEN_ENCRYPTION_KEY;
+  const keyBytes = key ? Buffer.from(key, "base64").length === 32 ? 32 : Buffer.from(key, "utf8").length : 0;
+  if (strict && keyBytes < 32) { console.log("[ERROR] gsc: GOOGLE_TOKEN_ENCRYPTION_KEY must be base64 32 bytes or at least 32 UTF-8 bytes."); failures += 1; }
+}
 if (pagespeedEnabled && !process.env.PAGESPEED_API_KEY) {
   const level = strict ? "ERROR" : "WARN";
   console.log(`[${level}] pagespeed: PAGESPEED_ENABLED is not false but PAGESPEED_API_KEY is missing; PageSpeed enrichment will be skipped.`);

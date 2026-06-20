@@ -3,7 +3,9 @@ import { buildOnboardingChecklist } from "./onboarding";
 import { getNextBestAction } from "./next-best-action";
 import { estimateJobWaitTime } from "./wait-time";
 import type { DashboardOverview, DashboardActivityItem } from "./types";
-import { buildOpportunitiesFromProposals, labelFor } from "@/lib/opportunities";
+import { buildGscOpportunities, buildOpportunitiesFromProposals, labelFor } from "@/lib/opportunities";
+import { getGscConfig } from "@/lib/gsc/config";
+import { getGscStatus } from "@/lib/gsc/repository";
 
 type Client = SupabaseClient;
 const activeStatuses = ["queued", "ready_for_processing", "processing", "retrying"];
@@ -21,7 +23,13 @@ export async function getDashboardOverview(client: Client, user: { id: string; e
     client.from("proposal_events").select("id,proposal_id,event_type,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10),
   ]);
   const jobs = jobsRes.data ?? []; const proposals = proposalsRes.data ?? []; const catalog = catalogRes.data ?? []; const downloads = downloadsRes.data ?? [];
-  const opportunities = buildOpportunitiesFromProposals(proposals);
+  const internalOpportunities = buildOpportunitiesFromProposals(proposals);
+  const gscConfig = getGscConfig();
+  const gscStatus = await getGscStatus(client, user.id, gscConfig.enabled).catch(() => ({ enabled: gscConfig.enabled, connected: false, selectedProperty: null, lastSync: null, metrics28d: { clicks: 0, impressions: 0, ctr: 0, position: 0 } }));
+  const gscUrlMetrics = gscStatus.selectedProperty ? (await client.from("gsc_url_metrics").select("id,page_url,clicks,impressions,ctr,position,matched_catalog_item_id,matched_proposal_id,match_confidence").eq("user_id", user.id).eq("property_id", gscStatus.selectedProperty.id).eq("date_range", "28d").order("impressions", { ascending: false }).limit(200)).data ?? [] : [];
+  const gscPageQueryMetrics = gscStatus.selectedProperty ? (await client.from("gsc_page_query_metrics").select("id,page_url,query,clicks,impressions,ctr,position,matched_catalog_item_id,matched_proposal_id,match_confidence").eq("user_id", user.id).eq("property_id", gscStatus.selectedProperty.id).eq("date_range", "28d").order("impressions", { ascending: false }).limit(200)).data ?? [] : [];
+  const gscOpportunities = buildGscOpportunities({ urlMetrics: gscUrlMetrics as never, pageQueryMetrics: gscPageQueryMetrics as never, proposals: proposals as never });
+  const opportunities = [...gscOpportunities, ...internalOpportunities].sort((a, b) => b.score - a.score);
   const activeJobs = jobs.filter((job) => activeStatuses.includes(job.status));
   const approvedExports = downloads.filter((download) => /approved/i.test(download.filename)).length;
   const scores = proposals.map((p) => p.active_scores ?? {});
@@ -31,6 +39,7 @@ export async function getDashboardOverview(client: Client, user: { id: string; e
     jobs: { total: jobs.length, active: activeJobs.length, completed: countWhere(jobs, (j) => j.status === "completed" || j.status === "completed_with_warnings"), failed: countWhere(jobs, (j) => j.status?.includes("failed")), recent: jobs.slice(0, 6).map((job) => ({ id: job.id, filename: job.original_filename, status: job.status, rowsTotal: job.rows_total ?? 0, rowsProcessed: job.rows_processed ?? 0, progress: job.rows_total ? Math.round((job.rows_processed / job.rows_total) * 100) : 0, createdAt: job.created_at, etaLabel: estimateJobWaitTime({ status: job.status, rowsTotal: job.rows_total, rowsProcessed: job.rows_processed, createdAt: job.created_at, startedAt: job.started_at }).label })) },
     proposals: { total: proposals.length, pendingReview: countWhere(proposals, (p) => p.review_status === "pending_review"), needsChanges: countWhere(proposals, (p) => p.review_status === "needs_changes" || p.status === "needs_review"), approved: countWhere(proposals, (p) => Boolean(p.approved_version_id)), exported: countWhere(proposals, (p) => Boolean(p.exported_at) || p.status === "exported"), highImpact: countWhere(proposals, (p) => n(p.score_delta?.overall) >= 25), avgScoreDelta: avg(proposals.map((p) => n(p.score_delta?.overall)).filter(Boolean)) },
     catalog: { products: catalog.length, categories: new Set(catalog.map((item) => String(item.category ?? item.normalized_data?.category ?? "")).filter(Boolean)).size, withImages: countWhere(catalog, (item) => Boolean(item.normalized_data?.primary_image_url || item.original_data?.image_url || item.original_data?.["Image Src"])), missingAlt: countWhere(catalog, (item) => Boolean(item.normalized_data?.primary_image_url || item.original_data?.image_url) && !item.normalized_data?.primary_image_alt), lowSeoScore: countWhere(proposals, (p) => n(p.active_scores?.seo) > 0 && n(p.active_scores?.seo) < 60), lowImageScore: countWhere(proposals, (p) => n(p.active_scores?.image_seo) > 0 && n(p.active_scores?.image_seo) < 60) },
+    gsc: { enabled: gscStatus.enabled, connected: gscStatus.connected, selectedProperty: gscStatus.selectedProperty, lastSync: gscStatus.lastSync, metrics: { clicks28d: gscStatus.metrics28d?.clicks ?? 0, impressions28d: gscStatus.metrics28d?.impressions ?? 0, ctr28d: gscStatus.metrics28d?.ctr ?? 0, position28d: gscStatus.metrics28d?.position ?? 0, clicks90d: 0, impressions90d: 0, ctr90d: 0, position90d: 0 }, opportunities: { total: gscOpportunities.length, highPriority: countWhere(gscOpportunities, (o) => o.priority === "critical" || o.priority === "high"), quickWins: countWhere(gscOpportunities, (o) => o.type === "gsc_quick_win_position_4_15"), lowCtr: countWhere(gscOpportunities, (o) => o.type === "gsc_high_impressions_low_ctr"), impressionsNoClicks: countWhere(gscOpportunities, (o) => o.type === "gsc_impressions_no_clicks") } },
     downloads: { total: downloads.length, recent: downloads.slice(0, 6).map((d) => ({ id: d.id, jobId: d.job_id, filename: d.filename, fileType: d.file_type, approvedOnly: /approved/i.test(d.filename), createdAt: d.created_at, rowsCount: d.rows_count })), approvedExports },
     opportunities: { total: opportunities.length, highPriority: countWhere(opportunities, (o) => o.priority === "critical" || o.priority === "high"), byType: Object.entries(opportunities.reduce<Record<string, number>>((acc, op) => { acc[op.type] = (acc[op.type] ?? 0) + 1; return acc; }, {})).map(([type, count]) => ({ type, label: labelFor(type as never), count })), top: opportunities.slice(0, 8) },
   };

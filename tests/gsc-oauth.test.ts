@@ -1,0 +1,5 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { buildGoogleAuthUrl, createCodeChallenge, createCodeVerifier, generateOAuthStateValue } from "../lib/gsc/oauth";
+test("GSC auth URL uses readonly Search Console scope and PKCE", () => { process.env.GSC_ENABLED = "true"; process.env.GOOGLE_CLIENT_ID = "client"; process.env.GOOGLE_CLIENT_SECRET = "secret"; process.env.GOOGLE_REDIRECT_URI = "https://app.example.com/api/integrations/gsc/callback"; process.env.GOOGLE_GSC_SCOPES = "https://www.googleapis.com/auth/webmasters.readonly"; const verifier = createCodeVerifier(); const url = new URL(buildGoogleAuthUrl({ state: "state", codeChallenge: createCodeChallenge(verifier) })); assert.equal(url.searchParams.get("scope"), "https://www.googleapis.com/auth/webmasters.readonly"); assert.equal(url.searchParams.get("access_type"), "offline"); assert.equal(url.searchParams.get("code_challenge_method"), "S256"); assert.equal(url.toString().includes("webmasters%20"), false); });
+test("OAuth state is high entropy", () => { assert.ok(generateOAuthStateValue().length > 30); });

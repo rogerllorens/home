@@ -13,7 +13,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const detail = await getProposalDetail(createServiceClient(), context.user.id, id);
-    return NextResponse.json(detail);
+    const client = createServiceClient();
+    const gscMetrics = await client.from("gsc_url_metrics").select("page_url,clicks,impressions,ctr,position,match_confidence,date_range").eq("user_id", context.user.id).eq("matched_proposal_id", id).eq("date_range", "28d").order("impressions", { ascending: false }).limit(5);
+    const gscQueries = await client.from("gsc_page_query_metrics").select("page_url,query,clicks,impressions,ctr,position,match_confidence,date_range").eq("user_id", context.user.id).eq("matched_proposal_id", id).eq("date_range", "28d").order("impressions", { ascending: false }).limit(10);
+    return NextResponse.json({ ...detail, gscMetrics: gscMetrics.data ?? [], gscQueries: gscQueries.data ?? [] });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Proposal not found" }, { status: 404 });
   }
