@@ -2,7 +2,7 @@
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import type { WorkbookSheetSummary } from "@/lib/import/spreadsheet-importer";
+import type { WorkbookSheetSummary } from "@/lib/import/types";
 
 export function SpreadsheetSheetSelector({ sheets, selectedSheetId, onSelect }: { sheets: WorkbookSheetSummary[]; selectedSheetId?: string | null; onSelect: (sheetId: string) => void }) {
   if (!sheets.length) return null;

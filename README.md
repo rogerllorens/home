@@ -192,3 +192,7 @@ Rankelia now normalizes CSV/TSV, Windows-1252 CSV, XLSX, pasted tables and basic
 ## Free audit conversion
 
 The free audit now supports optional email report consent, conversion summaries, secure `/auditoria/[token]` public reports and CTAs into signup/upload. Email reports use Resend only when `EMAIL_REPORTS_ENABLED=true`; otherwise the audit still returns the visual report and public URL. See `docs/FREE_AUDIT_CONVERSION.md`.
+
+## AI Template Studio
+
+Rankelia now includes foundations for AI Template Studio: prompt templates, prompt versions, sector rules, model configs, routing rules, AI generation runs, cost monitoring helpers and seed/smoke scripts. Run `npm run seed:ai-templates -- --dry-run` to inspect the initial template/sector/model seed without writing to Supabase.

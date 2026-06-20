@@ -15,3 +15,7 @@ Security: Rankelia does not execute macros, does not evaluate formulas, blocks X
 ## Prompt 5 polish
 
 Prompt 5 adds reusable sheet-selection UI, safe bulk correction helpers and an `import_runs` history table. Legacy `.xls` remains a safe rejection. XML feed parsing now handles CDATA and repeated Merchant-style image fields more gracefully.
+
+## Prompt 6 polish
+
+`SpreadsheetSheetSelector` is now wired into upload state for XLSX sheets returned by the parser, and `BulkCorrectionPanel` can trim/normalize rows or remove empty/missing-name rows before job creation. `import_runs` has list/detail/retry API foundations; the complete retry UX can build on these endpoints.

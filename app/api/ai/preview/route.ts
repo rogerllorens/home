@@ -5,6 +5,8 @@ import type { CsvRow } from "@/lib/csv";
 import type { AIProcessingSettings } from "@/lib/ai";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { createGenerationRun } from "@/lib/ai-template-studio/repository";
+import { stableHash } from "@/lib/ai-template-studio/renderer";
 import { getPlanLimits, isGenerationTypeAllowed, isQualityAllowed } from "@/lib/plan-limits";
 import { normalizeGenerationType, normalizeQualityLevel } from "@/lib/pricing";
 
@@ -44,6 +46,7 @@ export async function POST(request: Request) {
   if (!rows.length) return NextResponse.json({ error: "No preview rows supplied" }, { status: 400 });
   const settings: AIProcessingSettings = { ...(body?.settings ?? {}), generation_type: generationType, quality_level: qualityLevel, generation_engine: "ai" };
   const results = await Promise.all(rows.map((row, index) => generateOutputWithAI(row, settings).then((result) => ({ index, ...result }))));
+  await Promise.all(results.map((result, index) => createGenerationRun({ userId: context.user?.id, taskType: "preview", provider: result.provider, model: result.model, promptVersionLabel: result.promptVersion, inputTokens: result.inputTokens, outputTokens: result.outputTokens, estimatedCost: result.cost, status: result.fallbackUsed ? "fallback" : "completed", fallbackUsed: result.fallbackUsed, warnings: result.validationErrors, promptInputHash: stableHash(rows[index]), outputHash: stableHash(result.rawAIOutput) })));
   await supabase.from("audit_events").insert({ user_id: context.user.id, action: "ai_preview", entity_type: "preview", status: "ok", metadata: { plan_id: planId, rows: rows.length, provider: results[0]?.provider ?? "template", model: results[0]?.model ?? "template" } });
   return NextResponse.json({ results, maxRows, previewsRemainingToday: Math.max(planLimits.previewsPerDay - usedToday, 0), provider: results[0]?.provider ?? "template", model: results[0]?.model ?? "template" });
   } catch (error) {

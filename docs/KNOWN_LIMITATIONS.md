@@ -42,3 +42,10 @@ Search Console data can be delayed, aggregated and absent for small sites. CTR a
 - Public audit reports expire by token; users must rerun the audit after expiration.
 - Import history data model exists, but full retry UI is still a follow-up.
 - Legacy `.xls` remains a safe rejection.
+
+## Prompt 6 limitations
+
+- AI Template Studio DB/runtime/admin foundations are implemented, but full prompt CRUD editing UX is still incremental.
+- Anthropic/Claude and Gemini are prepared as paused model configs, not claimed as production-tested adapters.
+- Resend/GSC smoke scripts skip without real credentials.
+- `.xls` legacy remains safe rejection.

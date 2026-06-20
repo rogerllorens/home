@@ -7,3 +7,5 @@ Set `GSC_ENABLED=true`, OAuth credentials, readonly scope and a strong token enc
 
 ## Data model
 Migration `016_gsc_integration.sql` creates encrypted connections, OAuth states, properties, sync runs, URL/query/page+query metric tables and catalog match records. RLS limits all GSC data to the owning user; service role writes happen only on server routes/scripts.
+
+Prompt 6 adds `npm run smoke:gsc`. Because OAuth is interactive, the script validates config and skips clearly unless a connected test account/token is available. A real GSC pass still requires manual OAuth in staging.
