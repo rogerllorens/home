@@ -1,0 +1,8 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getCurrentUserContext } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { importedRowsToCsv, parsePastedTable, parseImportPreview } from "@/lib/import";
+export const dynamic = "force-dynamic";
+const pastedSchema = z.object({ pastedText: z.string().max(2_000_000), fileName: z.string().optional() });
+export async function POST(request: Request) { const context = await getCurrentUserContext(); if (!context.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 }); const limited = await enforceRateLimit(request, "import:normalize", context.user.id, 30, 300); if (limited) return limited; try { const contentType = request.headers.get("content-type") ?? ""; let catalog; if (contentType.includes("multipart/form-data")) { const form = await request.formData(); const file = form.get("file"); if (!(file instanceof File)) return NextResponse.json({ error: "file_required" }, { status: 400 }); catalog = await parseImportPreview({ buffer: await file.arrayBuffer(), fileName: file.name, mime: file.type, sheetId: String(form.get("sheetId") ?? "") || undefined }); } else { const parsed = pastedSchema.parse(await request.json()); catalog = parsePastedTable(parsed.pastedText); } const csv = importedRowsToCsv(catalog.headers, catalog.rows); return NextResponse.json({ csv, fileName: `${catalog.fileName ?? "rankelia-import"}.normalized.csv`, catalog }); } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "import_normalize_failed" }, { status: 400 }); } }

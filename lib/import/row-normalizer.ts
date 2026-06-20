@@ -1,0 +1,3 @@
+import type { ImportedCatalogRow } from "./types";
+export function normalizeRows(rows: ImportedCatalogRow[], mapping: Record<string, string | null>) { return rows.map((row) => { const normalized: Record<string, unknown> = {}; for (const [field, column] of Object.entries(mapping)) if (column) normalized[field] = row.raw[column] ?? ""; return { ...row, normalized }; }); }
+export function importedRowsToCsv(headers: string[], rows: ImportedCatalogRow[]) { const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`; return [headers.map(escape).join(","), ...rows.map((row) => headers.map((h) => escape(row.raw[h])).join(","))].join("\n"); }

@@ -70,3 +70,14 @@
 5. Verify top GSC opportunities in `/app/opportunities?source=gsc`.
 6. Open matched catalog/proposal detail and confirm query/page metrics.
 7. Disconnect and verify tokens are nulled and UI returns to disconnected state.
+
+## Universal import smoke test
+
+1. Upload a Shopify CSV.
+2. Upload a Spanish semicolon CSV encoded as Windows-1252.
+3. Upload a multi-sheet XLSX and select the product sheet.
+4. Paste a table from Google Sheets.
+5. Upload a basic XML product feed.
+6. Review mapping confidence and row warnings.
+7. Create a job from the normalized import.
+8. Run the worker and verify proposals, catalog items, opportunities, GSC matching and approved exports still work.

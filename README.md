@@ -184,3 +184,7 @@ La app privada incluye dashboard real, catálogo, oportunidades internas, propue
 
 ## Google Search Console
 Rankelia now includes a readonly GSC integration: OAuth connection, encrypted tokens, property selection, 28/90 day sync, URL/query/page+query metrics, catalog matching and GSC opportunity scoring. Configure `GSC_ENABLED=true` and Google OAuth/encryption env vars before exposing it in production.
+
+## Universal import
+
+Rankelia now normalizes CSV/TSV, Windows-1252 CSV, XLSX, pasted tables and basic XML into an internal UTF-8 CSV before creating jobs. The upload flow exposes platform detection, mapping confidence, row warnings and downloadable templates while preserving the existing jobs/proposals/GSC/export pipeline. Legacy binary `.xls` is detected with a safe error; save as `.xlsx`, CSV or paste the table. See `docs/UNIVERSAL_IMPORT.md`.

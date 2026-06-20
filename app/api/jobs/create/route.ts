@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { getCurrentUserContext } from "@/lib/auth";
 import { analyzeCSVRows, autoMapColumns, parseCSV, type ColumnMapping, type CsvRow } from "@/lib/csv";
+import { decodeTextBuffer } from "@/lib/import/encoding";
 import { calculateJobCredits, calculateProductEquivalentUsed, normalizeGenerationType, normalizeQualityLevel } from "@/lib/pricing";
 import { INPUT_BUCKET, sanitizeFilename, validateStoragePathOwnership } from "@/lib/storage/files";
 import { createServiceClient } from "@/lib/supabase/admin";
@@ -20,6 +21,7 @@ type CreateJobPayload = {
   generationType?: string;
   qualityLevel?: string;
   columnMapping?: ColumnMapping;
+  importMetadata?: { sourceType?: string; originalFileName?: string; sheetName?: string | null; encoding?: string | null; delimiter?: string | null; platformGuess?: string | null; mappingConfidence?: number | null; warnings?: unknown[] };
 };
 
 const allowedPlatforms = new Set(["generic", "CSV genérico", "Shopify", "WooCommerce", "Prestashop", "PrestaShop"]);
@@ -112,7 +114,7 @@ export async function POST(request: Request) {
   }
 
   const originalFilename = sanitizeFilename(body.originalFilename ?? "catalogo.csv");
-  if (!originalFilename.toLowerCase().endsWith(".csv")) return NextResponse.json({ error: "Solo se procesan CSV reales en beta. XLSX está documentado para v1.1." }, { status: 400 });
+  if (!originalFilename.toLowerCase().endsWith(".csv")) return NextResponse.json({ error: "El backend procesa CSV interno normalizado. Convierte XLSX/XML/tabla pegada mediante el importador universal antes de crear el job." }, { status: 400 });
 
   const platform = normalizePlatform(body.platform);
   if (!allowedPlatforms.has(platform) && platform !== "generic") return NextResponse.json({ error: "Plataforma no permitida." }, { status: 400 });
@@ -147,11 +149,12 @@ export async function POST(request: Request) {
     supabase = service;
     const downloaded = await supabase.storage.from(INPUT_BUCKET).download(body.inputFilePath);
     if (downloaded.error || !downloaded.data) throw downloaded.error ?? new Error("No se pudo leer el CSV privado.");
-    const text = await downloaded.data.text();
+    const decoded = decodeTextBuffer(await downloaded.data.arrayBuffer());
+    const text = decoded.text;
     const parsed = parseCSV(text);
     if (!parsed.headers.length) return NextResponse.json({ error: "El CSV no tiene cabeceras." }, { status: 400 });
     if (!parsed.rows.length) return NextResponse.json({ error: "El CSV no contiene filas." }, { status: 400 });
-    if (parsed.rows.length > maxRows) return NextResponse.json({ error: `Este entorno beta procesa hasta ${maxRows.toLocaleString("es-ES")} filas por job. Divide el CSV en varios lotes.`, maxRows }, { status: 413 });
+    if (parsed.rows.length > maxRows) return NextResponse.json({ error: `Tu configuración procesa hasta ${maxRows.toLocaleString("es-ES")} filas por job. Divide el catálogo en varios lotes.`, maxRows }, { status: 413 });
 
     const mapping = Object.keys(body.columnMapping ?? {}).length ? body.columnMapping! : autoMapColumns(parsed.headers);
     const analysis = analyzeCSVRows(parsed.rows, mapping, { generationType });
@@ -192,6 +195,14 @@ export async function POST(request: Request) {
       quality_level: qualityLevel,
       product_equivalent_used: productEquivalent,
       average_score: analysis.currentScore,
+      import_source_type: body.importMetadata?.sourceType ?? "csv",
+      import_original_file_name: body.importMetadata?.originalFileName ?? originalFilename,
+      import_sheet_name: body.importMetadata?.sheetName ?? null,
+      import_encoding: body.importMetadata?.encoding ?? decoded.encoding,
+      import_delimiter: body.importMetadata?.delimiter ?? parsed.delimiter,
+      import_platform_guess: body.importMetadata?.platformGuess ?? platform,
+      import_mapping_confidence: body.importMetadata?.mappingConfidence ?? null,
+      import_warnings: [...(body.importMetadata?.warnings ?? []), ...decoded.warnings] as unknown as Record<string, unknown>[],
     }).select("*").single<{ id: string }>();
     if (job.error || !job.data?.id) throw job.error ?? new Error("No se pudo crear el job.");
     jobId = job.data.id;

@@ -81,3 +81,10 @@
 - Run a staging OAuth connection and 28/90 sync before exposing the nav.
 - Configure daily cron with `npm run sync:gsc` and conservative limits.
 - Verify user A cannot view/sync user B properties or metrics.
+
+## Universal import checklist
+
+- Keep file size, column, row, pasted-character and XML node/depth limits enabled.
+- Verify private Storage remains the only persisted input path for normalized job files.
+- Confirm `.xls` legacy files show the safe rejection message unless a binary XLS parser is explicitly added and tested.
+- Re-run the import smoke test for CSV, Windows-1252, XLSX, pasted tables and XML before launch.

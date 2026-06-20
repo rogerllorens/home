@@ -1,0 +1,2 @@
+import type { ImportSourceType } from "./types";
+export function detectImportSourceType(name = "", mime = ""): ImportSourceType | "unknown" { const lower = name.toLowerCase(); if (lower.endsWith(".csv")) return "csv"; if (lower.endsWith(".tsv")) return "tsv"; if (lower.endsWith(".xlsx")) return "xlsx"; if (lower.endsWith(".xls")) return "xls"; if (lower.endsWith(".xml") || /xml/.test(mime)) return "xml"; return "unknown"; }

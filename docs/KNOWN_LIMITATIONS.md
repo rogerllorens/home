@@ -28,3 +28,10 @@
 
 ## GSC limitations
 Search Console data can be delayed, aggregated and absent for small sites. CTR and position are averages, not guarantees. Matching is conservative and can leave URLs unmatched. Rankelia infers opportunities from Google data plus internal quality scores; Google does not recommend or approve those actions.
+
+## Universal import limitations
+
+- Legacy binary `.xls` is detected but not parsed; users should upload `.xlsx`, CSV or paste the table.
+- XML support is basic product/feed XML, not arbitrary ERP schemas.
+- Rankelia does not execute formulas/macros and does not preserve spreadsheet formatting.
+- Very large catalogs should be split into batches according to plan and import limits.
